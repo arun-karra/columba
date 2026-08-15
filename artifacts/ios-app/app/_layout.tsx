@@ -20,7 +20,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 // ── Module-level API configuration ─────────────────────────────────────────
 // Must run before any component renders so every hook call hits the right host.
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
-setAuthTokenGetter(() => AsyncStorage.getItem('kindred-token'));
+setAuthTokenGetter(() => AsyncStorage.getItem('columba-token'));
 
 SplashScreen.preventAutoHideAsync();
 

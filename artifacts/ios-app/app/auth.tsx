@@ -74,7 +74,7 @@ export default function AuthScreen() {
       >
         {/* Brand */}
         <View style={styles.brand}>
-          <Text style={[styles.wordmark, { color: colors.accent }]}>kindred</Text>
+          <Text style={[styles.wordmark, { color: colors.accent }]}>Columba</Text>
           <Text style={[styles.tagline, { color: colors.primaryForeground, opacity: 0.65 }]}>
             shared notes for the people you love
           </Text>

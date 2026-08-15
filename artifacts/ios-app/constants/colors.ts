@@ -1,5 +1,5 @@
 /**
- * Brand palette derived from the shared-notes web app (index.css).
+ * Brand palette for Columba.
  * HSL → hex conversions: background hsl(42,33%,96%), foreground hsl(174,24%,18%),
  * primary hsl(174,31%,29%), accent hsl(39,89%,68%).
  */

@@ -194,7 +194,7 @@ export default function ProfileScreen() {
 
         {/* Footer */}
         <Text style={[styles.footer, { color: colors.mutedForeground }]}>
-          kindred · v1.0
+          Columba · v1.0
         </Text>
       </ScrollView>
     </View>

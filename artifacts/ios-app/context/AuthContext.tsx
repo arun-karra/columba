@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@workspace/api-client-react';
 
-export const TOKEN_KEY = 'kindred-token';
-const USER_KEY = 'kindred-user';
+export const TOKEN_KEY = 'columba-token';
+const USER_KEY = 'columba-user';
 
 interface AuthContextType {
   user: User | null;

@@ -44,8 +44,8 @@ router.post(
         await resend.emails.send({
           from: process.env.FROM_EMAIL,
           to: email,
-          subject: "Your Shared Notes sign-in code",
-          text: `Your Shared Notes sign-in code is ${code}. It expires in 10 minutes.`,
+          subject: "Your Columba sign-in code",
+          text: `Your Columba sign-in code is ${code}. It expires in 10 minutes.`,
         });
       } catch (error) {
         logger.error({ err: error }, "Unable to send sign-in email");
