@@ -1,36 +1,42 @@
 /**
  * Brand palette for Columba.
- * HSL → hex conversions: background hsl(42,33%,96%), foreground hsl(174,24%,18%),
- * primary hsl(174,31%,29%), accent hsl(39,89%,68%).
+ * Light theme refreshed from the "Columba Notes" Claude Design mockup —
+ * OKLCH → hex (CSS-style gamut-mapped, not per-channel clamped):
+ * primary oklch(58% 0.11 175), accent oklch(60% 0.14 75),
+ * foreground oklch(28% 0.035 200), background oklch(93% 0.025 85).
  */
 const colors = {
   light: {
-    text: '#233937',
-    tint: '#2D5250',
+    text: '#112E30',
+    tint: '#008F77',
 
-    background: '#F8F6F1',
-    foreground: '#233937',
+    background: '#F0E7D6',
+    foreground: '#112E30',
 
-    card: '#FDFCF9',
-    cardForeground: '#233937',
+    card: '#FEFBF6',
+    cardForeground: '#112E30',
 
-    primary: '#2D5250',
-    primaryForeground: '#FDFCF9',
+    primary: '#008F77',
+    primaryForeground: '#F8FDFB',
 
-    secondary: '#E8DFCA',
-    secondaryForeground: '#233937',
+    secondary: '#EEE7D9',
+    secondaryForeground: '#112E30',
 
-    muted: '#EDE8DB',
-    mutedForeground: '#647572',
+    muted: '#EEE7D9',
+    mutedForeground: '#5C6D6D',
 
-    accent: '#F5B93F',
-    accentForeground: '#233937',
+    accent: '#AC7300',
+    accentForeground: '#F8FDFB',
 
-    destructive: '#D44030',
-    destructiveForeground: '#FDFCF9',
+    destructive: '#B32228',
+    destructiveForeground: '#F8FDFB',
 
-    border: '#DDD8CB',
-    input: '#DDD8CB',
+    border: '#E3DDD3',
+    input: '#E3DDD3',
+
+    // Third color for group-avatar variety (mockup's GROUP_COLORS), from
+    // oklch(62% 0.14 320).
+    groupTertiary: '#AB68BA',
   },
 
   dark: {
@@ -60,10 +66,12 @@ const colors = {
 
     border: '#1E3330',
     input: '#273C39',
+
+    groupTertiary: '#C889D7',
   },
 
-  // 0.875rem from web CSS --radius
-  radius: 14,
+  // Refreshed from the mockup's rounder cards/inputs (was 14).
+  radius: 20,
 };
 
 export default colors;

@@ -204,19 +204,19 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1 },
-  headerTitle: { fontSize: 32, fontFamily: 'Manrope_700Bold' },
+  headerTitle: { fontSize: 34, fontFamily: 'Manrope_800ExtraBold' },
 
   content: { paddingHorizontal: 16, paddingTop: 28, gap: 16 },
 
   avatarSection: { alignItems: 'center', gap: 8, paddingVertical: 8 },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 88,
+    height: 88,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 28, fontFamily: 'Manrope_700Bold' },
+  avatarText: { fontSize: 32, fontFamily: 'Manrope_800ExtraBold' },
   emailText: { fontSize: 17, fontFamily: 'Manrope_600SemiBold', marginTop: 4 },
   sinceText: { fontSize: 13, fontFamily: 'Manrope_400Regular' },
 

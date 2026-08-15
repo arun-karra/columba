@@ -20,7 +20,7 @@ import {
   useCreateGroup,
   getListGroupsQueryKey,
 } from '@workspace/api-client-react';
-import { useColors } from '@/hooks/useColors';
+import { useColors, groupAvatarColor } from '@/hooks/useColors';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,7 +119,7 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
               </View>
             ) : (
               <View style={styles.groupList}>
-                {groups.map((g) => {
+                {groups.map((g, i) => {
                   const isSelected = g.id === selectedGroupId;
                   const initials = g.name
                     .split(' ')
@@ -142,7 +142,9 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
                       ]}
                       onPress={() => onSelect(g.id, g.name)}
                     >
-                      <View style={[styles.groupAvatar, { backgroundColor: colors.primary }]}>
+                      <View
+                        style={[styles.groupAvatar, { backgroundColor: groupAvatarColor(colors, i) }]}
+                      >
                         <Text
                           style={[
                             styles.groupAvatarText,

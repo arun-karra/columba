@@ -27,6 +27,8 @@ import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ShareModal } from '@/components/ShareModal';
 import { dismissNoteNotification } from '@/utils/notifications';
+import { Confetti } from '@/components/Confetti';
+import { TapScale } from '@/components/TapScale';
 
 export default function NoteDetailScreen() {
   const colors = useColors();
@@ -48,6 +50,7 @@ export default function NoteDetailScreen() {
   const [groupName, setGroupName] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
 
   useEffect(() => {
     if (!note) return;
@@ -106,10 +109,12 @@ export default function NoteDetailScreen() {
   const handleToggle = useCallback(async () => {
     if (!note) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const wasDone = note.isDone;
     await toggleDone.mutateAsync({ id: note.id });
     invalidate();
     // Clear the persistent lock-screen notification (best-effort).
     void dismissNoteNotification(note.id);
+    if (!wasDone) setConfettiTrigger((c) => c + 1);
   }, [note, toggleDone, invalidate]);
 
   useLayoutEffect(() => {
@@ -142,6 +147,7 @@ export default function NoteDetailScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <Confetti trigger={confettiTrigger} />
       <KeyboardAwareScrollViewCompat
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -311,13 +317,12 @@ export default function NoteDetailScreen() {
 
         {/* ── Actions ──────────────────────────────────────────────── */}
         <View style={styles.actions}>
-          <Pressable
-            style={({ pressed }) => [
+          <TapScale
+            style={[
               styles.actionBtn,
               {
                 backgroundColor: note.isDone ? colors.muted : colors.primary,
-                borderRadius: colors.radius / 2,
-                opacity: pressed ? 0.8 : 1,
+                borderRadius: 18,
                 flex: 1,
               },
             ]}
@@ -354,14 +359,14 @@ export default function NoteDetailScreen() {
                 </Text>
               </>
             )}
-          </Pressable>
+          </TapScale>
 
           <Pressable
             style={({ pressed }) => [
               styles.deleteBtn,
               {
                 borderColor: colors.destructive,
-                borderRadius: colors.radius / 2,
+                borderRadius: 18,
                 opacity: pressed ? 0.8 : 1,
               },
             ]}
@@ -400,7 +405,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 20 },
 
-  titleInput: { fontSize: 24, fontFamily: 'Manrope_700Bold', marginBottom: 12 },
+  titleInput: { fontSize: 24, fontFamily: 'Manrope_800ExtraBold', marginBottom: 12 },
   bodyInput: {
     fontSize: 16,
     fontFamily: 'Manrope_400Regular',
@@ -456,13 +461,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 19,
   },
-  actionBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  actionBtnText: { fontSize: 15, fontFamily: 'Manrope_700Bold' },
   deleteBtn: {
-    width: 52,
+    width: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+    borderWidth: 2,
   },
 });

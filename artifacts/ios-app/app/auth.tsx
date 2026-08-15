@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRequestAuthCode, useVerifyAuthCode } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
+import { TapScale } from '@/components/TapScale';
 
 type Step = 'email' | 'code';
 
@@ -60,50 +62,44 @@ export default function AuthScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: colors.primary }]}
+      style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View
         style={[
           styles.inner,
           {
-            paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 60),
+            paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 40),
             paddingBottom: insets.bottom + 32,
           },
         ]}
       >
         {/* Brand */}
         <View style={styles.brand}>
-          <Text style={[styles.wordmark, { color: colors.accent }]}>Columba</Text>
-          <Text style={[styles.tagline, { color: colors.primaryForeground, opacity: 0.65 }]}>
-            shared notes for the people you love
+          <View style={[styles.logoBadge, { backgroundColor: colors.primary, borderRadius: 22 }]}>
+            <Feather name="file-text" size={32} color={colors.primaryForeground} />
+          </View>
+          <Text style={[styles.wordmark, { color: colors.foreground }]}>Columba</Text>
+          <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
+            Notes that find their way to you.
           </Text>
         </View>
 
-        {/* Card */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.card, borderRadius: colors.radius },
-          ]}
-        >
+        {/* Form */}
+        <View style={styles.form}>
           {step === 'email' ? (
             <>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Sign in</Text>
-              <Text style={[styles.cardBody, { color: colors.mutedForeground }]}>
-                We'll send a one-time code to your email.
-              </Text>
               <TextInput
                 style={[
                   styles.input,
                   {
-                    backgroundColor: colors.muted,
+                    backgroundColor: colors.card,
                     color: colors.foreground,
                     borderColor: colors.border,
-                    borderRadius: colors.radius / 2,
+                    borderRadius: 18,
                   },
                 ]}
-                placeholder="you@example.com"
+                placeholder="you@email.com"
                 placeholderTextColor={colors.mutedForeground}
                 value={email}
                 onChangeText={setEmail}
@@ -113,14 +109,10 @@ export default function AuthScreen() {
                 returnKeyType="done"
                 onSubmitEditing={handleSendCode}
               />
-              <Pressable
-                style={({ pressed }) => [
+              <TapScale
+                style={[
                   styles.btn,
-                  {
-                    backgroundColor: colors.primary,
-                    borderRadius: colors.radius / 2,
-                    opacity: pressed ? 0.8 : 1,
-                  },
+                  { backgroundColor: colors.primary, borderRadius: 18 },
                 ]}
                 onPress={handleSendCode}
                 disabled={requestCode.isPending}
@@ -129,31 +121,36 @@ export default function AuthScreen() {
                   <ActivityIndicator color={colors.primaryForeground} />
                 ) : (
                   <Text style={[styles.btnText, { color: colors.primaryForeground }]}>
-                    Send code
+                    Get my code
                   </Text>
                 )}
-              </Pressable>
+              </TapScale>
+              <Text style={[styles.helper, { color: colors.mutedForeground }]}>
+                No passwords. We'll email you a one-time code.
+              </Text>
             </>
           ) : (
             <>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-                Check your email
-              </Text>
-              <Text style={[styles.cardBody, { color: colors.mutedForeground }]}>
-                Enter the 6-digit code sent to{'\n'}
-                <Text style={{ color: colors.foreground, fontFamily: 'Manrope_600SemiBold' }}>
-                  {email}
+              <View style={styles.codeHeader}>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+                  Check your inbox
                 </Text>
-              </Text>
+                <Text style={[styles.cardBody, { color: colors.mutedForeground }]}>
+                  Enter the 6-digit code we sent to{' '}
+                  <Text style={{ color: colors.foreground, fontFamily: 'Manrope_600SemiBold' }}>
+                    {email}
+                  </Text>
+                </Text>
+              </View>
               <TextInput
                 style={[
                   styles.input,
                   styles.codeInput,
                   {
-                    backgroundColor: colors.muted,
+                    backgroundColor: colors.card,
                     color: colors.foreground,
                     borderColor: colors.border,
-                    borderRadius: colors.radius / 2,
+                    borderRadius: 18,
                   },
                 ]}
                 placeholder="000000"
@@ -166,14 +163,12 @@ export default function AuthScreen() {
                 onSubmitEditing={handleVerify}
                 autoFocus
               />
-              <Pressable
-                style={({ pressed }) => [
+              <TapScale
+                style={[
                   styles.btn,
                   {
-                    backgroundColor:
-                      code.length === 6 ? colors.primary : colors.muted,
-                    borderRadius: colors.radius / 2,
-                    opacity: pressed ? 0.8 : 1,
+                    backgroundColor: code.length === 6 ? colors.primary : colors.muted,
+                    borderRadius: 18,
                   },
                 ]}
                 onPress={handleVerify}
@@ -187,16 +182,14 @@ export default function AuthScreen() {
                       styles.btnText,
                       {
                         color:
-                          code.length === 6
-                            ? colors.primaryForeground
-                            : colors.mutedForeground,
+                          code.length === 6 ? colors.primaryForeground : colors.mutedForeground,
                       },
                     ]}
                   >
-                    Sign in
+                    Verify &amp; continue
                   </Text>
                 )}
-              </Pressable>
+              </TapScale>
               <Pressable
                 style={styles.backBtn}
                 onPress={() => {
@@ -220,61 +213,67 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   inner: {
     flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'space-between',
+    paddingHorizontal: 32,
+    justifyContent: 'center',
+    gap: 40,
   },
-  brand: { alignItems: 'center', gap: 10 },
+  brand: { alignItems: 'center', gap: 12 },
+  logoBadge: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
   wordmark: {
-    fontSize: 44,
-    fontFamily: 'Manrope_700Bold',
-    letterSpacing: -1.5,
+    fontSize: 28,
+    fontFamily: 'Manrope_800ExtraBold',
   },
   tagline: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'Manrope_400Regular',
     textAlign: 'center',
     lineHeight: 22,
   },
-  card: {
-    padding: 24,
-    gap: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
+  form: { gap: 14 },
+  codeHeader: { gap: 6, marginBottom: 4 },
   cardTitle: {
-    fontSize: 22,
-    fontFamily: 'Manrope_700Bold',
+    fontSize: 24,
+    fontFamily: 'Manrope_800ExtraBold',
   },
   cardBody: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Manrope_400Regular',
     lineHeight: 21,
   },
   input: {
-    height: 52,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    height: 60,
+    paddingHorizontal: 20,
+    fontSize: 17,
     fontFamily: 'Manrope_400Regular',
-    borderWidth: 1,
+    borderWidth: 2,
   },
   codeInput: {
     textAlign: 'center',
     fontSize: 30,
     fontFamily: 'Manrope_700Bold',
-    letterSpacing: 10,
+    letterSpacing: 12,
   },
   btn: {
-    height: 52,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnText: {
-    fontSize: 16,
-    fontFamily: 'Manrope_600SemiBold',
+    fontSize: 17,
+    fontFamily: 'Manrope_700Bold',
   },
-  backBtn: { alignItems: 'center', paddingVertical: 4 },
-  backBtnText: { fontSize: 13, fontFamily: 'Manrope_400Regular' },
+  helper: {
+    fontSize: 13,
+    fontFamily: 'Manrope_400Regular',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  backBtn: { alignItems: 'center', paddingVertical: 6, marginTop: 2 },
+  backBtnText: { fontSize: 13, fontFamily: 'Manrope_500Medium' },
 });

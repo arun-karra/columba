@@ -23,6 +23,7 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ShareModal } from '@/components/ShareModal';
+import { TapScale } from '@/components/TapScale';
 
 export default function NewNoteScreen() {
   const colors = useColors();
@@ -82,12 +83,12 @@ export default function NewNoteScreen() {
           <Feather name="x" size={22} color={colors.mutedForeground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>New Note</Text>
-        <Pressable
+        <TapScale
           style={[
             styles.addBtn,
             {
               backgroundColor: canSave ? colors.primary : colors.muted,
-              borderRadius: colors.radius / 2,
+              borderRadius: 14,
             },
           ]}
           onPress={handleCreate}
@@ -105,7 +106,7 @@ export default function NewNoteScreen() {
               Add
             </Text>
           )}
-        </Pressable>
+        </TapScale>
       </View>
 
       <KeyboardAwareScrollViewCompat
@@ -254,9 +255,9 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 16, fontFamily: 'Manrope_600SemiBold' },
-  addBtn: { paddingHorizontal: 18, paddingVertical: 8 },
-  addBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  headerTitle: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
+  addBtn: { paddingHorizontal: 22, paddingVertical: 12 },
+  addBtnText: { fontSize: 15, fontFamily: 'Manrope_700Bold' },
 
   scroll: { padding: 20, gap: 0 },
   bodyInput: {

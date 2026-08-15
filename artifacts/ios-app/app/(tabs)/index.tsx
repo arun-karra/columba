@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   FlatList,
   Platform,
@@ -15,6 +15,13 @@ import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import {
   useListNotes,
   useGetNotesSummary,
   useToggleNoteDone,
@@ -24,6 +31,8 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { dismissNoteNotification } from '@/utils/notifications';
+import { Confetti } from '@/components/Confetti';
+import { TapScale } from '@/components/TapScale';
 
 // ─── Filter Chip ──────────────────────────────────────────────────────────────
 
@@ -101,11 +110,11 @@ function NoteCard({
           {
             borderColor: note.isDone ? colors.primary : colors.mutedForeground,
             backgroundColor: note.isDone ? colors.primary : 'transparent',
-            borderRadius: 12,
+            borderRadius: 10,
           },
         ]}
       >
-        {note.isDone && <Feather name="check" size={12} color={colors.primaryForeground} />}
+        {note.isDone && <Feather name="check" size={14} color={colors.primaryForeground} />}
       </Pressable>
 
       {/* Content */}
@@ -152,14 +161,9 @@ function NoteCard({
               </View>
             )}
             {hasGroupBadge && (
-              <View
-                style={[
-                  styles.badge,
-                  { backgroundColor: colors.secondary + '44', borderRadius: 4 },
-                ]}
-              >
-                <Feather name="users" size={10} color={colors.secondaryForeground} />
-                <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>
+              <View style={[styles.badge, { backgroundColor: colors.muted, borderRadius: 4 }]}>
+                <Feather name="users" size={10} color={colors.mutedForeground} />
+                <Text style={[styles.badgeText, { color: colors.mutedForeground }]}>
                   {note.groupName}
                 </Text>
               </View>
@@ -209,17 +213,20 @@ export default function NotesScreen() {
 
   const { data: summary } = useGetNotesSummary();
   const toggleDone = useToggleNoteDone();
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
 
   const handleToggle = useCallback(
     async (id: string) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const wasDone = notes.find((n) => n.id === id)?.isDone;
       await toggleDone.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() });
       // Clear the persistent lock-screen notification if one exists for this note.
       void dismissNoteNotification(id);
+      if (wasDone === false) setConfettiTrigger((c) => c + 1);
     },
-    [toggleDone, queryClient],
+    [toggleDone, queryClient, notes],
   );
 
   const handlePress = useCallback((id: string) => {
@@ -241,6 +248,20 @@ export default function NotesScreen() {
 
   const showPinnedSection = pinnedNotes.length > 0 && filter === 'all';
 
+  // Gentle continuous shadow pulse on the FAB (mockup's `fabpulse`).
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })),
+      -1,
+      false,
+    );
+  }, [pulse]);
+  const pulseStyle = useAnimatedStyle(() => ({
+    shadowOpacity: 0.22 + pulse.value * 0.16,
+    shadowRadius: 8 + pulse.value * 8,
+  }));
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -255,6 +276,8 @@ export default function NotesScreen() {
       >
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Notes</Text>
       </View>
+
+      <Confetti trigger={confettiTrigger} />
 
       <FlatList
         data={filteredNotes}
@@ -275,39 +298,44 @@ export default function NotesScreen() {
         }
         ListHeaderComponent={
           <>
-            {/* Stats strip */}
+            {/* Stats strip — three separately tinted cards */}
             {summary && (
-              <View
-                style={[
-                  styles.statsStrip,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    borderRadius: colors.radius,
-                  },
-                ]}
-              >
+              <View style={styles.statsStrip}>
                 {[
-                  { label: 'Open', value: summary.open },
-                  { label: 'Done', value: summary.completed },
-                  { label: 'Urgent', value: summary.urgent },
-                ].map((s, i) => (
+                  {
+                    label: 'Open',
+                    value: summary.open,
+                    bg: colors.card,
+                    border: colors.border,
+                    text: colors.foreground,
+                    labelColor: colors.mutedForeground,
+                  },
+                  {
+                    label: 'Urgent',
+                    value: summary.urgent,
+                    bg: colors.accent + '1a',
+                    border: colors.accent + '55',
+                    text: colors.accent,
+                    labelColor: colors.accent + 'cc',
+                  },
+                  {
+                    label: 'Done',
+                    value: summary.completed,
+                    bg: colors.primary + '18',
+                    border: colors.primary + '4d',
+                    text: colors.primary,
+                    labelColor: colors.primary + 'cc',
+                  },
+                ].map((s) => (
                   <View
                     key={s.label}
                     style={[
                       styles.statCell,
-                      i < 2 && {
-                        borderRightWidth: 1,
-                        borderRightColor: colors.border,
-                      },
+                      { backgroundColor: s.bg, borderColor: s.border, borderRadius: colors.radius - 4 },
                     ]}
                   >
-                    <Text style={[styles.statValue, { color: colors.foreground }]}>
-                      {s.value}
-                    </Text>
-                    <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
-                      {s.label}
-                    </Text>
+                    <Text style={[styles.statValue, { color: s.text }]}>{s.value}</Text>
+                    <Text style={[styles.statLabel, { color: s.labelColor }]}>{s.label}</Text>
                   </View>
                 ))}
               </View>
@@ -377,9 +405,9 @@ export default function NotesScreen() {
           !isLoading ? (
             <View style={styles.empty}>
               {Platform.OS === 'ios' ? (
-                <SymbolView name="note.text" tintColor={colors.muted} size={40} />
+                <SymbolView name="note.text" tintColor={colors.mutedForeground} size={40} />
               ) : (
-                <Feather name="file-text" size={40} color={colors.muted} />
+                <Feather name="file-text" size={40} color={colors.mutedForeground} />
               )}
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
                 {filter === 'all'
@@ -393,20 +421,20 @@ export default function NotesScreen() {
       />
 
       {/* FAB */}
-      <Pressable
-        style={({ pressed }) => [
+      <TapScale
+        style={[
           styles.fab,
+          pulseStyle,
           {
             backgroundColor: colors.primary,
             bottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 70,
-            opacity: pressed ? 0.85 : 1,
-            borderRadius: 28,
+            borderRadius: 22,
           },
         ]}
         onPress={() => router.push('/note/new')}
       >
-        <Feather name="plus" size={26} color={colors.primaryForeground} />
-      </Pressable>
+        <Feather name="plus" size={28} color={colors.primaryForeground} />
+      </TapScale>
     </View>
   );
 }
@@ -416,23 +444,22 @@ export default function NotesScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1 },
-  headerTitle: { fontSize: 32, fontFamily: 'Manrope_700Bold' },
+  headerTitle: { fontSize: 34, fontFamily: 'Manrope_800ExtraBold' },
 
   list: { paddingHorizontal: 16, paddingTop: 16, gap: 0 },
 
   statsStrip: {
     flexDirection: 'row',
-    borderWidth: 1,
+    gap: 10,
     marginBottom: 14,
-    overflow: 'hidden',
   },
-  statCell: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  statValue: { fontSize: 22, fontFamily: 'Manrope_700Bold' },
-  statLabel: { fontSize: 11, fontFamily: 'Manrope_400Regular', marginTop: 2 },
+  statCell: { flex: 1, alignItems: 'center', paddingVertical: 14, borderWidth: 1 },
+  statValue: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold' },
+  statLabel: { fontSize: 12, fontFamily: 'Manrope_500Medium', marginTop: 2 },
 
   chips: { flexDirection: 'row', gap: 8, marginBottom: 18, flexWrap: 'wrap' },
-  chip: { paddingHorizontal: 14, paddingVertical: 7 },
-  chipText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold' },
+  chip: { paddingHorizontal: 16, paddingVertical: 10 },
+  chipText: { fontSize: 13, fontFamily: 'Manrope_700Bold' },
 
   pinnedSection: { marginBottom: 6 },
   sectionHeadRow: {
@@ -458,9 +485,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderWidth: 1.5,
+    width: 26,
+    height: 26,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
@@ -486,14 +513,14 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    width: 56,
-    height: 56,
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
   },
 });

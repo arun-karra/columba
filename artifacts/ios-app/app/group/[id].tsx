@@ -22,8 +22,9 @@ import {
   getListGroupsQueryKey,
   getGetGroupQueryKey,
 } from '@workspace/api-client-react';
-import { useColors } from '@/hooks/useColors';
+import { useColors, groupAvatarColor } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
+import { TapScale } from '@/components/TapScale';
 import type { GroupMember } from '@workspace/api-client-react';
 
 // ─── Member Row ───────────────────────────────────────────────────────────────
@@ -183,7 +184,12 @@ export default function GroupDetailScreen() {
           <View>
             {/* Group avatar + name */}
             <View style={styles.groupHeader}>
-              <View style={[styles.groupAvatar, { backgroundColor: colors.primary }]}>
+              <View
+                style={[
+                  styles.groupAvatar,
+                  { backgroundColor: groupAvatarColor(colors, group.id) },
+                ]}
+              >
                 <Text style={[styles.groupAvatarText, { color: colors.primaryForeground }]}>
                   {group.name
                     .split(' ')
@@ -306,14 +312,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   groupAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  groupAvatarText: { fontSize: 28, fontFamily: 'Manrope_700Bold' },
-  groupName: { fontSize: 24, fontFamily: 'Manrope_700Bold' },
+  groupAvatarText: { fontSize: 30, fontFamily: 'Manrope_800ExtraBold' },
+  groupName: { fontSize: 24, fontFamily: 'Manrope_800ExtraBold' },
   memberCount: { fontSize: 14, fontFamily: 'Manrope_400Regular' },
 
   inviteCard: { padding: 16, borderWidth: 1, gap: 12, marginBottom: 24 },

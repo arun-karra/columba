@@ -22,13 +22,22 @@ import {
   useCreateGroup,
   getListGroupsQueryKey,
 } from '@workspace/api-client-react';
-import { useColors } from '@/hooks/useColors';
+import { useColors, groupAvatarColor } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
+import { TapScale } from '@/components/TapScale';
 import type { Group } from '@workspace/api-client-react';
 
 // ─── Group Card ───────────────────────────────────────────────────────────────
 
-function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
+function GroupCard({
+  group,
+  index,
+  onPress,
+}: {
+  group: Group;
+  index: number;
+  onPress: () => void;
+}) {
   const colors = useColors();
   const initials = group.name
     .split(' ')
@@ -49,7 +58,7 @@ function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
       ]}
       onPress={onPress}
     >
-      <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+      <View style={[styles.avatar, { backgroundColor: groupAvatarColor(colors, index) }]}>
         <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
           {initials}
         </Text>
@@ -159,9 +168,10 @@ export default function GroupsScreen() {
               tintColor={colors.primary}
             />
           }
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <GroupCard
               group={item}
+              index={index}
               onPress={() => router.push(`/group/${item.id}`)}
             />
           )}
@@ -169,14 +179,13 @@ export default function GroupsScreen() {
       )}
 
       {/* FAB */}
-      <Pressable
-        style={({ pressed }) => [
+      <TapScale
+        style={[
           styles.fab,
           {
             backgroundColor: colors.accent,
-            borderRadius: 28,
+            borderRadius: 22,
             bottom: fabBottom,
-            opacity: pressed ? 0.85 : 1,
           },
         ]}
         onPress={() => {
@@ -184,8 +193,8 @@ export default function GroupsScreen() {
           setShowCreate(true);
         }}
       >
-        <Feather name="plus" size={26} color={colors.accentForeground} />
-      </Pressable>
+        <Feather name="plus" size={28} color={colors.accentForeground} />
+      </TapScale>
 
       {/* Create group sheet */}
       <Modal
@@ -291,7 +300,7 @@ export default function GroupsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1 },
-  headerTitle: { fontSize: 32, fontFamily: 'Manrope_700Bold' },
+  headerTitle: { fontSize: 34, fontFamily: 'Manrope_800ExtraBold' },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -315,22 +324,22 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
+  avatarText: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold' },
   cardContent: { flex: 1 },
   groupName: { fontSize: 16, fontFamily: 'Manrope_600SemiBold' },
   memberCount: { fontSize: 13, fontFamily: 'Manrope_400Regular', marginTop: 2 },
   fab: {
     position: 'absolute',
     right: 20,
-    width: 56,
-    height: 56,
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',

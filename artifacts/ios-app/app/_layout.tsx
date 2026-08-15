@@ -10,6 +10,7 @@ import {
   Manrope_500Medium,
   Manrope_600SemiBold,
   Manrope_700Bold,
+  Manrope_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/manrope';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -117,6 +118,7 @@ export default function RootLayout() {
     Manrope_500Medium,
     Manrope_600SemiBold,
     Manrope_700Bold,
+    Manrope_800ExtraBold,
   });
 
   useEffect(() => {
