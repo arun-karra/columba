@@ -23,6 +23,7 @@ import {
   type Note,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
+import { dismissNoteNotification } from '@/utils/notifications';
 
 // ─── Filter Chip ──────────────────────────────────────────────────────────────
 
@@ -215,6 +216,8 @@ export default function NotesScreen() {
       await toggleDone.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() });
+      // Clear the persistent lock-screen notification if one exists for this note.
+      void dismissNoteNotification(id);
     },
     [toggleDone, queryClient],
   );

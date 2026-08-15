@@ -26,6 +26,7 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ShareModal } from '@/components/ShareModal';
+import { dismissNoteNotification } from '@/utils/notifications';
 
 export default function NoteDetailScreen() {
   const colors = useColors();
@@ -107,6 +108,8 @@ export default function NoteDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await toggleDone.mutateAsync({ id: note.id });
     invalidate();
+    // Clear the persistent lock-screen notification (best-effort).
+    void dismissNoteNotification(note.id);
   }, [note, toggleDone, invalidate]);
 
   useLayoutEffect(() => {
@@ -194,7 +197,7 @@ export default function NoteDetailScreen() {
           <View style={styles.metaLabelCol}>
             <Text style={[styles.metaLabel, { color: colors.foreground }]}>Pin to Home</Text>
             <Text style={[styles.metaDesc, { color: colors.mutedForeground }]}>
-              Show at the top of your notes
+              Persistent lock screen alert · long-press to complete
             </Text>
           </View>
           <Switch

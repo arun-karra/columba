@@ -10,6 +10,9 @@ import {
 import { prisma } from "../lib/prisma";
 import { asyncHandler, HttpError, parseOrThrow, requireParam } from "../lib/errors";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { sendPush, sendDismissPush } from "../lib/push";
+
+const PINNED_NOTE_CATEGORY = "PINNED_NOTE";
 
 const router = Router();
 router.use(requireAuth);
@@ -117,6 +120,15 @@ router.post(
       },
       include: noteInclude,
     });
+    if (note.isPinned) {
+      void sendPush(
+        [userId],
+        note.title ?? "Pinned note",
+        note.body,
+        { noteId: note.id },
+        { urgent: true, categoryId: PINNED_NOTE_CATEGORY },
+      );
+    }
     res.status(201).json(mapNote(note));
   }),
 );
@@ -159,6 +171,7 @@ router.patch(
     const remindAtChanged =
       Object.prototype.hasOwnProperty.call(req.body, "remindAt") &&
       String(input.remindAt ?? "") !== String(note.remindAt?.toISOString() ?? "");
+    const wasPinned = note.isPinned;
     const updated = await prisma.note.update({
       where: { id },
       data: {
@@ -174,6 +187,19 @@ router.patch(
       },
       include: noteInclude,
     });
+    // Fire pin/unpin push after the DB write
+    const nowPinned = updated.isPinned;
+    if (!wasPinned && nowPinned) {
+      void sendPush(
+        [userId],
+        updated.title ?? "Pinned note",
+        updated.body,
+        { noteId: updated.id },
+        { urgent: true, categoryId: PINNED_NOTE_CATEGORY },
+      );
+    } else if (wasPinned && !nowPinned) {
+      void sendDismissPush([userId], updated.id);
+    }
     res.json(mapNote(updated));
   }),
 );
@@ -194,6 +220,11 @@ router.post(
         : { isDone: true, completedByUserId: userId, completedAt: new Date() },
       include: noteInclude,
     });
+    // When a pinned note is marked done, tell the device to clear the
+    // persistent lock-screen notification.
+    if (updated.isPinned && updated.isDone) {
+      void sendDismissPush([userId], updated.id);
+    }
     res.json(mapNote(updated));
   }),
 );

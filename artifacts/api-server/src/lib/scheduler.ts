@@ -25,7 +25,7 @@ export function startReminderScheduler() {
         note.isUrgent ? "Urgent note reminder" : "Note reminder",
         note.title || note.body.slice(0, 120),
         { noteId: note.id },
-        note.isUrgent,
+        { urgent: note.isUrgent },
       );
       await prisma.note.updateMany({
         where: { id: note.id, reminderSentAt: null },

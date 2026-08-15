@@ -8,14 +8,30 @@ const expo = new Expo(
     : undefined,
 );
 
+interface PushOptions {
+  urgent?: boolean;
+  /** iOS notification category identifier (enables lock-screen actions). */
+  categoryId?: string;
+}
+
+/**
+ * Send a push notification to one or more users.
+ * The 5th argument accepts either a plain boolean (urgent) for backward
+ * compatibility, or an options object.
+ */
 export async function sendPush(
   userIds: string[],
   title: string,
   body: string,
   data: Record<string, unknown> = {},
-  urgent = false,
+  urgentOrOptions: boolean | PushOptions = {},
 ) {
   if (userIds.length === 0) return;
+
+  const options: PushOptions =
+    typeof urgentOrOptions === "boolean"
+      ? { urgent: urgentOrOptions }
+      : urgentOrOptions;
 
   const tokens = await prisma.pushToken.findMany({
     where: { userId: { in: userIds } },
@@ -26,12 +42,13 @@ export async function sendPush(
 
   const messages = validTokens.map((token) => ({
     to: token.expoPushToken,
-    sound: "default" as const,
+    sound: options.urgent ? ("default" as const) : null,
     title,
     body,
     data,
-    priority: urgent ? ("high" as const) : ("default" as const),
-    ...(urgent ? { interruptionLevel: "time-sensitive" as const } : {}),
+    priority: options.urgent ? ("high" as const) : ("normal" as const),
+    ...(options.urgent ? { interruptionLevel: "time-sensitive" as const } : {}),
+    ...(options.categoryId ? { categoryIdentifier: options.categoryId } : {}),
   }));
 
   for (const chunk of expo.chunkPushNotifications(messages)) {
@@ -45,6 +62,38 @@ export async function sendPush(
       });
     } catch (error) {
       logger.error({ err: error }, "Unable to send Expo push notifications");
+    }
+  }
+}
+
+/**
+ * Send a silent data-only push that tells the app to dismiss the
+ * persistent notification for a given note (e.g. when the note is
+ * marked done or unpinned from within the app).
+ */
+export async function sendDismissPush(userIds: string[], noteId: string) {
+  if (userIds.length === 0) return;
+  const tokens = await prisma.pushToken.findMany({
+    where: { userId: { in: userIds } },
+    select: { expoPushToken: true },
+  });
+  const validTokens = tokens.filter((t) => Expo.isExpoPushToken(t.expoPushToken));
+  if (validTokens.length === 0) return;
+
+  const messages = validTokens.map((token) => ({
+    to: token.expoPushToken,
+    sound: null as null,
+    title: "",
+    body: "",
+    data: { noteId, dismiss: true },
+    priority: "normal" as const,
+  }));
+
+  for (const chunk of expo.chunkPushNotifications(messages)) {
+    try {
+      await expo.sendPushNotificationsAsync(chunk);
+    } catch (error) {
+      logger.error({ err: error }, "Unable to send dismiss push");
     }
   }
 }
