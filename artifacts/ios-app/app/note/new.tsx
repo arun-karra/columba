@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -29,15 +29,12 @@ export default function NewNoteScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
-  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-
-  const bodyRef = useRef<TextInput>(null);
 
   const createNote = useCreateNote({
     mutation: {
@@ -56,7 +53,6 @@ export default function NewNoteScreen() {
     try {
       await createNote.mutateAsync({
         data: {
-          title: title.trim() || null,
           body: body.trim(),
           isUrgent,
           isPinned,
@@ -116,20 +112,8 @@ export default function NewNoteScreen() {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Title */}
+        {/* Body — the only text input */}
         <TextInput
-          style={[styles.titleInput, { color: colors.foreground }]}
-          placeholder="Title (optional)"
-          placeholderTextColor={colors.mutedForeground}
-          value={title}
-          onChangeText={setTitle}
-          returnKeyType="next"
-          onSubmitEditing={() => bodyRef.current?.focus()}
-        />
-
-        {/* Body */}
-        <TextInput
-          ref={bodyRef}
           style={[styles.bodyInput, { color: colors.foreground }]}
           placeholder="What's on your mind?"
           placeholderTextColor={colors.mutedForeground}
@@ -160,7 +144,7 @@ export default function NewNoteScreen() {
           />
         </View>
 
-        {/* Pin to Home */}
+        {/* Add to Home Screen */}
         <View style={styles.metaRow}>
           <Feather
             name="bookmark"
@@ -169,10 +153,10 @@ export default function NewNoteScreen() {
           />
           <View style={styles.metaLabelCol}>
             <Text style={[styles.metaLabel, { color: colors.foreground }]}>
-              Pin to Home
+              Add to Home Screen
             </Text>
             <Text style={[styles.metaDesc, { color: colors.mutedForeground }]}>
-              Show at the top of your notes
+              Keeps this note on your lock screen until completed
             </Text>
           </View>
           <Switch
@@ -193,7 +177,6 @@ export default function NewNoteScreen() {
         </View>
 
         {groupId ? (
-          /* Currently shared with a group */
           <Pressable
             style={({ pressed }) => [
               styles.groupBadge,
@@ -221,7 +204,6 @@ export default function NewNoteScreen() {
             </Pressable>
           </Pressable>
         ) : (
-          /* No group selected */
           <Pressable
             style={({ pressed }) => [
               styles.shareBtn,
@@ -247,7 +229,6 @@ export default function NewNoteScreen() {
         )}
       </KeyboardAwareScrollViewCompat>
 
-      {/* Share modal */}
       <ShareModal
         visible={showShareModal}
         selectedGroupId={groupId}
@@ -278,12 +259,11 @@ const styles = StyleSheet.create({
   addBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 
   scroll: { padding: 20, gap: 0 },
-  titleInput: { fontSize: 24, fontFamily: 'Manrope_700Bold', marginBottom: 12 },
   bodyInput: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: 'Manrope_400Regular',
-    lineHeight: 26,
-    minHeight: 140,
+    lineHeight: 27,
+    minHeight: 180,
     marginBottom: 24,
   },
   divider: { height: 1, marginVertical: 4 },

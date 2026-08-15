@@ -120,7 +120,9 @@ router.post(
       },
       include: noteInclude,
     });
-    if (note.isPinned) {
+    // Only fire immediately if no reminder is set — if remindAt is set,
+    // the scheduler will fire the pinned notification at that time instead.
+    if (note.isPinned && !note.remindAt) {
       void sendPush(
         [userId],
         note.title ?? "Pinned note",
@@ -189,7 +191,8 @@ router.patch(
     });
     // Fire pin/unpin push after the DB write
     const nowPinned = updated.isPinned;
-    if (!wasPinned && nowPinned) {
+    if (!wasPinned && nowPinned && !updated.remindAt) {
+      // Becoming pinned with no scheduled reminder → notify immediately.
       void sendPush(
         [userId],
         updated.title ?? "Pinned note",

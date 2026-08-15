@@ -187,7 +187,7 @@ export default function NoteDetailScreen() {
           />
         </View>
 
-        {/* Pin to Home */}
+        {/* Add to Home Screen */}
         <View style={styles.metaRow}>
           <Feather
             name="bookmark"
@@ -195,9 +195,11 @@ export default function NoteDetailScreen() {
             color={isPinned ? colors.primary : colors.mutedForeground}
           />
           <View style={styles.metaLabelCol}>
-            <Text style={[styles.metaLabel, { color: colors.foreground }]}>Pin to Home</Text>
+            <Text style={[styles.metaLabel, { color: colors.foreground }]}>Add to Home Screen</Text>
             <Text style={[styles.metaDesc, { color: colors.mutedForeground }]}>
-              Persistent lock screen alert · long-press to complete
+              {note.remindAt && !note.isPinned
+                ? 'Notification sends at the scheduled reminder time'
+                : 'Keeps this note on your lock screen until completed'}
             </Text>
           </View>
           <Switch
