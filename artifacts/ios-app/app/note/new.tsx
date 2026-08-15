@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,11 +30,14 @@ export default function NewNoteScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
+  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
+  const [remindAt, setRemindAt] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
   const createNote = useCreateNote({
@@ -53,10 +57,12 @@ export default function NewNoteScreen() {
     try {
       await createNote.mutateAsync({
         data: {
+          title: title.trim() || null,
           body: body.trim(),
           isUrgent,
           isPinned,
           groupId: groupId || null,
+          remindAt: remindAt ? remindAt.toISOString() : null,
         },
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -112,7 +118,17 @@ export default function NewNoteScreen() {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Body — the only text input */}
+        {/* Title */}
+        <TextInput
+          style={[styles.titleInput, { color: colors.foreground }]}
+          placeholder="Title (optional)"
+          placeholderTextColor={colors.mutedForeground}
+          value={title}
+          onChangeText={setTitle}
+          returnKeyType="next"
+        />
+
+        {/* Body */}
         <TextInput
           style={[styles.bodyInput, { color: colors.foreground }]}
           placeholder="What's on your mind?"
@@ -166,6 +182,67 @@ export default function NewNoteScreen() {
             thumbColor={isPinned ? colors.primary : colors.mutedForeground}
           />
         </View>
+
+        {/* Reminder */}
+        <Pressable
+          style={styles.metaRow}
+          onPress={() => {
+            if (!remindAt) {
+              const d = new Date();
+              d.setDate(d.getDate() + 1);
+              d.setHours(9, 0, 0, 0);
+              setRemindAt(d);
+            }
+            setShowDatePicker((v) => !v);
+          }}
+        >
+          <Feather
+            name="clock"
+            size={18}
+            color={remindAt ? colors.primary : colors.mutedForeground}
+          />
+          <Text
+            style={[
+              styles.metaLabel,
+              { color: remindAt ? colors.foreground : colors.mutedForeground, flex: 1 },
+            ]}
+          >
+            {remindAt
+              ? remindAt.toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Set reminder'}
+          </Text>
+          {remindAt && (
+            <Pressable
+              hitSlop={12}
+              onPress={(e) => {
+                e.stopPropagation();
+                setRemindAt(null);
+                setShowDatePicker(false);
+              }}
+            >
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </Pressable>
+          )}
+        </Pressable>
+        {showDatePicker && (
+          <DateTimePicker
+            value={remindAt ?? new Date()}
+            mode="datetime"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            minimumDate={new Date()}
+            onChange={(_event: DateTimePickerEvent, date?: Date) => {
+              if (Platform.OS === 'android') setShowDatePicker(false);
+              if (date) setRemindAt(date);
+            }}
+            themeVariant="light"
+            accentColor={colors.primary}
+          />
+        )}
 
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
@@ -259,6 +336,7 @@ const styles = StyleSheet.create({
   addBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 
   scroll: { padding: 20, gap: 0 },
+  titleInput: { fontSize: 24, fontFamily: 'Manrope_700Bold', marginBottom: 12 },
   bodyInput: {
     fontSize: 17,
     fontFamily: 'Manrope_400Regular',

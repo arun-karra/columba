@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
@@ -46,6 +47,8 @@ export default function NoteDetailScreen() {
   const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
+  const [remindAt, setRemindAt] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -57,6 +60,7 @@ export default function NoteDetailScreen() {
     setIsPinned(note.isPinned);
     setGroupId(note.groupId ?? null);
     setGroupName(note.groupName ?? null);
+    setRemindAt(note.remindAt ? new Date(note.remindAt) : null);
     setDirty(false);
   }, [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -76,6 +80,7 @@ export default function NoteDetailScreen() {
           isUrgent,
           isPinned,
           groupId: groupId || null,
+          remindAt: remindAt ? remindAt.toISOString() : null,
         },
       });
       invalidate();
@@ -84,7 +89,7 @@ export default function NoteDetailScreen() {
     } catch {
       Alert.alert('Error', 'Could not save note. Please try again.');
     }
-  }, [note, body, title, isUrgent, isPinned, groupId, updateNote, invalidate]);
+  }, [note, body, title, isUrgent, isPinned, groupId, remindAt, updateNote, invalidate]);
 
   const handleDelete = useCallback(() => {
     if (!note) return;
@@ -210,30 +215,81 @@ export default function NoteDetailScreen() {
           />
         </View>
 
-        {/* Reminder info (read-only) */}
-        {note.remindAt && (
-          <View style={styles.metaRow}>
-            <Feather name="clock" size={18} color={colors.mutedForeground} />
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground, flex: 1 }]}>
-              Reminder:{' '}
-              {new Date(note.remindAt).toLocaleString([], {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+        {/* Reminder */}
+        <Pressable
+          style={styles.metaRow}
+          onPress={() => {
+            if (!remindAt) {
+              // Default to tomorrow at 9am
+              const d = new Date();
+              d.setDate(d.getDate() + 1);
+              d.setHours(9, 0, 0, 0);
+              setRemindAt(d);
+              setDirty(true);
+            }
+            setShowDatePicker((v) => !v);
+          }}
+        >
+          <Feather
+            name="clock"
+            size={18}
+            color={remindAt ? colors.primary : colors.mutedForeground}
+          />
+          <Text
+            style={[
+              styles.metaLabel,
+              { color: remindAt ? colors.foreground : colors.mutedForeground, flex: 1 },
+            ]}
+          >
+            {remindAt
+              ? remindAt.toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Set reminder'}
+          </Text>
+          {note.reminderSentAt && remindAt && (
+            <Text
+              style={[
+                styles.sentBadge,
+                { color: colors.primary, backgroundColor: colors.primary + '1a', borderRadius: 4 },
+              ]}
+            >
+              Sent
             </Text>
-            {note.reminderSentAt && (
-              <Text
-                style={[
-                  styles.sentBadge,
-                  { color: colors.primary, backgroundColor: colors.primary + '1a', borderRadius: 4 },
-                ]}
-              >
-                Sent
-              </Text>
-            )}
-          </View>
+          )}
+          {remindAt && (
+            <Pressable
+              hitSlop={12}
+              onPress={(e) => {
+                e.stopPropagation();
+                setRemindAt(null);
+                setShowDatePicker(false);
+                setDirty(true);
+              }}
+            >
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </Pressable>
+          )}
+        </Pressable>
+        {showDatePicker && (
+          <DateTimePicker
+            value={remindAt ?? new Date()}
+            mode="datetime"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            minimumDate={new Date()}
+            onChange={(_event: DateTimePickerEvent, date?: Date) => {
+              if (Platform.OS === 'android') setShowDatePicker(false);
+              if (date) {
+                setRemindAt(date);
+                setDirty(true);
+              }
+            }}
+            themeVariant="light"
+            accentColor={colors.primary}
+          />
         )}
 
         {/* Done by */}
