@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/ios-app/"
+title = "Kindred iOS"
+description = "Native iOS companion for the Shared Notes system. Handles email-code sign-in, personal and group notes, completion, reminders, group management and invitations."
+version = "1.0.0"
+id = "artifacts/ios-app"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/ios-app/" ]
+localPort = 21677
+
+[services.development]
+run = "pnpm --filter @workspace/ios-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ios-app", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/ios-app", "run", "serve" ]
+
+[services.env]
+PORT = "21677"
+BASE_PATH = "/ios-app/"

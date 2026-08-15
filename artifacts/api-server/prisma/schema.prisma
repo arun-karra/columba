@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GroupRole {
+  admin
+  member
+}
+
+enum InviteStatus {
+  pending
+  accepted
+}
+
+model User {
+  id                 String            @id @default(uuid()) @db.Uuid
+  email              String            @unique
+  createdAt          DateTime          @default(now())
+  createdGroups      Group[]           @relation("GroupCreator")
+  memberships        GroupMembership[]
+  invitesSent        GroupInvite[]     @relation("InviteSender")
+  ownedNotes         Note[]            @relation("NoteOwner")
+  completedNotes     Note[]            @relation("NoteCompleter")
+  pushTokens         PushToken[]
+}
+
+model LoginCode {
+  id         String    @id @default(uuid()) @db.Uuid
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, expiresAt])
+}
+
+model Group {
+  id              String            @id @default(uuid()) @db.Uuid
+  name            String
+  createdByUserId String            @db.Uuid
+  createdAt       DateTime          @default(now())
+  createdBy       User              @relation("GroupCreator", fields: [createdByUserId], references: [id])
+  memberships     GroupMembership[]
+  invites         GroupInvite[]
+  notes           Note[]
+}
+
+model GroupMembership {
+  id        String    @id @default(uuid()) @db.Uuid
+  groupId   String    @db.Uuid
+  userId    String    @db.Uuid
+  role      GroupRole @default(member)
+  createdAt DateTime  @default(now())
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model GroupInvite {
+  id               String       @id @default(uuid()) @db.Uuid
+  groupId          String       @db.Uuid
+  email            String
+  invitedByUserId  String       @db.Uuid
+  status           InviteStatus @default(pending)
+  createdAt        DateTime     @default(now())
+  group            Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedBy        User         @relation("InviteSender", fields: [invitedByUserId], references: [id])
+
+  @@unique([groupId, email])
+  @@index([email, status])
+}
+
+model Note {
+  id                 String    @id @default(uuid()) @db.Uuid
+  ownerId            String    @db.Uuid
+  groupId            String?   @db.Uuid
+  title              String?
+  body               String
+  audioUrl           String?
+  isUrgent           Boolean   @default(false)
+  remindAt           DateTime?
+  reminderSentAt     DateTime?
+  isDone             Boolean   @default(false)
+  completedByUserId  String?   @db.Uuid
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  owner              User      @relation("NoteOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  group              Group?    @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  completedBy        User?     @relation("NoteCompleter", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId])
+  @@index([groupId])
+  @@index([remindAt, reminderSentAt, isDone])
+}
+
+model PushToken {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  expoPushToken String   @unique
+  platform      String
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

@@ -1,0 +1,97 @@
+Build a fullstack app with two parts in one Replit project:
+	1.	A backend REST API (JSON, CORS enabled) that will later also be used by a separate iOS app.
+	2.	A small React web app that talks to that API. This web app is both a usable companion and the way I test the whole system in a browser before the iOS app exists.
+Stack
+Backend:
+	•	Node.js with TypeScript
+	•	Express
+	•	PostgreSQL (use Replit’s built-in Postgres)
+	•	Prisma ORM
+	•	zod for validation
+	•	JWT for auth
+	•	expo-server-sdk for push notifications
+	•	node-cron for the reminder scheduler
+Frontend:
+	•	React with Vite and TypeScript
+	•	Tailwind CSS
+	•	Talks to the API over fetch, stores the auth token in localStorage
+Keep the code modular and include a README. Build and verify in this order: auth, then notes, then groups and sharing, then note actioning, then push and reminders, then the web UI last once the endpoints work.
+Core concepts
+	•	A note has a scope: it is either personal (belongs to one user) or belongs to a group.
+	•	A group is a shared space (for example “Household”) with multiple members. Any member can see, edit, complete, and delete the group’s notes.
+	•	Sharing happens by inviting someone to a group by email. A one-to-one share is simply a group with two people.
+	•	Any note can be marked done or not done. For group notes this is the shared-task behaviour: one member adds “pick up toilet paper”, another member ticks it off, and the app records who completed it and when.
+Data model (Prisma schema)
+User: id (uuid), email (unique), createdAt
+LoginCode (email-code sign-in): id, email, codeHash (hashed 6-digit code), expiresAt, consumedAt (nullable)
+Group: id (uuid), name, createdByUserId (FK User), createdAt
+GroupMembership: id, groupId (FK Group), userId (FK User), role (enum: admin, member), createdAt. Unique on (groupId, userId).
+GroupInvite: id, groupId (FK Group), email, invitedByUserId (FK User), status (enum: pending, accepted), createdAt
+Note:
+	•	id (uuid)
+	•	ownerId (FK User) the creator
+	•	groupId (FK Group, nullable) null means a personal note
+	•	title (string, optional)
+	•	body (text)
+	•	audioUrl (string, nullable) optional saved voice recording
+	•	isUrgent (boolean, default false)
+	•	remindAt (datetime, nullable)
+	•	reminderSentAt (datetime, nullable) so a reminder fires only once
+	•	isDone (boolean, default false)
+	•	completedByUserId (FK User, nullable)
+	•	completedAt (datetime, nullable)
+	•	createdAt, updatedAt
+PushToken: id, userId (FK User), expoPushToken (unique), platform, createdAt
+Visibility rule used everywhere: a user can see a note if they are the owner (personal note) or a member of the note’s group (group note).
+When a user verifies a login code with an email that has pending GroupInvites, add them to those groups and mark the invites accepted.
+Auth flow (email code / magic link)
+	•	POST /auth/request-code with { email }: generate a random 6-digit code, store its hash in LoginCode with a 10 minute expiry, and email it. In development (NODE_ENV !== “production”) also log the code to the console so it can be tested without email set up. Rate-limit per email.
+	•	POST /auth/verify with { email, code }: validate against the stored hash, check unexpired and unconsumed, mark consumed, create the User if needed, process any pending GroupInvites for that email, and return { token, user } with a JWT valid for 30 days.
+	•	Auth middleware verifies the Bearer token and attaches the user. All routes except the two auth routes and the health check require it.
+Endpoints
+Health: GET /health returns { ok: true }
+Notes
+	•	GET /notes: all notes the user can see (personal plus every group they belong to). For each note include its scope (personal, or group id and name), its done state, and who completed it.
+	•	POST /notes with { title?, body, audioUrl?, isUrgent?, remindAt?, groupId? }: if groupId is given, the user must be a member of that group and the note becomes a group note, otherwise it is personal.
+	•	GET /notes/:id: allowed if the user can see the note, else 403.
+	•	PATCH /notes/:id: edit fields. Allowed for the owner of a personal note, or any member of a group note. If remindAt changes, reset reminderSentAt to null.
+	•	POST /notes/:id/toggle-done: flip isDone. When marking done set completedByUserId and completedAt, when un-doing clear them. Allowed for the owner of a personal note or any member of a group note.
+	•	DELETE /notes/:id: allowed for the owner of a personal note or any member of a group note.
+Groups
+	•	GET /groups: groups the user belongs to, each with its members (email and role).
+	•	POST /groups with { name }: create a group, creator becomes an admin member.
+	•	GET /groups/:id: group detail with members. Members only.
+	•	POST /groups/:id/invite with { email }: members only. If a user with that email exists, add them as a member immediately, otherwise create a pending GroupInvite. If the invited user has push tokens, notify them that they were added to a group.
+	•	DELETE /groups/:id/members/:userId: remove a member. Allowed for a group admin or for the user removing themselves (leaving).
+Push registration
+	•	POST /push/register with { expoPushToken, platform }: upsert the token for the current user.
+	•	DELETE /push/register with { expoPushToken }: remove it.
+Audio (optional, build last)
+	•	POST /notes/:id/audio: accept a multipart audio file, store it (Replit object storage or a local uploads folder), set audioUrl on the note, return the note. The iOS app transcribes speech to text on-device, so this endpoint only stores the audio file if the user chose to keep it.
+Reminders scheduler
+Run a node-cron job every minute. Find notes where remindAt is not null, remindAt is at or before now, reminderSentAt is null, and isDone is false. For each, send a push to the note’s audience (the owner for a personal note, or all group members for a group note), then set reminderSentAt. If isUrgent is true, send with a high priority / time-sensitive interruption level so it can break through Focus modes.
+Push sending
+Use expo-server-sdk to send through Expo’s push service (no Apple certificates needed). Write a reusable sendPush(userIds, title, body, data) helper that gathers all push tokens for those users and sends to each, and cleans up tokens Expo reports as invalid.
+Web app (the test harness and companion)
+A React + Vite + Tailwind single-page app in the same project that exercises every endpoint:
+	•	Sign in: enter email, then enter the code (in dev the code is in the server console).
+	•	Notes view: list all notes the user can see, filterable by scope (All, Personal, or a specific group). Each note shows title, body, an urgent badge, the reminder time, and a checkbox to mark done or undone. Completed notes show who completed them.
+	•	Create or edit a note: title, body, a scope selector (Personal or one of my groups), an urgent toggle, and a reminder date and time.
+	•	Groups view: list my groups and members, create a group, invite someone by email, and leave a group.
+	•	Keep the styling clean and simple. This is a working tool, not a design showcase.
+Quality requirements
+	•	Validate every request body with zod and return clear 400 errors.
+	•	Consistent JSON error shape: { error: { message, code } }.
+	•	Enforce the visibility and permission rules on every notes and group route.
+	•	Enable CORS.
+	•	README documenting the stack, how to run, every endpoint with an example request and response, the env vars, and curl commands to test the auth and sharing flows end to end.
+	•	Prisma migration plus a small seed script.
+Environment variables
+Read from the environment, do not hardcode, and document in the README:
+	•	DATABASE_URL
+	•	JWT_SECRET
+	•	RESEND_API_KEY (email; if missing, fall back to logging codes to the console)
+	•	FROM_EMAIL
+	•	EXPO_ACCESS_TOKEN (optional, for authenticated Expo push)
+	•	NODE_ENV
+Use Resend to send the login-code emails, with a clean console fallback when RESEND_API_KEY is absent.

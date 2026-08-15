@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Shared Notes"
+description = "A collaborative notes app with personal and shared group spaces, email-code sign-in, completion tracking, invitations, reminders, and a browser companion for testing the full API flow."
+version = "1.0.0"
+id = "artifacts/shared-notes"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18231
+
+[services.development]
+run = "pnpm --filter @workspace/shared-notes run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/shared-notes", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/shared-notes/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18231"
+BASE_PATH = "/"

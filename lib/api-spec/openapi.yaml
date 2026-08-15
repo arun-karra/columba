@@ -3,20 +3,22 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Shared Notes API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: notes
+  - name: groups
+  - name: push
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +26,642 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/request-code:
+    post:
+      operationId: requestAuthCode
+      tags: [auth]
+      summary: Request an email login code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCodeRequest"
+      responses:
+        "200":
+          description: Code requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/verify:
+    post:
+      operationId: verifyAuthCode
+      tags: [auth]
+      summary: Verify an email login code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCodeVerify"
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /notes:
+    get:
+      operationId: listNotes
+      tags: [notes]
+      summary: List notes visible to the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Visible notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Note"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createNote
+      tags: [notes]
+      summary: Create a personal or group note
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "201":
+          description: Created note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /notes/summary:
+    get:
+      operationId: getNotesSummary
+      tags: [notes]
+      summary: Get note counts and upcoming reminders
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Notes summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotesSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /notes/{id}:
+    get:
+      operationId: getNote
+      tags: [notes]
+      summary: Get one visible note
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateNote
+      tags: [notes]
+      summary: Edit a visible note
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteUpdate"
+      responses:
+        "200":
+          description: Updated note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteNote
+      tags: [notes]
+      summary: Delete a visible note
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /notes/{id}/toggle-done:
+    post:
+      operationId: toggleNoteDone
+      tags: [notes]
+      summary: Toggle a note's completion state
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Updated note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /groups:
+    get:
+      operationId: listGroups
+      tags: [groups]
+      summary: List groups the current user belongs to
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createGroup
+      tags: [groups]
+      summary: Create a group
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupInput"
+      responses:
+        "201":
+          description: Created group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /groups/{id}:
+    get:
+      operationId: getGroup
+      tags: [groups]
+      summary: Get a group with its members
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /groups/{id}/invite:
+    post:
+      operationId: inviteToGroup
+      tags: [groups]
+      summary: Invite an email address to a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteInput"
+      responses:
+        "200":
+          description: Invitation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /groups/{id}/members/{userId}:
+    delete:
+      operationId: removeGroupMember
+      tags: [groups]
+      summary: Remove a member or leave a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /push/register:
+    post:
+      operationId: registerPushToken
+      tags: [push]
+      summary: Register a push token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenInput"
+      responses:
+        "200":
+          description: Registered token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: unregisterPushToken
+      tags: [push]
+      summary: Remove a push token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenDelete"
+      responses:
+        "204":
+          description: Removed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
     HealthStatus:
       type: object
       properties:
+        ok:
+          type: boolean
+      required: [ok]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+          required: [message, code]
+      required: [error]
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+    AuthCodeRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+      required: [email]
+    AuthCodeVerify:
+      type: object
+      properties:
+        email:
+          type: string
+          pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+      required: [email, code]
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, createdAt]
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [token, user]
+    GroupMember:
+      type: object
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+          pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+        role:
+          type: string
+          enum: [admin, member]
+        createdAt:
+          type: string
+          format: date-time
+      required: [userId, email, role, createdAt]
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        createdByUserId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupMember"
+      required: [id, name, createdByUserId, createdAt, members]
+    GroupInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required: [name]
+    InviteInput:
+      type: object
+      properties:
+        email:
+          type: string
+          pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+      required: [email]
+    InviteResponse:
+      type: object
+      properties:
         status:
           type: string
+          enum: [added, pending]
+        email:
+          type: string
+          pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+        message:
+          type: string
+      required: [status, email, message]
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+        ownerId:
+          type: string
+        groupId:
+          type: [string, "null"]
+        groupName:
+          type: [string, "null"]
+        title:
+          type: [string, "null"]
+        body:
+          type: string
+        audioUrl:
+          type: [string, "null"]
+        isUrgent:
+          type: boolean
+        remindAt:
+          type: [string, "null"]
+          format: date-time
+        reminderSentAt:
+          type: [string, "null"]
+          format: date-time
+        isDone:
+          type: boolean
+        completedByUserId:
+          type: [string, "null"]
+        completedByEmail:
+          type: [string, "null"]
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
       required:
-        - status
-
+        - id
+        - ownerId
+        - groupId
+        - groupName
+        - title
+        - body
+        - audioUrl
+        - isUrgent
+        - remindAt
+        - reminderSentAt
+        - isDone
+        - completedByUserId
+        - completedByEmail
+        - completedAt
+        - createdAt
+        - updatedAt
+    NoteInput:
+      type: object
+      properties:
+        title:
+          type: [string, "null"]
+          maxLength: 200
+        body:
+          type: string
+          minLength: 1
+        audioUrl:
+          type: [string, "null"]
+        isUrgent:
+          type: boolean
+        remindAt:
+          type: [string, "null"]
+          format: date-time
+        groupId:
+          type: [string, "null"]
+      required: [body]
+    NoteUpdate:
+      type: object
+      properties:
+        title:
+          type: [string, "null"]
+          maxLength: 200
+        body:
+          type: string
+          minLength: 1
+        audioUrl:
+          type: [string, "null"]
+        isUrgent:
+          type: boolean
+        remindAt:
+          type: [string, "null"]
+        groupId:
+          type: [string, "null"]
+    NotesSummary:
+      type: object
+      properties:
+        total:
+          type: number
+        open:
+          type: number
+        completed:
+          type: number
+        urgent:
+          type: number
+        upcomingReminders:
+          type: number
+      required: [total, open, completed, urgent, upcomingReminders]
+    PushTokenInput:
+      type: object
+      properties:
+        expoPushToken:
+          type: string
+        platform:
+          type: string
+          enum: [ios, android, web]
+      required: [expoPushToken, platform]
+    PushTokenDelete:
+      type: object
+      properties:
+        expoPushToken:
+          type: string
+      required: [expoPushToken]
