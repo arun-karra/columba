@@ -63,21 +63,33 @@ router.post(
   asyncHandler(async (req, res) => {
     const input = parseOrThrow(VerifyAuthCodeBody, req.body);
     const email = normalizeEmail(input.email);
-    const loginCode = await prisma.loginCode.findFirst({
-      where: { email, consumedAt: null },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!loginCode || loginCode.expiresAt < new Date()) {
-      throw new HttpError(401, "INVALID_CODE", "That code is invalid or has expired.");
-    }
-    const expected = Buffer.from(loginCode.codeHash);
-    const actual = Buffer.from(getHash(input.code));
-    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-      throw new HttpError(401, "INVALID_CODE", "That code is invalid or has expired.");
+
+    // ── Dev bypass ───────────────────────────────────────────────────────────
+    // Code "000000" works for any email in non-production to skip email setup.
+    const isBypass =
+      process.env.NODE_ENV !== "production" && input.code === "000000";
+
+    if (!isBypass) {
+      const loginCode = await prisma.loginCode.findFirst({
+        where: { email, consumedAt: null },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!loginCode || loginCode.expiresAt < new Date()) {
+        throw new HttpError(401, "INVALID_CODE", "That code is invalid or has expired.");
+      }
+      const expected = Buffer.from(loginCode.codeHash);
+      const actual = Buffer.from(getHash(input.code));
+      if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+        throw new HttpError(401, "INVALID_CODE", "That code is invalid or has expired.");
+      }
+    } else {
+      logger.info({ email }, "Dev bypass sign-in");
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      await tx.loginCode.update({ where: { id: loginCode.id }, data: { consumedAt: new Date() } });
+      if (!isBypass) {
+        await tx.loginCode.update({ where: { id: loginCode.id }, data: { consumedAt: new Date() } });
+      }
       const user = await tx.user.upsert({ where: { email }, update: {}, create: { email } });
       const invites = await tx.groupInvite.findMany({ where: { email, status: "pending" } });
       for (const invite of invites) {
