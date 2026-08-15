@@ -15,14 +15,13 @@ import {
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   setBaseUrl,
   setAuthTokenGetter,
   getListNotesQueryKey,
   getGetNotesSummaryQueryKey,
 } from '@workspace/api-client-react';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { AuthProvider, useAuth, getToken } from '@/context/AuthContext';
 import {
   PINNED_NOTE_CATEGORY,
   MARK_COMPLETE_ACTION,
@@ -31,7 +30,7 @@ import {
 
 // ── Module-level API + notification configuration ───────────────────────────
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
-setAuthTokenGetter(() => AsyncStorage.getItem('columba-token'));
+setAuthTokenGetter(() => getToken());
 
 // Show alert + sound for notifications received while the app is foregrounded.
 Notifications.setNotificationHandler({
@@ -164,7 +163,7 @@ export default function RootLayout() {
 
         if (actionIdentifier === MARK_COMPLETE_ACTION && noteId) {
           try {
-            const token = await AsyncStorage.getItem('columba-token');
+            const token = await getToken();
             await fetch(
               `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/notes/${noteId}/toggle-done`,
               {
