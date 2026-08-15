@@ -20,12 +20,12 @@ import {
   useUpdateNote,
   useDeleteNote,
   useToggleNoteDone,
-  useListGroups,
   getListNotesQueryKey,
   getGetNotesSummaryQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { ShareModal } from '@/components/ShareModal';
 
 export default function NoteDetailScreen() {
   const colors = useColors();
@@ -34,7 +34,6 @@ export default function NoteDetailScreen() {
   const queryClient = useQueryClient();
 
   const { data: note, isLoading } = useGetNote(id ?? '');
-  const { data: groups = [] } = useListGroups();
 
   const updateNote = useUpdateNote();
   const deleteNote = useDeleteNote();
@@ -43,17 +42,20 @@ export default function NoteDetailScreen() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [groupName, setGroupName] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [dirty, setDirty] = useState(false);
 
-  // Sync local state when note loads (run only once per note id)
   useEffect(() => {
     if (!note) return;
     setTitle(note.title ?? '');
     setBody(note.body);
     setIsUrgent(note.isUrgent);
+    setIsPinned(note.isPinned);
     setGroupId(note.groupId ?? null);
+    setGroupName(note.groupName ?? null);
     setDirty(false);
   }, [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -71,6 +73,7 @@ export default function NoteDetailScreen() {
           title: title.trim() || null,
           body: body.trim(),
           isUrgent,
+          isPinned,
           groupId: groupId || null,
         },
       });
@@ -80,7 +83,7 @@ export default function NoteDetailScreen() {
     } catch {
       Alert.alert('Error', 'Could not save note. Please try again.');
     }
-  }, [note, body, title, isUrgent, groupId, updateNote, invalidate]);
+  }, [note, body, title, isUrgent, isPinned, groupId, updateNote, invalidate]);
 
   const handleDelete = useCallback(() => {
     if (!note) return;
@@ -116,11 +119,7 @@ export default function NoteDetailScreen() {
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
               <Text
-                style={{
-                  fontSize: 16,
-                  fontFamily: 'Manrope_600SemiBold',
-                  color: colors.primary,
-                }}
+                style={{ fontSize: 16, fontFamily: 'Manrope_600SemiBold', color: colors.primary }}
               >
                 Save
               </Text>
@@ -138,8 +137,6 @@ export default function NoteDetailScreen() {
     );
   }
 
-  const currentGroup = groups.find((g) => g.id === groupId);
-
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <KeyboardAwareScrollViewCompat
@@ -152,10 +149,7 @@ export default function NoteDetailScreen() {
           placeholder="Title (optional)"
           placeholderTextColor={colors.mutedForeground}
           value={title}
-          onChangeText={(t) => {
-            setTitle(t);
-            setDirty(true);
-          }}
+          onChangeText={(t) => { setTitle(t); setDirty(true); }}
           returnKeyType="next"
         />
 
@@ -165,184 +159,153 @@ export default function NoteDetailScreen() {
           placeholder="Write your note…"
           placeholderTextColor={colors.mutedForeground}
           value={body}
-          onChangeText={(t) => {
-            setBody(t);
-            setDirty(true);
-          }}
+          onChangeText={(t) => { setBody(t); setDirty(true); }}
           multiline
           textAlignVertical="top"
         />
 
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-        {/* Metadata */}
-        <View style={styles.meta}>
-          {/* Urgent */}
-          <View style={styles.metaRow}>
-            <Feather
-              name="alert-circle"
-              size={18}
-              color={isUrgent ? colors.accent : colors.mutedForeground}
-            />
-            <Text style={[styles.metaLabel, { color: colors.foreground }]}>Urgent</Text>
-            <Switch
-              value={isUrgent}
-              onValueChange={(v) => {
-                setIsUrgent(v);
-                setDirty(true);
-              }}
-              trackColor={{ false: colors.muted, true: colors.accent + 'aa' }}
-              thumbColor={isUrgent ? colors.accent : colors.mutedForeground}
-            />
-          </View>
+        {/* ── Flags ────────────────────────────────────────────────── */}
 
-          {/* Group picker */}
-          <Pressable
-            style={styles.metaRow}
-            onPress={() => setShowGroupPicker((p) => !p)}
-          >
-            <Feather
-              name="users"
-              size={18}
-              color={groupId ? colors.primary : colors.mutedForeground}
-            />
-            <Text style={[styles.metaLabel, { color: colors.foreground }]}>
-              {currentGroup ? currentGroup.name : 'Personal'}
-            </Text>
-            <Feather
-              name={showGroupPicker ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={colors.mutedForeground}
-            />
-          </Pressable>
-
-          {showGroupPicker && (
-            <View
-              style={[
-                styles.picker,
-                {
-                  backgroundColor: colors.muted,
-                  borderRadius: colors.radius / 2,
-                },
-              ]}
-            >
-              <Pressable
-                style={[
-                  styles.pickerRow,
-                  {
-                    borderBottomColor: colors.border,
-                    borderBottomWidth: groups.length > 0 ? 1 : 0,
-                  },
-                ]}
-                onPress={() => {
-                  setGroupId(null);
-                  setDirty(true);
-                  setShowGroupPicker(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pickerText,
-                    {
-                      color: !groupId ? colors.primary : colors.foreground,
-                      fontFamily: !groupId
-                        ? 'Manrope_600SemiBold'
-                        : 'Manrope_400Regular',
-                    },
-                  ]}
-                >
-                  Personal (no group)
-                </Text>
-                {!groupId && (
-                  <Feather name="check" size={16} color={colors.primary} />
-                )}
-              </Pressable>
-              {groups.map((g, i) => (
-                <Pressable
-                  key={g.id}
-                  style={[
-                    styles.pickerRow,
-                    {
-                      borderBottomColor: colors.border,
-                      borderBottomWidth: i < groups.length - 1 ? 1 : 0,
-                    },
-                  ]}
-                  onPress={() => {
-                    setGroupId(g.id);
-                    setDirty(true);
-                    setShowGroupPicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.pickerText,
-                      {
-                        color:
-                          groupId === g.id ? colors.primary : colors.foreground,
-                        fontFamily:
-                          groupId === g.id
-                            ? 'Manrope_600SemiBold'
-                            : 'Manrope_400Regular',
-                      },
-                    ]}
-                  >
-                    {g.name}
-                  </Text>
-                  {groupId === g.id && (
-                    <Feather name="check" size={16} color={colors.primary} />
-                  )}
-                </Pressable>
-              ))}
-            </View>
-          )}
-
-          {/* Reminder info (read-only) */}
-          {note.remindAt && (
-            <View style={styles.metaRow}>
-              <Feather name="clock" size={18} color={colors.mutedForeground} />
-              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>
-                Reminder:{' '}
-                {new Date(note.remindAt).toLocaleString([], {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </Text>
-              {note.reminderSentAt && (
-                <Text
-                  style={[
-                    styles.sentBadge,
-                    {
-                      color: colors.primary,
-                      backgroundColor: colors.primary + '1a',
-                      borderRadius: 4,
-                    },
-                  ]}
-                >
-                  Sent
-                </Text>
-              )}
-            </View>
-          )}
-
-          {/* Completed by */}
-          {note.isDone && note.completedByEmail && (
-            <View style={styles.metaRow}>
-              <Feather name="check-circle" size={18} color={colors.primary} />
-              <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>
-                Done by {note.completedByEmail.split('@')[0]}
-                {note.completedAt
-                  ? ` · ${new Date(note.completedAt).toLocaleDateString()}`
-                  : ''}
-              </Text>
-            </View>
-          )}
+        {/* Urgent */}
+        <View style={styles.metaRow}>
+          <Feather
+            name="alert-circle"
+            size={18}
+            color={isUrgent ? colors.accent : colors.mutedForeground}
+          />
+          <Text style={[styles.metaLabel, { color: colors.foreground }]}>Urgent</Text>
+          <Switch
+            value={isUrgent}
+            onValueChange={(v) => { setIsUrgent(v); setDirty(true); }}
+            trackColor={{ false: colors.muted, true: colors.accent + 'aa' }}
+            thumbColor={isUrgent ? colors.accent : colors.mutedForeground}
+          />
         </View>
 
-        {/* Action buttons */}
+        {/* Pin to Home */}
+        <View style={styles.metaRow}>
+          <Feather
+            name="bookmark"
+            size={18}
+            color={isPinned ? colors.primary : colors.mutedForeground}
+          />
+          <View style={styles.metaLabelCol}>
+            <Text style={[styles.metaLabel, { color: colors.foreground }]}>Pin to Home</Text>
+            <Text style={[styles.metaDesc, { color: colors.mutedForeground }]}>
+              Show at the top of your notes
+            </Text>
+          </View>
+          <Switch
+            value={isPinned}
+            onValueChange={(v) => { setIsPinned(v); setDirty(true); }}
+            trackColor={{ false: colors.muted, true: colors.primary + 'bb' }}
+            thumbColor={isPinned ? colors.primary : colors.mutedForeground}
+          />
+        </View>
+
+        {/* Reminder info (read-only) */}
+        {note.remindAt && (
+          <View style={styles.metaRow}>
+            <Feather name="clock" size={18} color={colors.mutedForeground} />
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground, flex: 1 }]}>
+              Reminder:{' '}
+              {new Date(note.remindAt).toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+            {note.reminderSentAt && (
+              <Text
+                style={[
+                  styles.sentBadge,
+                  { color: colors.primary, backgroundColor: colors.primary + '1a', borderRadius: 4 },
+                ]}
+              >
+                Sent
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Done by */}
+        {note.isDone && note.completedByEmail && (
+          <View style={styles.metaRow}>
+            <Feather name="check-circle" size={18} color={colors.primary} />
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground, flex: 1 }]}>
+              Done by {note.completedByEmail.split('@')[0]}
+              {note.completedAt
+                ? ` · ${new Date(note.completedAt).toLocaleDateString()}`
+                : ''}
+            </Text>
+          </View>
+        )}
+
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        {/* ── Share ────────────────────────────────────────────────── */}
+        <View style={styles.sectionHead}>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SHARE</Text>
+        </View>
+
+        {groupId ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.groupBadge,
+              {
+                backgroundColor: colors.primary + '15',
+                borderColor: colors.primary,
+                borderRadius: colors.radius,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+            onPress={() => setShowShareModal(true)}
+          >
+            <Feather name="users" size={16} color={colors.primary} />
+            <Text style={[styles.groupBadgeText, { color: colors.primary }]}>
+              {groupName ?? 'Shared group'}
+            </Text>
+            <Pressable
+              hitSlop={12}
+              onPress={() => {
+                setGroupId(null);
+                setGroupName(null);
+                setDirty(true);
+              }}
+            >
+              <Feather name="x" size={14} color={colors.primary} />
+            </Pressable>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={({ pressed }) => [
+              styles.shareBtn,
+              {
+                borderColor: colors.border,
+                borderRadius: colors.radius,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+            onPress={() => setShowShareModal(true)}
+          >
+            <Feather name="share-2" size={18} color={colors.mutedForeground} />
+            <View style={styles.shareBtnLabel}>
+              <Text style={[styles.shareBtnTitle, { color: colors.foreground }]}>
+                Share with a group
+              </Text>
+              <Text style={[styles.shareBtnDesc, { color: colors.mutedForeground }]}>
+                Collaborate with people you've added
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </Pressable>
+        )}
+
+        {/* ── Actions ──────────────────────────────────────────────── */}
         <View style={styles.actions}>
-          {/* Toggle done */}
           <Pressable
             style={({ pressed }) => [
               styles.actionBtn,
@@ -379,11 +342,7 @@ export default function NoteDetailScreen() {
                 <Text
                   style={[
                     styles.actionBtnText,
-                    {
-                      color: note.isDone
-                        ? colors.mutedForeground
-                        : colors.primaryForeground,
-                    },
+                    { color: note.isDone ? colors.mutedForeground : colors.primaryForeground },
                   ]}
                 >
                   {note.isDone ? 'Reopen' : 'Mark done'}
@@ -392,7 +351,6 @@ export default function NoteDetailScreen() {
             )}
           </Pressable>
 
-          {/* Delete */}
           <Pressable
             style={({ pressed }) => [
               styles.deleteBtn,
@@ -415,6 +373,19 @@ export default function NoteDetailScreen() {
           </Pressable>
         </View>
       </KeyboardAwareScrollViewCompat>
+
+      <ShareModal
+        visible={showShareModal}
+        selectedGroupId={groupId}
+        onClose={() => setShowShareModal(false)}
+        onSelect={(gid, gname) => {
+          setGroupId(gid);
+          setGroupName(gname ?? null);
+          setDirty(true);
+          setShowShareModal(false);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+      />
     </View>
   );
 }
@@ -424,28 +395,20 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 20 },
 
-  titleInput: {
-    fontSize: 24,
-    fontFamily: 'Manrope_700Bold',
-    marginBottom: 12,
-  },
+  titleInput: { fontSize: 24, fontFamily: 'Manrope_700Bold', marginBottom: 12 },
   bodyInput: {
     fontSize: 16,
     fontFamily: 'Manrope_400Regular',
     lineHeight: 26,
-    minHeight: 180,
+    minHeight: 160,
     marginBottom: 24,
   },
-  divider: { height: 1, marginBottom: 16 },
+  divider: { height: 1, marginVertical: 4 },
 
-  meta: { gap: 0 },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 13,
-  },
-  metaLabel: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13 },
+  metaLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  metaLabelCol: { flex: 1 },
+  metaDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
   sentBadge: {
     fontSize: 11,
     fontFamily: 'Manrope_600SemiBold',
@@ -453,15 +416,34 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
 
-  picker: { marginVertical: 4, overflow: 'hidden' },
-  pickerRow: {
+  sectionHead: { paddingTop: 16, paddingBottom: 6 },
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+
+  shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    gap: 14,
+    padding: 16,
+    borderWidth: 1,
   },
-  pickerText: { fontSize: 15 },
+  shareBtnLabel: { flex: 1 },
+  shareBtnTitle: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  shareBtnDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
+
+  groupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+  },
+  groupBadgeText: { flex: 1, fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 
   actions: { flexDirection: 'row', gap: 10, marginTop: 28 },
   actionBtn: {

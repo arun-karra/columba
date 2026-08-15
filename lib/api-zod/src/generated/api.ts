@@ -71,6 +71,7 @@ export const ListNotesResponseItem = zod.object({
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
+  "isPinned": zod.boolean(),
   "completedByUserId": zod.string().nullable(),
   "completedByEmail": zod.string().nullable(),
   "completedAt": zod.coerce.date().nullable(),
@@ -93,6 +94,7 @@ export const CreateNoteBody = zod.object({
   "body": zod.string().min(1),
   "audioUrl": zod.string().nullish(),
   "isUrgent": zod.boolean().optional(),
+  "isPinned": zod.boolean().optional(),
   "remindAt": zod.coerce.date().nullish(),
   "groupId": zod.string().nullish()
 })
@@ -109,6 +111,7 @@ export const CreateNoteResponse = zod.object({
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
+  "isPinned": zod.boolean(),
   "completedByUserId": zod.string().nullable(),
   "completedByEmail": zod.string().nullable(),
   "completedAt": zod.coerce.date().nullable(),
@@ -148,6 +151,7 @@ export const GetNoteResponse = zod.object({
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
+  "isPinned": zod.boolean(),
   "completedByUserId": zod.string().nullable(),
   "completedByEmail": zod.string().nullable(),
   "completedAt": zod.coerce.date().nullable(),
@@ -173,6 +177,7 @@ export const UpdateNoteBody = zod.object({
   "body": zod.string().min(1).optional(),
   "audioUrl": zod.string().nullish(),
   "isUrgent": zod.boolean().optional(),
+  "isPinned": zod.boolean().optional(),
   "remindAt": zod.string().nullish(),
   "groupId": zod.string().nullish()
 })
@@ -189,6 +194,7 @@ export const UpdateNoteResponse = zod.object({
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
+  "isPinned": zod.boolean(),
   "completedByUserId": zod.string().nullable(),
   "completedByEmail": zod.string().nullable(),
   "completedAt": zod.coerce.date().nullable(),
@@ -226,6 +232,7 @@ export const ToggleNoteDoneResponse = zod.object({
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
+  "isPinned": zod.boolean(),
   "completedByUserId": zod.string().nullable(),
   "completedByEmail": zod.string().nullable(),
   "completedAt": zod.coerce.date().nullable(),

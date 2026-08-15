@@ -570,6 +570,8 @@ components:
           format: date-time
         isDone:
           type: boolean
+        isPinned:
+          type: boolean
         completedByUserId:
           type: [string, "null"]
         completedByEmail:
@@ -595,6 +597,7 @@ components:
         - remindAt
         - reminderSentAt
         - isDone
+        - isPinned
         - completedByUserId
         - completedByEmail
         - completedAt
@@ -612,6 +615,8 @@ components:
         audioUrl:
           type: [string, "null"]
         isUrgent:
+          type: boolean
+        isPinned:
           type: boolean
         remindAt:
           type: [string, "null"]
@@ -631,6 +636,8 @@ components:
         audioUrl:
           type: [string, "null"]
         isUrgent:
+          type: boolean
+        isPinned:
           type: boolean
         remindAt:
           type: [string, "null"]

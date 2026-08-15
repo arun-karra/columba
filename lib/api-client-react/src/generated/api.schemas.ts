@@ -116,6 +116,7 @@ export interface Note {
   /** @nullable */
   reminderSentAt: string | null;
   isDone: boolean;
+  isPinned: boolean;
   /** @nullable */
   completedByUserId: string | null;
   /** @nullable */
@@ -137,6 +138,7 @@ export interface NoteInput {
   /** @nullable */
   audioUrl?: string | null;
   isUrgent?: boolean;
+  isPinned?: boolean;
   /** @nullable */
   remindAt?: string | null;
   /** @nullable */
@@ -154,6 +156,7 @@ export interface NoteUpdate {
   /** @nullable */
   audioUrl?: string | null;
   isUrgent?: boolean;
+  isPinned?: boolean;
   /** @nullable */
   remindAt?: string | null;
   /** @nullable */

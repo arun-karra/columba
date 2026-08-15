@@ -4,47 +4,77 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
 import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useListNotes,
   useGetNotesSummary,
   useToggleNoteDone,
   getListNotesQueryKey,
   getGetNotesSummaryQueryKey,
+  type Note,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
-import { useAuth } from '@/context/AuthContext';
-import type { Note } from '@workspace/api-client-react';
 
-type Filter = 'all' | 'open' | 'urgent' | 'done';
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'open', label: 'Open' },
-  { key: 'urgent', label: 'Urgent' },
-  { key: 'done', label: 'Done' },
-];
+// ─── Filter Chip ──────────────────────────────────────────────────────────────
 
-// ─── Note Card ───────────────────────────────────────────────────────────────
+type Filter = 'all' | 'open' | 'urgent' | 'pinned' | 'done';
 
-interface NoteCardProps {
-  note: Note;
-  onToggle: () => void;
+function FilterChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
   onPress: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <Pressable
+      style={[
+        styles.chip,
+        {
+          backgroundColor: active ? colors.primary : colors.muted,
+          borderRadius: 20,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.chipText,
+          { color: active ? colors.primaryForeground : colors.mutedForeground },
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
-function NoteCard({ note, onToggle, onPress }: NoteCardProps) {
+// ─── Note Card ────────────────────────────────────────────────────────────────
+
+function NoteCard({
+  note,
+  onToggle,
+  onPress,
+}: {
+  note: Note;
+  onToggle: (id: string) => void;
+  onPress: (id: string) => void;
+}) {
   const colors = useColors();
-  const done = note.isDone;
+  const hasPinBadge = note.isPinned;
+  const hasGroupBadge = !!note.groupName;
 
   return (
     <Pressable
@@ -52,43 +82,40 @@ function NoteCard({ note, onToggle, onPress }: NoteCardProps) {
         styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: done ? colors.border : note.isUrgent ? colors.accent + '55' : colors.border,
+          borderColor: note.isUrgent ? colors.accent + '66' : colors.border,
           borderRadius: colors.radius,
-          opacity: pressed ? 0.82 : done ? 0.55 : 1,
+          opacity: pressed ? 0.85 : 1,
+          borderLeftWidth: note.isUrgent ? 3 : 1,
+          borderLeftColor: note.isUrgent ? colors.accent : colors.border,
         },
       ]}
-      onPress={onPress}
+      onPress={() => onPress(note.id)}
     >
       {/* Checkbox */}
       <Pressable
-        hitSlop={14}
+        onPress={() => onToggle(note.id)}
+        hitSlop={12}
         style={[
           styles.checkbox,
           {
-            borderColor: done ? colors.primary : colors.border,
-            backgroundColor: done ? colors.primary : 'transparent',
+            borderColor: note.isDone ? colors.primary : colors.mutedForeground,
+            backgroundColor: note.isDone ? colors.primary : 'transparent',
             borderRadius: 12,
           },
         ]}
-        onPress={onToggle}
       >
-        {done &&
-          (Platform.OS === 'ios' ? (
-            <SymbolView name="checkmark" tintColor={colors.primaryForeground} size={11} />
-          ) : (
-            <Feather name="check" size={11} color={colors.primaryForeground} />
-          ))}
+        {note.isDone && <Feather name="check" size={12} color={colors.primaryForeground} />}
       </Pressable>
 
       {/* Content */}
       <View style={styles.cardBody}>
-        {!!note.title && (
+        {note.title && (
           <Text
             style={[
               styles.cardTitle,
               {
-                color: colors.foreground,
-                textDecorationLine: done ? 'line-through' : 'none',
+                color: note.isDone ? colors.mutedForeground : colors.foreground,
+                textDecorationLine: note.isDone ? 'line-through' : 'none',
               },
             ]}
             numberOfLines={1}
@@ -98,10 +125,10 @@ function NoteCard({ note, onToggle, onPress }: NoteCardProps) {
         )}
         <Text
           style={[
-            styles.cardText,
+            styles.cardBody2,
             {
-              color: done ? colors.mutedForeground : colors.foreground,
-              fontFamily: note.title ? 'Manrope_400Regular' : 'Manrope_500Medium',
+              color: note.isDone ? colors.mutedForeground : colors.foreground,
+              opacity: note.isDone ? 0.6 : 0.85,
             },
           ]}
           numberOfLines={2}
@@ -109,145 +136,111 @@ function NoteCard({ note, onToggle, onPress }: NoteCardProps) {
           {note.body}
         </Text>
 
-        {/* Badges */}
-        <View style={styles.badgeRow}>
-          {note.groupName ? (
-            <View
-              style={[styles.badge, { backgroundColor: colors.secondary, borderRadius: 5 }]}
-            >
-              <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>
-                {note.groupName}
-              </Text>
-            </View>
-          ) : null}
-          {note.isUrgent && !done ? (
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: colors.accent + '28', borderRadius: 5 },
-              ]}
-            >
-              <Text style={[styles.badgeText, { color: colors.accentForeground }]}>
-                Urgent
-              </Text>
-            </View>
-          ) : null}
-          {note.remindAt && !note.reminderSentAt ? (
-            <View style={[styles.badge, { backgroundColor: colors.muted, borderRadius: 5 }]}>
-              <Text style={[styles.badgeText, { color: colors.mutedForeground }]}>
-                {new Date(note.remindAt).toLocaleDateString([], {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </Text>
-            </View>
-          ) : null}
-          {done && note.completedByEmail ? (
-            <Text
-              style={[styles.completedBy, { color: colors.mutedForeground }]}
-              numberOfLines={1}
-            >
-              by {note.completedByEmail.split('@')[0]}
-            </Text>
-          ) : null}
-        </View>
+        {/* Badges row */}
+        {(hasPinBadge || hasGroupBadge || note.remindAt) && (
+          <View style={styles.badges}>
+            {hasPinBadge && (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: colors.primary + '18', borderRadius: 4 },
+                ]}
+              >
+                <Feather name="bookmark" size={10} color={colors.primary} />
+                <Text style={[styles.badgeText, { color: colors.primary }]}>Pinned</Text>
+              </View>
+            )}
+            {hasGroupBadge && (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: colors.secondary + '44', borderRadius: 4 },
+                ]}
+              >
+                <Feather name="users" size={10} color={colors.secondaryForeground} />
+                <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>
+                  {note.groupName}
+                </Text>
+              </View>
+            )}
+            {note.remindAt && !note.reminderSentAt && (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: colors.muted, borderRadius: 4 },
+                ]}
+              >
+                <Feather name="clock" size={10} color={colors.mutedForeground} />
+                <Text style={[styles.badgeText, { color: colors.mutedForeground }]}>
+                  {new Date(note.remindAt).toLocaleDateString([], {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
-      <Feather name="chevron-right" size={15} color={colors.mutedForeground} />
+      {/* Urgent indicator */}
+      {note.isUrgent && !note.isDone && (
+        <Feather name="alert-circle" size={16} color={colors.accent} />
+      )}
     </Pressable>
   );
 }
 
-// ─── Summary Strip ───────────────────────────────────────────────────────────
-
-function SummaryStrip({
-  total,
-  open,
-  urgent,
-  completed,
-}: {
-  total: number;
-  open: number;
-  urgent: number;
-  completed: number;
-}) {
-  const colors = useColors();
-  return (
-    <View style={[styles.summaryRow, { borderColor: colors.border }]}>
-      <Stat label="Total" value={total} color={colors.foreground} />
-      <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-      <Stat label="Open" value={open} color={colors.primary} />
-      <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-      <Stat label="Urgent" value={urgent} color={colors.accent} />
-      <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-      <Stat label="Done" value={completed} color={colors.mutedForeground} />
-    </View>
-  );
-}
-
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color }]}>{label}</Text>
-    </View>
-  );
-}
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function NotesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-
   const [filter, setFilter] = useState<Filter>('all');
-  const [refreshing, setRefreshing] = useState(false);
 
-  const { data: notes = [], isLoading } = useListNotes({
-    query: { enabled: !!user },
-  });
-  const { data: summary } = useGetNotesSummary({
-    query: { enabled: !!user },
-  });
+  const {
+    data: notes = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useListNotes();
 
-  const toggleDone = useToggleNoteDone({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() });
-      },
+  const { data: summary } = useGetNotesSummary();
+  const toggleDone = useToggleNoteDone();
+
+  const handleToggle = useCallback(
+    async (id: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await toggleDone.mutateAsync({ id });
+      queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() });
     },
-  });
+    [toggleDone, queryClient],
+  );
 
-  const filtered = notes.filter((n) => {
+  const handlePress = useCallback((id: string) => {
+    router.push(`/note/${id}`);
+  }, []);
+
+  // Split into pinned + filtered rest
+  const pinnedNotes = notes.filter((n) => n.isPinned && !n.isDone);
+
+  const filteredNotes = notes.filter((n) => {
+    if (n.isPinned && filter === 'all') return false; // pinned shown separately
+    if (filter === 'all') return true;
     if (filter === 'open') return !n.isDone;
     if (filter === 'urgent') return n.isUrgent && !n.isDone;
+    if (filter === 'pinned') return n.isPinned;
     if (filter === 'done') return n.isDone;
     return true;
   });
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() }),
-      queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() }),
-    ]);
-    setRefreshing(false);
-  }, [queryClient]);
-
-  const handleToggle = (note: Note) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    toggleDone.mutate({ id: note.id });
-  };
-
-  const fabBottom =
-    insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 72;
+  const showPinnedSection = pinnedNotes.length > 0 && filter === 'all';
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Fixed header */}
+      {/* Header */}
       <View
         style={[
           styles.header,
@@ -258,109 +251,158 @@ export default function NotesScreen() {
         ]}
       >
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Notes</Text>
+      </View>
 
-        {summary && (
-          <SummaryStrip
-            total={summary.total}
-            open={summary.open}
-            urgent={summary.urgent}
-            completed={summary.completed}
+      <FlatList
+        data={filteredNotes}
+        keyExtractor={(n) => n.id}
+        contentContainerStyle={[
+          styles.list,
+          {
+            paddingBottom:
+              insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 80,
+          },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            tintColor={colors.primary}
           />
-        )}
-
-        {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          {FILTERS.map(({ key, label }) => (
-            <Pressable
-              key={key}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: filter === key ? colors.primary : colors.muted,
-                  borderRadius: 20,
-                },
-              ]}
-              onPress={() => setFilter(key)}
-            >
-              <Text
+        }
+        ListHeaderComponent={
+          <>
+            {/* Stats strip */}
+            {summary && (
+              <View
                 style={[
-                  styles.chipText,
+                  styles.statsStrip,
                   {
-                    color:
-                      filter === key ? colors.primaryForeground : colors.mutedForeground,
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderRadius: colors.radius,
                   },
                 ]}
               >
-                {label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
+                {[
+                  { label: 'Open', value: summary.open },
+                  { label: 'Done', value: summary.completed },
+                  { label: 'Urgent', value: summary.urgent },
+                ].map((s, i) => (
+                  <View
+                    key={s.label}
+                    style={[
+                      styles.statCell,
+                      i < 2 && {
+                        borderRightWidth: 1,
+                        borderRightColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.statValue, { color: colors.foreground }]}>
+                      {s.value}
+                    </Text>
+                    <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
+                      {s.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
-      {/* List */}
-      {isLoading ? (
-        <View style={styles.center}>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Loading notes…
-          </Text>
-        </View>
-      ) : filtered.length === 0 ? (
-        <View style={styles.center}>
-          <Feather name="inbox" size={44} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            {filter === 'all' ? 'No notes yet' : `No ${filter} notes`}
-          </Text>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            {filter === 'all' ? 'Tap + to add your first note' : 'Nothing here right now'}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(n) => n.id}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: fabBottom + 24 },
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
-          renderItem={({ item }) => (
-            <NoteCard
-              note={item}
-              onToggle={() => handleToggle(item)}
-              onPress={() => router.push(`/note/${item.id}`)}
-            />
-          )}
-        />
-      )}
+            {/* Filter chips */}
+            <View style={styles.chips}>
+              {(
+                [
+                  { key: 'all', label: 'All' },
+                  { key: 'open', label: 'Open' },
+                  { key: 'urgent', label: 'Urgent' },
+                  { key: 'pinned', label: 'Pinned' },
+                  { key: 'done', label: 'Done' },
+                ] as { key: Filter; label: string }[]
+              ).map((f) => (
+                <FilterChip
+                  key={f.key}
+                  label={f.label}
+                  active={filter === f.key}
+                  onPress={() => setFilter(f.key)}
+                />
+              ))}
+            </View>
+
+            {/* ── Pinned section ───────────────────────────────── */}
+            {showPinnedSection && (
+              <View style={styles.pinnedSection}>
+                <View style={styles.sectionHeadRow}>
+                  <Feather name="bookmark" size={13} color={colors.primary} />
+                  <Text style={[styles.sectionHeadText, { color: colors.primary }]}>
+                    Pinned
+                  </Text>
+                </View>
+                {pinnedNotes.map((n) => (
+                  <NoteCard
+                    key={n.id}
+                    note={n}
+                    onToggle={handleToggle}
+                    onPress={handlePress}
+                  />
+                ))}
+                {filteredNotes.length > 0 && (
+                  <View style={styles.sectionHeadRow}>
+                    <Text
+                      style={[
+                        styles.sectionHeadText,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      Other notes
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </>
+        }
+        renderItem={({ item }) => (
+          <NoteCard
+            note={item}
+            onToggle={handleToggle}
+            onPress={handlePress}
+          />
+        )}
+        ListEmptyComponent={
+          !isLoading ? (
+            <View style={styles.empty}>
+              {Platform.OS === 'ios' ? (
+                <SymbolView name="note.text" tintColor={colors.muted} size={40} />
+              ) : (
+                <Feather name="file-text" size={40} color={colors.muted} />
+              )}
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                {filter === 'all'
+                  ? 'No notes yet. Tap + to add one.'
+                  : `No ${filter} notes.`}
+              </Text>
+            </View>
+          ) : null
+        }
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      />
 
       {/* FAB */}
       <Pressable
         style={({ pressed }) => [
           styles.fab,
           {
-            backgroundColor: colors.accent,
-            borderRadius: 28,
-            bottom: fabBottom,
+            backgroundColor: colors.primary,
+            bottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 70,
             opacity: pressed ? 0.85 : 1,
+            borderRadius: 28,
           },
         ]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          router.push('/note/new');
-        }}
+        onPress={() => router.push('/note/new')}
       >
-        <Feather name="plus" size={26} color={colors.accentForeground} />
+        <Feather name="plus" size={26} color={colors.primaryForeground} />
       </Pressable>
     </View>
   );
@@ -370,39 +412,47 @@ export default function NotesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1 },
+  headerTitle: { fontSize: 32, fontFamily: 'Manrope_700Bold' },
 
-  // Header
-  header: { paddingHorizontal: 20, paddingBottom: 0, borderBottomWidth: 1 },
-  headerTitle: { fontSize: 32, fontFamily: 'Manrope_700Bold', marginBottom: 14 },
+  list: { paddingHorizontal: 16, paddingTop: 16, gap: 0 },
 
-  // Summary
-  summaryRow: {
+  statsStrip: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderRadius: 12,
     marginBottom: 14,
     overflow: 'hidden',
   },
-  stat: { flex: 1, alignItems: 'center', paddingVertical: 10, gap: 2 },
-  statValue: { fontSize: 18, fontFamily: 'Manrope_700Bold' },
-  statLabel: { fontSize: 10, fontFamily: 'Manrope_500Medium', opacity: 0.7 },
-  statDivider: { width: 1, marginVertical: 10 },
+  statCell: { flex: 1, alignItems: 'center', paddingVertical: 12 },
+  statValue: { fontSize: 22, fontFamily: 'Manrope_700Bold' },
+  statLabel: { fontSize: 11, fontFamily: 'Manrope_400Regular', marginTop: 2 },
 
-  // Filter chips
-  filterRow: { paddingVertical: 12, gap: 8, paddingRight: 4 },
-  chip: { paddingHorizontal: 16, paddingVertical: 7 },
+  chips: { flexDirection: 'row', gap: 8, marginBottom: 18, flexWrap: 'wrap' },
+  chip: { paddingHorizontal: 14, paddingVertical: 7 },
   chipText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold' },
 
-  // List
-  listContent: { paddingHorizontal: 16, paddingTop: 12, gap: 8 },
+  pinnedSection: { marginBottom: 6 },
+  sectionHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  sectionHeadText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
 
-  // Card
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: 12,
     padding: 14,
     borderWidth: 1,
-    gap: 12,
+    marginBottom: 10,
   },
   checkbox: {
     width: 22,
@@ -410,35 +460,26 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 1,
     flexShrink: 0,
   },
-  cardBody: { flex: 1, gap: 4 },
-  cardTitle: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
-  cardText: { fontSize: 14, lineHeight: 20 },
-  badgeRow: {
+  cardBody: { flex: 1 },
+  cardTitle: { fontSize: 15, fontFamily: 'Manrope_600SemiBold', marginBottom: 3 },
+  cardBody2: { fontSize: 14, fontFamily: 'Manrope_400Regular', lineHeight: 20 },
+
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  badge: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
-  badge: { paddingHorizontal: 7, paddingVertical: 2 },
   badgeText: { fontSize: 11, fontFamily: 'Manrope_500Medium' },
-  completedBy: { fontSize: 11, fontFamily: 'Manrope_400Regular' },
 
-  // Empty
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: { fontSize: 18, fontFamily: 'Manrope_600SemiBold', marginTop: 6 },
-  emptyText: { fontSize: 14, fontFamily: 'Manrope_400Regular', textAlign: 'center' },
+  empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
+  emptyText: { fontSize: 15, fontFamily: 'Manrope_400Regular', textAlign: 'center' },
 
-  // FAB
   fab: {
     position: 'absolute',
     right: 20,
@@ -446,10 +487,10 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
   },
 });

@@ -89,6 +89,7 @@ model Note {
   remindAt           DateTime?
   reminderSentAt     DateTime?
   isDone             Boolean   @default(false)
+  isPinned           Boolean   @default(false)
   completedByUserId  String?   @db.Uuid
   completedAt        DateTime?
   createdAt          DateTime  @default(now())

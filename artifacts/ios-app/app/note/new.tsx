@@ -17,12 +17,12 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
   useCreateNote,
-  useListGroups,
   getListNotesQueryKey,
   getGetNotesSummaryQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { ShareModal } from '@/components/ShareModal';
 
 export default function NewNoteScreen() {
   const colors = useColors();
@@ -32,12 +32,13 @@ export default function NewNoteScreen() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [groupName, setGroupName] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const bodyRef = useRef<TextInput>(null);
 
-  const { data: groups = [] } = useListGroups();
   const createNote = useCreateNote({
     mutation: {
       onSuccess: () => {
@@ -47,7 +48,6 @@ export default function NewNoteScreen() {
     },
   });
 
-  const currentGroup = groups.find((g) => g.id === groupId);
   const canSave = body.trim().length > 0;
 
   const handleCreate = async () => {
@@ -59,6 +59,7 @@ export default function NewNoteScreen() {
           title: title.trim() || null,
           body: body.trim(),
           isUrgent,
+          isPinned,
           groupId: groupId || null,
         },
       });
@@ -141,7 +142,9 @@ export default function NewNoteScreen() {
 
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-        {/* Urgent toggle */}
+        {/* ── Flags ─────────────────────────────────────────────────── */}
+
+        {/* Urgent */}
         <View style={styles.metaRow}>
           <Feather
             name="alert-circle"
@@ -157,94 +160,105 @@ export default function NewNoteScreen() {
           />
         </View>
 
-        {/* Group selector */}
-        <Pressable
-          style={styles.metaRow}
-          onPress={() => setShowGroupPicker((p) => !p)}
-        >
+        {/* Pin to Home */}
+        <View style={styles.metaRow}>
           <Feather
-            name="users"
+            name="bookmark"
             size={18}
-            color={groupId ? colors.primary : colors.mutedForeground}
+            color={isPinned ? colors.primary : colors.mutedForeground}
           />
-          <Text style={[styles.metaLabel, { color: colors.foreground }]}>
-            {currentGroup ? currentGroup.name : 'Personal'}
-          </Text>
-          <Feather
-            name={showGroupPicker ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={colors.mutedForeground}
+          <View style={styles.metaLabelCol}>
+            <Text style={[styles.metaLabel, { color: colors.foreground }]}>
+              Pin to Home
+            </Text>
+            <Text style={[styles.metaDesc, { color: colors.mutedForeground }]}>
+              Show at the top of your notes
+            </Text>
+          </View>
+          <Switch
+            value={isPinned}
+            onValueChange={setIsPinned}
+            trackColor={{ false: colors.muted, true: colors.primary + 'bb' }}
+            thumbColor={isPinned ? colors.primary : colors.mutedForeground}
           />
-        </Pressable>
+        </View>
 
-        {showGroupPicker && (
-          <View
-            style={[
-              styles.picker,
-              { backgroundColor: colors.muted, borderRadius: colors.radius / 2 },
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        {/* ── Share ─────────────────────────────────────────────────── */}
+        <View style={styles.sectionHead}>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            SHARE
+          </Text>
+        </View>
+
+        {groupId ? (
+          /* Currently shared with a group */
+          <Pressable
+            style={({ pressed }) => [
+              styles.groupBadge,
+              {
+                backgroundColor: colors.primary + '15',
+                borderColor: colors.primary,
+                borderRadius: colors.radius,
+                opacity: pressed ? 0.8 : 1,
+              },
             ]}
+            onPress={() => setShowShareModal(true)}
           >
+            <Feather name="users" size={16} color={colors.primary} />
+            <Text style={[styles.groupBadgeText, { color: colors.primary }]}>
+              {groupName ?? 'Shared group'}
+            </Text>
             <Pressable
-              style={[
-                styles.pickerRow,
-                {
-                  borderBottomColor: colors.border,
-                  borderBottomWidth: groups.length > 0 ? 1 : 0,
-                },
-              ]}
+              hitSlop={12}
               onPress={() => {
                 setGroupId(null);
-                setShowGroupPicker(false);
+                setGroupName(null);
               }}
             >
-              <Text
-                style={[
-                  styles.pickerText,
-                  {
-                    color: !groupId ? colors.primary : colors.foreground,
-                    fontFamily: !groupId ? 'Manrope_600SemiBold' : 'Manrope_400Regular',
-                  },
-                ]}
-              >
-                Personal
-              </Text>
-              {!groupId && <Feather name="check" size={16} color={colors.primary} />}
+              <Feather name="x" size={14} color={colors.primary} />
             </Pressable>
-            {groups.map((g, i) => (
-              <Pressable
-                key={g.id}
-                style={[
-                  styles.pickerRow,
-                  {
-                    borderBottomColor: colors.border,
-                    borderBottomWidth: i < groups.length - 1 ? 1 : 0,
-                  },
-                ]}
-                onPress={() => {
-                  setGroupId(g.id);
-                  setShowGroupPicker(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pickerText,
-                    {
-                      color: groupId === g.id ? colors.primary : colors.foreground,
-                      fontFamily:
-                        groupId === g.id ? 'Manrope_600SemiBold' : 'Manrope_400Regular',
-                    },
-                  ]}
-                >
-                  {g.name}
-                </Text>
-                {groupId === g.id && (
-                  <Feather name="check" size={16} color={colors.primary} />
-                )}
-              </Pressable>
-            ))}
-          </View>
+          </Pressable>
+        ) : (
+          /* No group selected */
+          <Pressable
+            style={({ pressed }) => [
+              styles.shareBtn,
+              {
+                borderColor: colors.border,
+                borderRadius: colors.radius,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+            onPress={() => setShowShareModal(true)}
+          >
+            <Feather name="share-2" size={18} color={colors.mutedForeground} />
+            <View style={styles.shareBtnLabel}>
+              <Text style={[styles.shareBtnTitle, { color: colors.foreground }]}>
+                Share with a group
+              </Text>
+              <Text style={[styles.shareBtnDesc, { color: colors.mutedForeground }]}>
+                Collaborate with people you've added
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </Pressable>
         )}
       </KeyboardAwareScrollViewCompat>
+
+      {/* Share modal */}
+      <ShareModal
+        visible={showShareModal}
+        selectedGroupId={groupId}
+        onClose={() => setShowShareModal(false)}
+        onSelect={(gid, gname) => {
+          setGroupId(gid);
+          setGroupName(gname ?? null);
+          setShowShareModal(false);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+      />
     </View>
   );
 }
@@ -263,20 +277,16 @@ const styles = StyleSheet.create({
   addBtn: { paddingHorizontal: 18, paddingVertical: 8 },
   addBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 
-  scroll: { padding: 20 },
-  titleInput: {
-    fontSize: 24,
-    fontFamily: 'Manrope_700Bold',
-    marginBottom: 12,
-  },
+  scroll: { padding: 20, gap: 0 },
+  titleInput: { fontSize: 24, fontFamily: 'Manrope_700Bold', marginBottom: 12 },
   bodyInput: {
     fontSize: 16,
     fontFamily: 'Manrope_400Regular',
     lineHeight: 26,
-    minHeight: 160,
+    minHeight: 140,
     marginBottom: 24,
   },
-  divider: { height: 1, marginBottom: 10 },
+  divider: { height: 1, marginVertical: 4 },
 
   metaRow: {
     flexDirection: 'row',
@@ -284,15 +294,36 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 13,
   },
-  metaLabel: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  metaLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  metaLabelCol: { flex: 1 },
+  metaDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
 
-  picker: { marginBottom: 8, overflow: 'hidden' },
-  pickerRow: {
+  sectionHead: { paddingTop: 16, paddingBottom: 6 },
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+
+  shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    gap: 14,
+    padding: 16,
+    borderWidth: 1,
   },
-  pickerText: { fontSize: 15 },
+  shareBtnLabel: { flex: 1 },
+  shareBtnTitle: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  shareBtnDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
+
+  groupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+  },
+  groupBadgeText: { flex: 1, fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 });

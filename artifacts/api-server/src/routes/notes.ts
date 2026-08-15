@@ -30,6 +30,7 @@ function mapNote(note: {
   remindAt: Date | null;
   reminderSentAt: Date | null;
   isDone: boolean;
+  isPinned: boolean;
   completedByUserId: string | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -49,6 +50,7 @@ function mapNote(note: {
     remindAt: note.remindAt,
     reminderSentAt: note.reminderSentAt,
     isDone: note.isDone,
+    isPinned: note.isPinned,
     completedByUserId: note.completedByUserId,
     completedByEmail: note.completedBy?.email ?? null,
     completedAt: note.completedAt,
@@ -109,6 +111,7 @@ router.post(
         title: input.title ?? null,
         audioUrl: input.audioUrl ?? null,
         isUrgent: input.isUrgent ?? false,
+        isPinned: input.isPinned ?? false,
         remindAt: input.remindAt ?? null,
         groupId: input.groupId ?? null,
       },
@@ -163,6 +166,7 @@ router.patch(
         ...(input.body !== undefined ? { body: input.body } : {}),
         ...(input.audioUrl !== undefined ? { audioUrl: input.audioUrl ?? null } : {}),
         ...(input.isUrgent !== undefined ? { isUrgent: input.isUrgent } : {}),
+        ...(input.isPinned !== undefined ? { isPinned: input.isPinned } : {}),
         ...(Object.prototype.hasOwnProperty.call(req.body, "remindAt")
           ? { remindAt: input.remindAt ? new Date(input.remindAt) : null, reminderSentAt: remindAtChanged ? null : note.reminderSentAt }
           : {}),

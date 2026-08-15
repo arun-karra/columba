@@ -24,6 +24,7 @@ export interface Note {
   /** @nullable */
   reminderSentAt: Date | null;
   isDone: boolean;
+  isPinned: boolean;
   /** @nullable */
   completedByUserId: string | null;
   /** @nullable */
