@@ -57,6 +57,8 @@
   },
   "dependencies": {
     "@expo-google-fonts/manrope": "^0.4.2",
-    "@react-native-community/datetimepicker": "8.4.4"
+    "@react-native-community/datetimepicker": "8.4.4",
+    "expo-dev-client": "^6.0.21",
+    "expo-notifications": "~0.32.17"
   }
 }

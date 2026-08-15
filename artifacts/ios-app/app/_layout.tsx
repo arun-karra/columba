@@ -37,6 +37,8 @@ setAuthTokenGetter(() => AsyncStorage.getItem('columba-token'));
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -152,31 +154,50 @@ export default function RootLayout() {
       },
     );
 
-    // Background / lock-screen: user tapped "Mark as Complete" on a
-    // pinned-note notification.
-    const responseSub = Notifications.addNotificationResponseReceivedListener(
-      async (response) => {
-        const { actionIdentifier, notification } = response;
-        const data = notification.request.content.data as Record<string, unknown>;
-        const noteId = typeof data?.noteId === 'string' ? data.noteId : undefined;
+    // ── Shared handler for "Mark as Complete" action ─────────────────────────
+    // Called for both active/background responses (listener) AND the initial
+    // response when the app is launched from a terminated state (getLastNotificationResponseAsync).
+    async function handleMarkCompleteResponse(
+      response: Notifications.NotificationResponse,
+    ) {
+      const { actionIdentifier, notification } = response;
+      if (actionIdentifier !== MARK_COMPLETE_ACTION) return;
 
-        if (actionIdentifier === MARK_COMPLETE_ACTION && noteId) {
-          try {
-            const token = await AsyncStorage.getItem('columba-token');
-            await fetch(
-              `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/notes/${noteId}/toggle-done`,
-              {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-              },
-            );
-            queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
-            queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() });
-          } catch {
-            // best-effort
-          }
-        }
-      },
+      const data = notification.request.content.data as Record<string, unknown>;
+      const noteId = typeof data?.noteId === 'string' ? data.noteId : undefined;
+      if (!noteId) return;
+
+      try {
+        const token = await AsyncStorage.getItem('columba-token');
+        const res = await fetch(
+          `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/notes/${noteId}/mark-done`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() });
+      } catch {
+        // best-effort — network may be unavailable on lock screen
+      }
+    }
+
+    // Cold-start: app was terminated when the user tapped the action button.
+    // The listener below won't fire in this case; retrieve the stored response instead.
+    // Clear immediately after reading so subsequent launches don't re-process it.
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        void Notifications.clearLastNotificationResponseAsync();
+        void handleMarkCompleteResponse(response);
+      }
+    });
+
+    // Background / lock-screen: user tapped "Mark as Complete" while the app
+    // was backgrounded or foregrounded.
+    const responseSub = Notifications.addNotificationResponseReceivedListener(
+      (response) => { void handleMarkCompleteResponse(response); },
     );
 
     return () => {

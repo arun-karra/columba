@@ -69,6 +69,8 @@ router.post(
     const isBypass =
       process.env.NODE_ENV !== "production" && input.code === "000000";
 
+    let loginCodeId: string | undefined;
+
     if (!isBypass) {
       const loginCode = await prisma.loginCode.findFirst({
         where: { email, consumedAt: null },
@@ -82,13 +84,14 @@ router.post(
       if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
         throw new HttpError(401, "INVALID_CODE", "That code is invalid or has expired.");
       }
+      loginCodeId = loginCode.id;
     } else {
       logger.info({ email }, "Dev bypass sign-in");
     }
 
     const result = await prisma.$transaction(async (tx) => {
       if (!isBypass) {
-        await tx.loginCode.update({ where: { id: loginCode.id }, data: { consumedAt: new Date() } });
+        await tx.loginCode.update({ where: { id: loginCodeId! }, data: { consumedAt: new Date() } });
       }
       const user = await tx.user.upsert({ where: { email }, update: {}, create: { email } });
       const invites = await tx.groupInvite.findMany({ where: { email, status: "pending" } });

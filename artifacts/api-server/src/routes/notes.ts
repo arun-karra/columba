@@ -232,6 +232,35 @@ router.post(
   }),
 );
 
+// Idempotent endpoint used by the lock-screen "Mark as Complete" action button.
+// Unlike toggle-done, this only ever sets the note to done — safe to call
+// multiple times (e.g. from both the cold-start and listener paths).
+router.post(
+  "/notes/:id/mark-done",
+  asyncHandler(async (req, res) => {
+    const userId = (req as AuthenticatedRequest).userId;
+    const { id } = parseOrThrow(ToggleNoteDoneParams, { id: requireParam(req.params.id, "id") });
+    const note = await getVisibleNote(id, userId);
+    if (note.groupId === null && note.ownerId !== userId) {
+      throw new HttpError(403, "FORBIDDEN", "You cannot complete this note.");
+    }
+    // No-op if already done — avoids reopening the note on duplicate calls.
+    if (note.isDone) {
+      res.json(mapNote({ ...note, group: note.group ?? null, completedBy: null }));
+      return;
+    }
+    const updated = await prisma.note.update({
+      where: { id },
+      data: { isDone: true, completedByUserId: userId, completedAt: new Date() },
+      include: noteInclude,
+    });
+    if (updated.isPinned) {
+      void sendDismissPush([userId], updated.id);
+    }
+    res.json(mapNote(updated));
+  }),
+);
+
 router.delete(
   "/notes/:id",
   asyncHandler(async (req, res) => {
