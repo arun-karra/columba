@@ -1,69 +1,88 @@
 /**
- * Brand palette for Columba.
- * HSL → hex conversions: background hsl(42,33%,96%), foreground hsl(174,24%,18%),
- * primary hsl(174,31%,29%), accent hsl(39,89%,68%).
+ * Brand palette for Columba — "Eucalyptus Glass" redesign.
+ * Vivid, playful, glass-friendly colours with extra tokens for
+ * urgent (coral), done (mint), reminders (sky/lavender), and gradients.
  */
 const colors = {
   light: {
-    text: '#233937',
-    tint: '#2D5250',
+    text: '#1A3330',
+    tint: '#1E5C54',
 
-    background: '#F8F6F1',
-    foreground: '#233937',
+    background: '#EBF7F3',
+    foreground: '#1A3330',
 
-    card: '#FDFCF9',
-    cardForeground: '#233937',
+    card: '#FFFFFF',
+    cardForeground: '#1A3330',
 
-    primary: '#2D5250',
-    primaryForeground: '#FDFCF9',
+    primary: '#1E5C54',
+    primaryForeground: '#FFFFFF',
 
-    secondary: '#E8DFCA',
-    secondaryForeground: '#233937',
+    secondary: '#C5E8DC',
+    secondaryForeground: '#1A3330',
 
-    muted: '#EDE8DB',
-    mutedForeground: '#647572',
+    muted: '#D6EEE7',
+    mutedForeground: '#5A8078',
 
-    accent: '#F5B93F',
-    accentForeground: '#233937',
+    accent: '#F5A623',
+    accentForeground: '#FFFFFF',
 
-    destructive: '#D44030',
-    destructiveForeground: '#FDFCF9',
+    destructive: '#FF5A5A',
+    destructiveForeground: '#FFFFFF',
 
-    border: '#DDD8CB',
-    input: '#DDD8CB',
+    border: 'rgba(30,92,84,0.12)',
+    input: 'rgba(30,92,84,0.1)',
+
+    // Status colours
+    urgent: '#FF6B5B',
+    done: '#34C88A',
+    sky: '#5BB8F5',
+    lavender: '#9B8FE8',
+
+    // Gradient stops (light)
+    gradientStart: '#D4F0E8',
+    gradientEnd: '#EBF7F3',
   },
 
   dark: {
-    text: '#F0EBE0',
-    tint: '#5B9088',
+    text: '#DFF0EC',
+    tint: '#4AA89A',
 
-    background: '#0D1E1C',
-    foreground: '#F0EBE0',
+    background: '#0A1C1A',
+    foreground: '#DFF0EC',
 
-    card: '#152B28',
-    cardForeground: '#F0EBE0',
+    card: '#162C28',
+    cardForeground: '#DFF0EC',
 
-    primary: '#5B9088',
-    primaryForeground: '#0D1E1C',
+    primary: '#4AA89A',
+    primaryForeground: '#0A1C1A',
 
-    secondary: '#1E3330',
-    secondaryForeground: '#F0EBE0',
+    secondary: '#1A3530',
+    secondaryForeground: '#DFF0EC',
 
-    muted: '#1A2D2B',
-    mutedForeground: '#8EA09C',
+    muted: '#183028',
+    mutedForeground: '#6A9990',
 
-    accent: '#F5B93F',
-    accentForeground: '#0D1E1C',
+    accent: '#F5A623',
+    accentForeground: '#0A1C1A',
 
-    destructive: '#E05040',
-    destructiveForeground: '#F0EBE0',
+    destructive: '#FF6B6B',
+    destructiveForeground: '#0A1C1A',
 
-    border: '#1E3330',
-    input: '#273C39',
+    border: 'rgba(255,255,255,0.1)',
+    input: 'rgba(255,255,255,0.08)',
+
+    // Status colours
+    urgent: '#FF7070',
+    done: '#34C88A',
+    sky: '#5BB8F5',
+    lavender: '#9B8FE8',
+
+    // Gradient stops (dark)
+    gradientStart: '#0A1C1A',
+    gradientEnd: '#122420',
   },
 
-  // 0.875rem from web CSS --radius
-  radius: 14,
+  radius: 20,
 };
 
 export default colors;
