@@ -95,20 +95,76 @@ pnpm --filter @workspace/ios-app run dev
 
 Then scan the QR code with Expo Go (iOS) or open in a simulator.
 
+> **Expo Go cannot pin notes to the lock screen.** Custom notification actions need a development build (see below).
+
 ### EAS / development builds
 
-Lock-screen notification actions need a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (they do not work in Expo Go). Run EAS commands from `artifacts/ios-app`, or use the root scripts:
+This is a **pnpm monorepo**. The Expo app lives in `artifacts/ios-app`, not the repo root. EAS config (`eas.json`, `app.json`) must be used from that folder.
 
-```bash
-pnpm eas:build:dev          # device (internal distribution)
-pnpm eas:build:sim          # iOS Simulator
-pnpm eas:build:preview      # internal preview
-pnpm eas:build:prod         # App Store / production
-```
-
-If Expo or EAS is connected to this GitHub repo, set the **project directory** to `artifacts/ios-app`.
+If this GitHub repo is linked on [expo.dev](https://expo.dev), set **Base directory** to `artifacts/ios-app` (Project → GitHub settings). Leaving it as `/` makes Expo look at the repo root, where there is no app.
 
 `EXPO_PUBLIC_DOMAIN` (API hostname, no `https://`) must be set as an EAS Environment Variable for each environment (`development`, `preview`, `production`). Do not put API keys, JWT secrets, or signing credentials in `eas.json` — those stay in EAS Environment Variables / EAS Credentials (`credentialsSource: remote`).
+
+#### One-time setup
+
+1. Install [Node.js 20+](https://nodejs.org/) and [pnpm](https://pnpm.io/installation) if you do not have them.
+2. Create a free account at [expo.dev](https://expo.dev) (same account that owns `arunkarras-team`).
+3. On your computer, in a terminal:
+
+```bash
+cd /path/to/columba
+pnpm install
+npm install -g eas-cli
+eas login
+cd artifacts/ios-app
+eas init
+```
+
+`eas init` links this app to your Expo project and writes `extra.eas.projectId` into `app.json`. That is expected — commit that change. If it asks to create a new project vs link an existing one, link **Columba** / `ios-app` under `arunkarras-team` if it exists; otherwise create a new project.
+
+4. In [expo.dev](https://expo.dev) → your project → **Environment variables**, add `EXPO_PUBLIC_DOMAIN` (public) for the **development** environment. Use your API host without `https://`, for example `columba.example.com`.
+5. For a **physical iPhone** build you need a paid [Apple Developer](https://developer.apple.com) account. EAS will ask to manage credentials the first time — say yes. For **Simulator only**, skip Apple credentials (the `development-simulator` profile already sets `withoutCredentials`).
+
+#### Create the native app (once per native-change)
+
+From the repo root:
+
+```bash
+pnpm eas:build:sim          # iPhone Simulator (easiest first build)
+pnpm eas:build:dev          # physical iPhone (internal distribution)
+```
+
+Or from `artifacts/ios-app`:
+
+```bash
+eas build --profile development-simulator --platform ios
+eas build --profile development --platform ios
+```
+
+The first run asks a few questions (credentials, generate a new keystore / provisioning profile). Accept the defaults unless you already manage signing yourself.
+
+Wait for the build on [expo.dev/accounts/arunkarras-team/projects/ios-app/builds](https://expo.dev/accounts/arunkarras-team/projects/ios-app/builds) (the slug may differ if `eas init` created a new project). It usually takes 10–20 minutes.
+
+- **Simulator:** download the `.tar.gz`, unpack it, drag `Columba.app` onto the Simulator (or `xcrun simctl install booted Columba.app`).
+- **iPhone:** install [Expo Orbit](https://expo.dev/orbit) or scan the QR code from the build page. The device must be registered with your Apple team; EAS walks you through that.
+
+You only need a new native build after changing native dependencies, plugins, or `app.json`. Everyday JS/TS changes do **not** need a rebuild.
+
+#### Run the app day-to-day
+
+1. Start the API (`pnpm --filter @workspace/api-server run dev`).
+2. Start the bundler from `artifacts/ios-app`:
+
+```bash
+EXPO_PUBLIC_DOMAIN=your-api-host.example.com pnpm start
+```
+
+3. Open the Columba development build on the Simulator or iPhone. It will load JS from that bundler.
+
+```bash
+pnpm eas:build:preview      # internal preview (no dev client)
+pnpm eas:build:prod         # App Store / production
+```
 
 ---
 

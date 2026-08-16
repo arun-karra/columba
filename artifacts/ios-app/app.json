@@ -28,6 +28,7 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
+      "expo-dev-client",
       [
         "expo-router",
         {
@@ -40,14 +41,15 @@
       [
         "expo-notifications",
         {
-          "iosDisplayInForeground": true
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": true,
+      "autolinkingModuleResolution": true
     },
     "owner": "arunkarras-team"
   }

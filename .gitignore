@@ -1,5 +1,11 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
+# The Expo app lives in artifacts/ios-app. Ignore a stub config created by
+# running `eas init` from the repo root by mistake.
+/app.json
+/app.config.js
+/app.config.ts
+
 # compiled output
 dist
 tmp
