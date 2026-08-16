@@ -12,17 +12,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRequestAuthCode, useVerifyAuthCode } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
+import { AppIcon } from '@/components/AppIcon';
+import { useScreenGutter } from '@/constants/layout';
 
 type Step = 'email' | 'code';
 
 export default function AuthScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const gutter = useScreenGutter();
   const { signIn } = useAuth();
 
   const [step, setStep] = useState<Step>('email');
@@ -73,8 +75,9 @@ export default function AuthScreen() {
           style={[
             styles.inner,
             {
-              paddingTop: insets.top + (Platform.OS === 'web' ? 80 : 40),
-              paddingBottom: insets.bottom + 32,
+              paddingTop: insets.top + 24,
+              paddingBottom: insets.bottom + 24,
+              paddingHorizontal: gutter,
             },
           ]}
         >
@@ -83,7 +86,7 @@ export default function AuthScreen() {
             {/* Logo */}
             <View style={styles.logoWrap}>
               <View style={[styles.logoBox, { backgroundColor: colors.secondary }]}>
-                <Feather name="send" size={30} color={colors.primary} />
+                <AppIcon name="paperplane.fill" size={30} color={colors.primary} />
               </View>
               <Text style={[styles.logoLabel, { color: colors.primary }]}>COLUMBA</Text>
             </View>
@@ -101,7 +104,7 @@ export default function AuthScreen() {
 
                 {/* Email input */}
                 <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
-                  <Feather name="mail" size={16} color={colors.mutedForeground} />
+                  <AppIcon name="envelope" size={16} color={colors.mutedForeground} />
                   <TextInput
                     style={[styles.input, { color: colors.foreground }]}
                     placeholder="name@example.com"
@@ -110,6 +113,8 @@ export default function AuthScreen() {
                     onChangeText={setEmail}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    autoComplete="email"
+                    textContentType="emailAddress"
                     keyboardType="email-address"
                     returnKeyType="send"
                     onSubmitEditing={handleSendCode}
@@ -177,6 +182,8 @@ export default function AuthScreen() {
                   value={code}
                   onChangeText={setCode}
                   keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
                   maxLength={6}
                   returnKeyType="done"
                   onSubmitEditing={handleVerify}
@@ -266,7 +273,9 @@ const styles = StyleSheet.create({
   inner: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
   },
 
   card: {
