@@ -1,15 +1,20 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -18,12 +23,12 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
-import { LinearGradient } from 'expo-linear-gradient';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
-import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 import {
   useGetNote,
@@ -34,43 +39,58 @@ import {
   getGetNotesSummaryQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
-import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ShareModal } from '@/components/ShareModal';
 import { dismissNoteNotification } from '@/utils/notifications';
 
-// ─── Quick reminder presets (same as new.tsx) ─────────────────────────────────
+// ─── Quick reminder presets ────────────────────────────────────────────────────
 
-const quickReminders = () => {
+function getQuickReminders() {
   const now = new Date();
 
   const inOneHour = new Date(now);
   inOneHour.setHours(inOneHour.getHours() + 1, 0, 0, 0);
 
-  const tonight = new Date(now);
-  tonight.setHours(19, 0, 0, 0);
-  if (tonight <= now) tonight.setDate(tonight.getDate() + 1);
-
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(9, 0, 0, 0);
 
-  const nextWeek = new Date(now);
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  nextWeek.setHours(9, 0, 0, 0);
-
   return [
-    { emoji: '⚡', label: '1 hour', color: '#F5A623', date: inOneHour },
-    { emoji: '🌙', label: 'Tonight', color: '#9B8FE8', date: tonight },
-    { emoji: '☀️', label: 'Tomorrow', color: '#5BB8F5', date: tomorrow },
-    { emoji: '📅', label: 'Next week', color: '#34C88A', date: nextWeek },
+    { icon: 'clock' as const, label: 'In 1 hour', date: inOneHour },
+    { icon: 'sun' as const, label: 'Tomorrow', date: tomorrow },
   ];
-};
+}
+
+// ─── Section Card ──────────────────────────────────────────────────────────────
+
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  const colors = useColors();
+  return (
+    <View>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        {title}
+      </Text>
+      <View
+        style={[
+          styles.sectionCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        {children}
+      </View>
+    </View>
+  );
+}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function NoteDetailScreen() {
   const colors = useColors();
-  const scheme = useColorScheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
@@ -81,7 +101,6 @@ export default function NoteDetailScreen() {
   const deleteNote = useDeleteNote();
   const toggleDone = useToggleNoteDone();
 
-  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
@@ -98,12 +117,11 @@ export default function NoteDetailScreen() {
     transform: [{ scale: doneBtnScale.value }],
   }));
 
-  // Confetti burst — increment to fire
+  // Confetti burst
   const [confettiTrigger, setConfettiTrigger] = useState(0);
 
   useEffect(() => {
     if (!note) return;
-    setTitle(note.title ?? '');
     setBody(note.body);
     setIsUrgent(note.isUrgent);
     setIsPinned(note.isPinned);
@@ -111,523 +129,583 @@ export default function NoteDetailScreen() {
     setGroupName(note.groupName ?? null);
     setRemindAt(note.remindAt ? new Date(note.remindAt) : null);
     setDirty(false);
-  }, [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [note]);
 
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() });
-  }, [queryClient]);
+  // Nav header save button
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () =>
+        dirty ? (
+          <Pressable
+            onPress={handleSave}
+            style={{ marginRight: 16 }}
+            hitSlop={12}
+          >
+            <Text
+              style={{
+                color: colors.primary,
+                fontFamily: 'Manrope_600SemiBold',
+                fontSize: 16,
+              }}
+            >
+              Save
+            </Text>
+          </Pressable>
+        ) : null,
+    });
+  }, [dirty, body, isUrgent, isPinned, remindAt, groupId]);
 
   const handleSave = useCallback(async () => {
-    if (!note || !body.trim()) return;
+    if (!id || !note) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await updateNote.mutateAsync({
-        id: note.id,
+        id,
         data: {
-          title: title.trim() || null,
-          body: body.trim(),
+          body: body.trim() || note.body,
           isUrgent,
           isPinned,
           groupId: groupId || null,
           remindAt: remindAt ? remindAt.toISOString() : null,
         },
       });
-      invalidate();
+      queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+      queryClient.invalidateQueries({
+        queryKey: getGetNotesSummaryQueryKey(),
+      });
       setDirty(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert('Hmm…', 'Could not save. Give it another go!');
+      Alert.alert('Error', 'Could not save. Please try again.');
     }
-  }, [note, body, title, isUrgent, isPinned, groupId, remindAt, updateNote, invalidate]);
+  }, [id, note, body, isUrgent, isPinned, remindAt, groupId]);
 
   const handleDelete = useCallback(() => {
-    if (!note) return;
-    Alert.alert('Delete note?', 'Gone forever — no take backs! 👋', [
-      { text: 'Keep it', style: 'cancel' },
+    Alert.alert('Delete note', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          if (!id) return;
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          await deleteNote.mutateAsync({ id: note.id });
-          invalidate();
-          router.back();
+          try {
+            await deleteNote.mutateAsync({ id });
+            void dismissNoteNotification(id);
+            queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+            queryClient.invalidateQueries({
+              queryKey: getGetNotesSummaryQueryKey(),
+            });
+            router.back();
+          } catch {
+            Alert.alert('Error', 'Could not delete this note.');
+          }
         },
       },
     ]);
-  }, [note, deleteNote, invalidate]);
+  }, [id]);
 
-  const handleToggle = useCallback(async () => {
-    if (!note) return;
-    const markingDone = !note.isDone;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleToggleDone = useCallback(async () => {
+    if (!id || !note) return;
 
-    // Spring pulse on the button
     doneBtnScale.value = withSequence(
-      withSpring(0.88, { damping: 5, stiffness: 500, mass: 0.5 }),
-      withSpring(1.08, { damping: 4, stiffness: 350 }),
-      withSpring(1, { damping: 14, stiffness: 200 }),
+      withSpring(0.9, { damping: 4, stiffness: 350 }),
+      withSpring(1.12, { damping: 3, stiffness: 400, mass: 0.5 }),
+      withSpring(1, { damping: 14, stiffness: 220 }),
     );
 
-    await toggleDone.mutateAsync({ id: note.id });
-    invalidate();
-    void dismissNoteNotification(note.id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Fire confetti only when completing (not reopening)
-    if (markingDone) {
-      setConfettiTrigger((t) => t + 1);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!note.isDone) {
+      setConfettiTrigger((n) => n + 1);
     }
-  }, [note, toggleDone, invalidate, doneBtnScale]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: '',
-      headerRight: () =>
-        dirty ? (
-          <Pressable onPress={handleSave} hitSlop={12} disabled={updateNote.isPending}>
-            {updateNote.isPending ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: colors.accent }}>
-                Save
-              </Text>
-            )}
-          </Pressable>
-        ) : null,
-    });
-  }, [dirty, updateNote.isPending, handleSave, colors.primary, colors.accent, navigation]);
+    try {
+      await toggleDone.mutateAsync({ id });
+      if (!note.isDone) {
+        void dismissNoteNotification(id);
+      }
+      queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+      queryClient.invalidateQueries({
+        queryKey: getGetNotesSummaryQueryKey(),
+      });
+    } catch {
+      Alert.alert('Error', 'Could not update this note.');
+    }
+  }, [id, note]);
+
+  const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS !== 'ios') setShowDatePicker(false);
+    if (selected) {
+      setRemindAt(selected);
+      setDirty(true);
+    }
+  };
+
+  const quickReminders = getQuickReminders();
+
+  const reminderLabel = remindAt
+    ? remindAt.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
 
   if (isLoading || !note) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
+      <View
+        style={[
+          styles.centered,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
 
-  const presets = quickReminders();
-  const reminderLabel = remindAt
-    ? remindAt.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : null;
+  const isDone = note.isDone;
 
   return (
-    <View style={styles.root}>
-      {/* Background */}
-      <LinearGradient
-        colors={scheme === 'dark'
-          ? [colors.gradientStart, colors.gradientEnd]
-          : ['#D4F0E8', '#EBF7F3', '#F0F9F6']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <KeyboardAwareScrollViewCompat
-        contentContainerStyle={styles.scroll}
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <ScrollView
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
       >
-        {/* Title */}
+        {/* Body input */}
         <TextInput
-          style={[styles.titleInput, { color: colors.foreground }]}
-          placeholder="Title (optional)"
-          placeholderTextColor={colors.mutedForeground}
-          value={title}
-          onChangeText={(t) => { setTitle(t); setDirty(true); }}
-          returnKeyType="next"
-        />
-
-        {/* Body */}
-        <TextInput
-          style={[styles.bodyInput, { color: colors.foreground }]}
-          placeholder="What's on your mind?"
+          style={[
+            styles.bodyInput,
+            {
+              color: colors.foreground,
+              backgroundColor: colors.secondary,
+              borderRadius: colors.radius,
+              textDecorationLine: isDone ? 'line-through' : 'none',
+            },
+          ]}
+          placeholder="Write a note..."
           placeholderTextColor={colors.mutedForeground}
           value={body}
-          onChangeText={(t) => { setBody(t); setDirty(true); }}
+          onChangeText={(t) => {
+            setBody(t);
+            setDirty(true);
+          }}
           multiline
           textAlignVertical="top"
         />
 
-        <View style={[styles.divider, { backgroundColor: 'rgba(30,92,84,0.1)' }]} />
-
-        {/* ─── Reminder ─────────────────────────────────────────────────── */}
-        <View style={styles.sectionBlock}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>⏰  Remind me</Text>
-
-          <View style={styles.chipRow}>
-            {presets.map((p) => {
-              const isActive = remindAt?.getTime() === p.date.getTime();
+        {/* Remind Me */}
+        <SectionCard title="Remind Me">
+          <View style={styles.remindRow}>
+            {quickReminders.map((r, i) => {
+              const active =
+                remindAt?.toISOString().slice(0, 16) ===
+                r.date.toISOString().slice(0, 16);
               return (
                 <Pressable
-                  key={p.label}
-                  style={({ pressed }) => [
-                    styles.reminderChip,
+                  key={i}
+                  style={[
+                    styles.remindChip,
                     {
-                      backgroundColor: isActive ? p.color : 'rgba(255,255,255,0.65)',
-                      borderColor: isActive ? p.color : 'rgba(0,0,0,0.08)',
-                      opacity: pressed ? 0.8 : 1,
+                      borderColor: active ? colors.primary : colors.border,
+                      backgroundColor: active ? colors.secondary : colors.muted,
+                      borderRadius: 10,
                     },
                   ]}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    if (isActive) {
-                      setRemindAt(null);
-                    } else {
-                      setRemindAt(p.date);
-                      setShowDatePicker(false);
-                    }
+                    setRemindAt(active ? null : r.date);
                     setDirty(true);
                   }}
                 >
-                  <Text style={styles.chipEmoji}>{p.emoji}</Text>
-                  <Text style={[styles.chipLabel, { color: isActive ? '#FFFFFF' : colors.foreground }]}>
-                    {p.label}
+                  <Feather
+                    name={r.icon}
+                    size={13}
+                    color={active ? colors.primary : colors.mutedForeground}
+                  />
+                  <Text
+                    style={[
+                      styles.remindChipText,
+                      {
+                        color: active
+                          ? colors.primary
+                          : colors.mutedForeground,
+                      },
+                    ]}
+                  >
+                    {r.label}
                   </Text>
                 </Pressable>
               );
             })}
-          </View>
-
-          {/* Custom time */}
-          <Pressable
-            style={[
-              styles.customTimeRow,
-              {
-                backgroundColor: 'rgba(255,255,255,0.55)',
-                borderColor: 'rgba(0,0,0,0.07)',
-              },
-            ]}
-            onPress={() => {
-              if (!remindAt) {
-                const d = new Date();
-                d.setDate(d.getDate() + 1);
-                d.setHours(9, 0, 0, 0);
-                setRemindAt(d);
-                setDirty(true);
-              }
-              setShowDatePicker((v) => !v);
-            }}
-          >
-            <Feather name="clock" size={16} color={remindAt ? colors.sky : colors.mutedForeground} />
-            <Text style={[styles.customTimeLabel, { color: remindAt ? colors.foreground : colors.mutedForeground, flex: 1 }]}>
-              {reminderLabel ?? 'Pick a custom time…'}
-            </Text>
-            {note.reminderSentAt && remindAt && (
-              <View style={[styles.sentBadge, { backgroundColor: colors.done + '22' }]}>
-                <Text style={[styles.sentBadgeText, { color: colors.done }]}>Sent ✓</Text>
-              </View>
-            )}
-            {remindAt && (
-              <Pressable
-                hitSlop={14}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setRemindAt(null);
-                  setShowDatePicker(false);
-                  setDirty(true);
-                }}
+            <Pressable
+              style={[
+                styles.remindChip,
+                {
+                  borderColor:
+                    remindAt &&
+                    !quickReminders.some(
+                      (r) =>
+                        r.date.toISOString().slice(0, 16) ===
+                        remindAt.toISOString().slice(0, 16),
+                    )
+                      ? colors.primary
+                      : colors.border,
+                  backgroundColor:
+                    remindAt &&
+                    !quickReminders.some(
+                      (r) =>
+                        r.date.toISOString().slice(0, 16) ===
+                        remindAt.toISOString().slice(0, 16),
+                    )
+                      ? colors.secondary
+                      : colors.muted,
+                  borderRadius: 10,
+                },
+              ]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowDatePicker(true);
+              }}
+            >
+              <Feather name="calendar" size={13} color={colors.mutedForeground} />
+              <Text
+                style={[styles.remindChipText, { color: colors.mutedForeground }]}
               >
-                <Feather name="x-circle" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            )}
-          </Pressable>
+                {reminderLabel &&
+                !quickReminders.some(
+                  (r) =>
+                    r.date.toISOString().slice(0, 16) ===
+                    remindAt?.toISOString().slice(0, 16),
+                )
+                  ? reminderLabel
+                  : 'Custom'}
+              </Text>
+            </Pressable>
+          </View>
 
           {showDatePicker && (
-            <DateTimePicker
-              value={remindAt ?? new Date()}
-              mode="datetime"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              minimumDate={new Date()}
-              onChange={(_event: DateTimePickerEvent, date?: Date) => {
-                if (Platform.OS === 'android') setShowDatePicker(false);
-                if (date) { setRemindAt(date); setDirty(true); }
-              }}
-              themeVariant={scheme === 'dark' ? 'dark' : 'light'}
-              accentColor={colors.primary}
-            />
-          )}
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: 'rgba(30,92,84,0.1)' }]} />
-
-        {/* ─── Options ──────────────────────────────────────────────────── */}
-        <View style={styles.sectionBlock}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Options</Text>
-
-          <View style={[styles.toggleCard, { backgroundColor: 'rgba(255,255,255,0.65)', borderColor: 'rgba(0,0,0,0.07)' }]}>
-            {/* Urgent */}
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleEmoji}>🔥</Text>
-              <View style={styles.toggleLabelCol}>
-                <Text style={[styles.toggleTitle, { color: colors.foreground }]}>Urgent</Text>
-                <Text style={[styles.toggleDesc, { color: colors.mutedForeground }]}>Moves this to the top</Text>
-              </View>
-              <Switch
-                value={isUrgent}
-                onValueChange={(v) => { Haptics.selectionAsync(); setIsUrgent(v); setDirty(true); }}
-                trackColor={{ false: 'rgba(0,0,0,0.1)', true: colors.urgent + 'cc' }}
-                thumbColor="#FFFFFF"
+            <View style={styles.pickerWrap}>
+              <DateTimePicker
+                value={remindAt ?? new Date()}
+                mode="datetime"
+                minimumDate={new Date()}
+                onChange={handleDateChange}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: 'rgba(0,0,0,0.06)', marginHorizontal: 18 }]} />
-
-            {/* Pin */}
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleEmoji}>📌</Text>
-              <View style={styles.toggleLabelCol}>
-                <Text style={[styles.toggleTitle, { color: colors.foreground }]}>Lock screen</Text>
-                <Text style={[styles.toggleDesc, { color: colors.mutedForeground }]}>
-                  {note.remindAt && !note.isPinned
-                    ? 'Notification at reminder time'
-                    : 'Always visible on lock screen'}
-                </Text>
-              </View>
-              <Switch
-                value={isPinned}
-                onValueChange={(v) => { Haptics.selectionAsync(); setIsPinned(v); setDirty(true); }}
-                trackColor={{ false: 'rgba(0,0,0,0.1)', true: colors.accent + 'cc' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            {/* Done by (read-only, shown when completed) */}
-            {note.isDone && note.completedByEmail && (
-              <>
-                <View style={[styles.divider, { backgroundColor: 'rgba(0,0,0,0.06)', marginHorizontal: 18 }]} />
-                <View style={styles.toggleRow}>
-                  <Text style={styles.toggleEmoji}>✅</Text>
-                  <Text style={[styles.toggleDesc, { color: colors.mutedForeground, flex: 1 }]}>
-                    Done by {note.completedByEmail.split('@')[0]}
-                    {note.completedAt ? ` · ${new Date(note.completedAt).toLocaleDateString()}` : ''}
+              {Platform.OS === 'ios' && (
+                <Pressable
+                  style={[styles.pickerDone, { backgroundColor: colors.primary }]}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text
+                    style={[
+                      styles.pickerDoneText,
+                      { color: colors.primaryForeground },
+                    ]}
+                  >
+                    Done
                   </Text>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: 'rgba(30,92,84,0.1)' }]} />
-
-        {/* ─── Share ────────────────────────────────────────────────────── */}
-        <View style={styles.sectionBlock}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Share</Text>
-          {groupId ? (
-            <Pressable
-              style={[styles.shareBtn, { backgroundColor: colors.sky + '18', borderColor: colors.sky }]}
-              onPress={() => setShowShareModal(true)}
-            >
-              <Feather name="users" size={16} color={colors.sky} />
-              <Text style={[styles.shareBtnText, { color: colors.sky }]}>
-                {groupName ?? 'Shared group'}
-              </Text>
-              <Pressable hitSlop={12} onPress={() => { setGroupId(null); setGroupName(null); setDirty(true); }}>
-                <Feather name="x" size={14} color={colors.sky} />
-              </Pressable>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [
-                styles.shareBtn,
-                { backgroundColor: 'rgba(255,255,255,0.65)', borderColor: 'rgba(0,0,0,0.07)', opacity: pressed ? 0.75 : 1 },
-              ]}
-              onPress={() => setShowShareModal(true)}
-            >
-              <Feather name="share-2" size={18} color={colors.mutedForeground} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.shareBtnText, { color: colors.foreground }]}>Share with a group</Text>
-                <Text style={[styles.shareBtnDesc, { color: colors.mutedForeground }]}>
-                  Collaborate with people you've added
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-            </Pressable>
+                </Pressable>
+              )}
+            </View>
           )}
-        </View>
+        </SectionCard>
 
-        {/* ─── Actions ──────────────────────────────────────────────────── */}
-        <View style={styles.actions}>
-          {/* Mark done / Reopen — big gradient button */}
-          <Pressable
-            style={({ pressed }) => [styles.doneWrap, { opacity: pressed ? 0.85 : 1, flex: 1 }]}
-            onPress={handleToggle}
-            disabled={toggleDone.isPending}
+        {/* Options */}
+        <SectionCard title="Options">
+          <View
+            style={[
+              styles.optionRow,
+              {
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: colors.border,
+              },
+            ]}
           >
-            <Animated.View style={[{ borderRadius: 30, overflow: 'hidden', flex: 1 }, doneBtnAnimStyle]}>
-              <LinearGradient
-                colors={note.isDone
-                  ? ['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.1)']
-                  : ['#1E5C54', '#2D7A6E']}
-                style={styles.doneBtn}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+            <View
+              style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
+            >
+              <Feather name="alert-circle" size={14} color={colors.urgent} />
+            </View>
+            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+              Mark as Urgent
+            </Text>
+            <Switch
+              value={isUrgent}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                setIsUrgent(v);
+                setDirty(true);
+              }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.card}
+              ios_backgroundColor={colors.border}
+            />
+          </View>
+
+          <View
+            style={[
+              styles.optionRow,
+              {
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
+            >
+              <Feather name="lock" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+              Pin to Lock Screen
+            </Text>
+            <Switch
+              value={isPinned}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                setIsPinned(v);
+                setDirty(true);
+              }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.card}
+              ios_backgroundColor={colors.border}
+            />
+          </View>
+
+          <Pressable
+            style={styles.optionRow}
+            onPress={() => setShowShareModal(true)}
+          >
+            <View
+              style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
+            >
+              <Feather name="users" size={14} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+                Share to Group
+              </Text>
+              {groupName ? (
+                <Text
+                  style={[styles.optionSub, { color: colors.mutedForeground }]}
+                >
+                  {groupName}
+                </Text>
+              ) : null}
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </Pressable>
+        </SectionCard>
+
+        {/* Actions */}
+        <View style={styles.actions}>
+          {/* Done / Undone */}
+          <View style={styles.doneWrap}>
+            <Animated.View style={[styles.doneBtnOuter, doneBtnAnimStyle]}>
+              <Pressable
+                style={[
+                  styles.doneBtn,
+                  {
+                    backgroundColor: isDone ? colors.secondary : colors.primary,
+                    borderColor: isDone ? colors.border : 'transparent',
+                    borderWidth: isDone ? 1 : 0,
+                  },
+                ]}
+                onPress={handleToggleDone}
+                disabled={toggleDone.isPending}
               >
-                {toggleDone.isPending ? (
-                  <ActivityIndicator size="small" color={note.isDone ? colors.mutedForeground : '#FFFFFF'} />
-                ) : (
-                  <>
-                    {Platform.OS === 'ios' ? (
-                      <SymbolView
-                        name={note.isDone ? 'arrow.uturn.backward' : 'checkmark.circle.fill'}
-                        tintColor={note.isDone ? colors.mutedForeground : '#FFFFFF'}
-                        size={20}
-                      />
-                    ) : (
-                      <Feather
-                        name={note.isDone ? 'rotate-ccw' : 'check-circle'}
-                        size={20}
-                        color={note.isDone ? colors.mutedForeground : '#FFFFFF'}
-                      />
-                    )}
-                    <Text style={[styles.doneBtnText, { color: note.isDone ? colors.mutedForeground : '#FFFFFF' }]}>
-                      {note.isDone ? 'Reopen' : 'Mark done! ✓'}
-                    </Text>
-                  </>
-                )}
-              </LinearGradient>
+                <Feather
+                  name={isDone ? 'rotate-ccw' : 'check'}
+                  size={18}
+                  color={isDone ? colors.foreground : colors.primaryForeground}
+                />
+                <Text
+                  style={[
+                    styles.doneBtnText,
+                    {
+                      color: isDone
+                        ? colors.foreground
+                        : colors.primaryForeground,
+                    },
+                  ]}
+                >
+                  {isDone ? 'Mark undone' : 'Mark done'}
+                </Text>
+              </Pressable>
             </Animated.View>
-            {/* Confetti burst centered on the button */}
-            <View style={styles.confettiAnchor} pointerEvents="none">
+
+            {/* Confetti anchor */}
+            <View
+              pointerEvents="none"
+              style={styles.confettiAnchor}
+            >
               <ConfettiBurst trigger={confettiTrigger} size={240} />
             </View>
-          </Pressable>
+          </View>
 
           {/* Delete */}
           <Pressable
-            style={({ pressed }) => [
+            style={[
               styles.deleteBtn,
-              { borderColor: colors.destructive + '80', opacity: pressed ? 0.8 : 1 },
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+              },
             ]}
             onPress={handleDelete}
-            disabled={deleteNote.isPending}
           >
-            {deleteNote.isPending ? (
-              <ActivityIndicator size="small" color={colors.destructive} />
-            ) : Platform.OS === 'ios' ? (
-              <SymbolView name="trash" tintColor={colors.destructive} size={20} />
-            ) : (
-              <Feather name="trash-2" size={20} color={colors.destructive} />
-            )}
+            <Feather name="trash-2" size={18} color={colors.destructive} />
           </Pressable>
         </View>
-      </KeyboardAwareScrollViewCompat>
+
+        {/* Save if dirty */}
+        {dirty && (
+          <Pressable
+            style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+            onPress={handleSave}
+            disabled={updateNote.isPending}
+          >
+            {updateNote.isPending ? (
+              <ActivityIndicator color={colors.primaryForeground} />
+            ) : (
+              <Text style={[styles.saveBtnText, { color: colors.primaryForeground }]}>
+                Save changes
+              </Text>
+            )}
+          </Pressable>
+        )}
+      </ScrollView>
 
       <ShareModal
         visible={showShareModal}
-        selectedGroupId={groupId}
         onClose={() => setShowShareModal(false)}
-        onSelect={(gid, gname) => {
-          setGroupId(gid);
-          setGroupName(gname ?? null);
-          setDirty(true);
+        onSelect={(id, name) => {
+          setGroupId(id);
+          setGroupName(name);
           setShowShareModal(false);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setDirty(true);
         }}
+        selectedGroupId={groupId}
       />
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: 22, gap: 20 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  titleInput: { fontSize: 26, fontFamily: 'Manrope_700Bold' },
+  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40, gap: 24 },
+
   bodyInput: {
-    fontSize: 17,
-    fontFamily: 'Manrope_400Regular',
-    lineHeight: 27,
-    minHeight: 140,
+    minHeight: 130,
+    padding: 16,
+    fontSize: 20,
+    fontFamily: 'Manrope_600SemiBold',
+    lineHeight: 30,
   },
-  divider: { height: 1 },
 
-  sectionBlock: { gap: 12 },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 16,
     fontFamily: 'Manrope_700Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  sectionCard: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  reminderChip: {
+  remindRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    padding: 14,
+  },
+  remindChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    flex: 1,
-    minWidth: '45%',
-  },
-  chipEmoji: { fontSize: 16 },
-  chipLabel: { fontSize: 12, fontFamily: 'Manrope_600SemiBold' },
-
-  customTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderWidth: 1,
   },
-  customTimeLabel: { fontSize: 14, fontFamily: 'Manrope_500Medium' },
+  remindChipText: { fontSize: 13, fontFamily: 'Manrope_500Medium' },
 
-  sentBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  sentBadgeText: { fontSize: 11, fontFamily: 'Manrope_700Bold' },
+  pickerWrap: { paddingHorizontal: 14, paddingBottom: 12 },
+  pickerDone: {
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  pickerDoneText: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
 
-  toggleCard: { borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 16 },
-  toggleEmoji: { fontSize: 22, width: 30, textAlign: 'center' },
-  toggleLabelCol: { flex: 1 },
-  toggleTitle: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
-  toggleDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-
-  shareBtn: {
+  optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 15,
-    borderRadius: 18,
-    borderWidth: 1,
+    paddingVertical: 14,
   },
-  shareBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
-  shareBtnDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
+  optionIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  optionLabel: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  optionSub: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 1 },
 
-  actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  doneWrap: { position: 'relative' },
-  confettiAnchor: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginTop: -120,   // half of ConfettiBurst size={240}
-    marginLeft: -120,
-    pointerEvents: 'none',
-  },
+  actions: { flexDirection: 'row', gap: 12 },
+
+  doneWrap: { flex: 1, position: 'relative' },
+  doneBtnOuter: { flex: 1 },
   doneBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    height: 60,
-    borderRadius: 30,
-    shadowColor: '#1E5C54',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    gap: 8,
+    height: 52,
+    borderRadius: 26,
   },
-  doneBtnText: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
+  doneBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+
+  confettiAnchor: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -120,
+    marginLeft: -120,
+    pointerEvents: 'none',
+  },
+
   deleteBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 1.5,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  saveBtn: {
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 });

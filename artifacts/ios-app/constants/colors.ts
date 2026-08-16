@@ -1,88 +1,79 @@
 /**
- * Brand palette for Columba — "Eucalyptus Glass" redesign.
- * Vivid, playful, glass-friendly colours with extra tokens for
- * urgent (coral), done (mint), reminders (sky/lavender), and gradients.
+ * Columba design system — Forest Green
+ * Clean, minimal, nature-inspired palette.
+ * White cards on pale sage backgrounds, deep forest-green typography.
  */
 const colors = {
   light: {
-    text: '#1A3330',
-    tint: '#1E5C54',
+    text: '#1C3828',
+    tint: '#2C4A35',
 
-    background: '#EBF7F3',
-    foreground: '#1A3330',
+    background: '#EEF2EE',
+    foreground: '#1C3828',
 
     card: '#FFFFFF',
-    cardForeground: '#1A3330',
+    cardForeground: '#1C3828',
 
-    primary: '#1E5C54',
+    primary: '#2C4A35',
     primaryForeground: '#FFFFFF',
 
-    secondary: '#C5E8DC',
-    secondaryForeground: '#1A3330',
+    secondary: '#E4EEE4',
+    secondaryForeground: '#2C4A35',
 
-    muted: '#D6EEE7',
-    mutedForeground: '#5A8078',
+    muted: '#F5F7F5',
+    mutedForeground: '#7A9080',
 
-    accent: '#F5A623',
+    accent: '#4A7A5A',
     accentForeground: '#FFFFFF',
 
-    destructive: '#FF5A5A',
+    destructive: '#DC2626',
     destructiveForeground: '#FFFFFF',
 
-    border: 'rgba(30,92,84,0.12)',
-    input: 'rgba(30,92,84,0.1)',
+    border: 'rgba(44,74,53,0.12)',
+    input: 'rgba(44,74,53,0.08)',
 
-    // Status colours
-    urgent: '#FF6B5B',
-    done: '#34C88A',
+    // Status colours (used on note cards / badges)
+    urgent: '#DC2626',
+    done: '#4A7A5A',
     sky: '#5BB8F5',
     lavender: '#9B8FE8',
-
-    // Gradient stops (light)
-    gradientStart: '#D4F0E8',
-    gradientEnd: '#EBF7F3',
   },
 
   dark: {
     text: '#DFF0EC',
-    tint: '#4AA89A',
+    tint: '#5AAA7A',
 
-    background: '#0A1C1A',
+    background: '#0F1F17',
     foreground: '#DFF0EC',
 
-    card: '#162C28',
+    card: '#1A2E22',
     cardForeground: '#DFF0EC',
 
-    primary: '#4AA89A',
-    primaryForeground: '#0A1C1A',
+    primary: '#5AAA7A',
+    primaryForeground: '#0F1F17',
 
-    secondary: '#1A3530',
+    secondary: '#1E3528',
     secondaryForeground: '#DFF0EC',
 
-    muted: '#183028',
-    mutedForeground: '#6A9990',
+    muted: '#162A1E',
+    mutedForeground: '#6A9980',
 
-    accent: '#F5A623',
-    accentForeground: '#0A1C1A',
+    accent: '#5AAA7A',
+    accentForeground: '#0F1F17',
 
-    destructive: '#FF6B6B',
-    destructiveForeground: '#0A1C1A',
+    destructive: '#EF4444',
+    destructiveForeground: '#FFFFFF',
 
     border: 'rgba(255,255,255,0.1)',
     input: 'rgba(255,255,255,0.08)',
 
-    // Status colours
-    urgent: '#FF7070',
-    done: '#34C88A',
+    urgent: '#EF4444',
+    done: '#5AAA7A',
     sky: '#5BB8F5',
     lavender: '#9B8FE8',
-
-    // Gradient stops (dark)
-    gradientStart: '#0A1C1A',
-    gradientEnd: '#122420',
   },
 
-  radius: 20,
+  radius: 16,
 };
 
 export default colors;

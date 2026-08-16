@@ -9,10 +9,7 @@ import {
   Text,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -26,7 +23,6 @@ type Step = 'email' | 'code';
 export default function AuthScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
   const { signIn } = useAuth();
 
   const [step, setStep] = useState<Step>('email');
@@ -45,7 +41,7 @@ export default function AuthScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to send code. Please try again.';
-      Alert.alert('Oops!', msg);
+      Alert.alert('Error', msg);
     }
   };
 
@@ -60,20 +56,15 @@ export default function AuthScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)');
     } catch {
-      Alert.alert('Wrong code 🙈', 'That code didn\'t match. Try again!');
+      Alert.alert('Wrong code', "That code didn't match. Try again.");
       setCode('');
     }
   };
 
   const emailValid = email.trim().length > 0 && email.includes('@');
-  const isRequestPending = requestCode.isPending;
-  const isVerifyPending = verifyCode.isPending;
 
   return (
-    <LinearGradient
-      colors={['#122A26', '#1A4F48', '#1E5C54']}
-      style={styles.root}
-    >
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.kav}
@@ -82,35 +73,39 @@ export default function AuthScreen() {
           style={[
             styles.inner,
             {
-              paddingTop: insets.top + (Platform.OS === 'web' ? 80 : 52),
-              paddingBottom: insets.bottom + 36,
+              paddingTop: insets.top + (Platform.OS === 'web' ? 80 : 40),
+              paddingBottom: insets.bottom + 32,
             },
           ]}
         >
-          {/* Wordmark */}
-          <View style={styles.wordmark}>
-            <Text style={styles.wordmarkText}>Columba</Text>
-            <Text style={styles.tagline}>notes that actually stick 📌</Text>
-          </View>
+          {/* Card */}
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            {/* Logo */}
+            <View style={styles.logoWrap}>
+              <View style={[styles.logoBox, { backgroundColor: colors.secondary }]}>
+                <Feather name="send" size={30} color={colors.primary} />
+              </View>
+              <Text style={[styles.logoLabel, { color: colors.primary }]}>COLUMBA</Text>
+            </View>
 
-          {/* Glass card */}
-          <BlurView
-            intensity={scheme === 'dark' ? 25 : 50}
-            tint="dark"
-            style={styles.card}
-          >
-            <View style={styles.cardInner}>
-              {step === 'email' ? (
-                <>
-                  <Text style={styles.cardTitle}>Hey there! 👋</Text>
-                  <Text style={styles.cardSub}>
-                    Enter your email and we'll send a magic code — no password needed!
-                  </Text>
+            <Text style={[styles.appName, { color: colors.foreground }]}>Columba</Text>
 
+            {step === 'email' ? (
+              <>
+                <Text style={[styles.heading, { color: colors.foreground }]}>
+                  Welcome to Columba
+                </Text>
+                <Text style={[styles.subtext, { color: colors.mutedForeground }]}>
+                  Enter your email to receive a magic link and step into a clearer workspace.
+                </Text>
+
+                {/* Email input */}
+                <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
+                  <Feather name="mail" size={16} color={colors.mutedForeground} />
                   <TextInput
-                    style={styles.input}
-                    placeholder="your@email.com"
-                    placeholderTextColor="rgba(255,255,255,0.38)"
+                    style={[styles.input, { color: colors.foreground }]}
+                    placeholder="name@example.com"
+                    placeholderTextColor={colors.mutedForeground}
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
@@ -118,83 +113,150 @@ export default function AuthScreen() {
                     keyboardType="email-address"
                     returnKeyType="send"
                     onSubmitEditing={handleSendCode}
-                    autoFocus
                   />
+                </View>
 
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.btn,
-                      {
-                        backgroundColor: emailValid ? colors.accent : 'rgba(255,255,255,0.12)',
-                        opacity: pressed ? 0.85 : 1,
-                      },
-                    ]}
-                    onPress={handleSendCode}
-                    disabled={isRequestPending || !emailValid}
+                <Pressable
+                  style={[
+                    styles.btn,
+                    {
+                      backgroundColor: emailValid ? colors.primary : colors.secondary,
+                    },
+                  ]}
+                  onPress={handleSendCode}
+                  disabled={!emailValid || requestCode.isPending}
+                >
+                  {requestCode.isPending ? (
+                    <ActivityIndicator
+                      color={emailValid ? colors.primaryForeground : colors.mutedForeground}
+                    />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.btnText,
+                        {
+                          color: emailValid
+                            ? colors.primaryForeground
+                            : colors.mutedForeground,
+                        },
+                      ]}
+                    >
+                      Send Magic Link  →
+                    </Text>
+                  )}
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.heading, { color: colors.foreground }]}>
+                  Check your email
+                </Text>
+                <Text style={[styles.subtext, { color: colors.mutedForeground }]}>
+                  We sent a 6-digit code to{'\n'}
+                  <Text
+                    style={{
+                      color: colors.foreground,
+                      fontFamily: 'Manrope_600SemiBold',
+                    }}
                   >
-                    {isRequestPending ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={[styles.btnText, { color: emailValid ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }]}>
-                        Send magic code ✨
-                      </Text>
-                    )}
-                  </Pressable>
-                </>
-              ) : (
-                <>
-                  <Pressable
-                    onPress={() => { setStep('email'); setCode(''); }}
-                    style={styles.backRow}
-                  >
-                    <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.65)" />
-                    <Text style={styles.backText}>Back</Text>
-                  </Pressable>
-
-                  <Text style={styles.cardTitle}>Check your inbox 📬</Text>
-                  <Text style={styles.cardSub}>
-                    We sent a 6-digit code to{'\n'}
-                    <Text style={styles.emailHighlight}>{email}</Text>
+                    {email}
                   </Text>
+                </Text>
 
-                  <TextInput
-                    style={[styles.input, styles.codeInput]}
-                    placeholder="· · · · · ·"
-                    placeholderTextColor="rgba(255,255,255,0.25)"
-                    value={code}
-                    onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
-                    keyboardType="number-pad"
-                    returnKeyType="done"
-                    onSubmitEditing={handleVerify}
-                    autoFocus
-                  />
+                <TextInput
+                  style={[
+                    styles.codeInput,
+                    {
+                      color: colors.foreground,
+                      borderColor: colors.border,
+                      backgroundColor: colors.muted,
+                    },
+                  ]}
+                  placeholder="000000"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  returnKeyType="done"
+                  onSubmitEditing={handleVerify}
+                />
 
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.btn,
-                      {
-                        backgroundColor: code.length === 6 ? colors.accent : 'rgba(255,255,255,0.12)',
-                        opacity: pressed ? 0.85 : 1,
-                      },
-                    ]}
-                    onPress={handleVerify}
-                    disabled={isVerifyPending || code.length !== 6}
-                  >
-                    {isVerifyPending ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={[styles.btnText, { color: code.length === 6 ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }]}>
-                        Let me in! 🚀
-                      </Text>
-                    )}
-                  </Pressable>
-                </>
-              )}
-            </View>
-          </BlurView>
+                <Pressable
+                  style={[
+                    styles.btn,
+                    {
+                      backgroundColor:
+                        code.length === 6 ? colors.primary : colors.secondary,
+                    },
+                  ]}
+                  onPress={handleVerify}
+                  disabled={code.length !== 6 || verifyCode.isPending}
+                >
+                  {verifyCode.isPending ? (
+                    <ActivityIndicator
+                      color={
+                        code.length === 6
+                          ? colors.primaryForeground
+                          : colors.mutedForeground
+                      }
+                    />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.btnText,
+                        {
+                          color:
+                            code.length === 6
+                              ? colors.primaryForeground
+                              : colors.mutedForeground,
+                        },
+                      ]}
+                    >
+                      Verify  →
+                    </Text>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    setStep('email');
+                    setCode('');
+                  }}
+                >
+                  <Text style={[styles.backLink, { color: colors.mutedForeground }]}>
+                    ← Change email
+                  </Text>
+                </Pressable>
+              </>
+            )}
+
+            {/* Footer */}
+            <Text style={[styles.footer, { color: colors.mutedForeground }]}>
+              By continuing, you agree to our{' '}
+              <Text
+                style={{
+                  color: colors.foreground,
+                  fontFamily: 'Manrope_600SemiBold',
+                }}
+              >
+                Terms of Service
+              </Text>{' '}
+              and{' '}
+              <Text
+                style={{
+                  color: colors.foreground,
+                  fontFamily: 'Manrope_600SemiBold',
+                }}
+              >
+                Privacy Policy
+              </Text>
+              .
+            </Text>
+          </View>
         </View>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -203,84 +265,101 @@ const styles = StyleSheet.create({
   kav: { flex: 1 },
   inner: {
     flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: 24,
-    justifyContent: 'space-between',
   },
 
-  wordmark: { alignItems: 'center', gap: 12 },
-  wordmarkText: {
-    fontSize: 56,
-    fontFamily: 'Manrope_700Bold',
-    color: '#F5A623',
-    letterSpacing: -2,
-  },
-  tagline: {
-    fontSize: 16,
-    fontFamily: 'Manrope_400Regular',
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-  },
-
-  card: { borderRadius: 28, overflow: 'hidden' },
-  cardInner: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  card: {
+    borderRadius: 24,
     padding: 28,
     gap: 16,
-  },
-  cardTitle: {
-    fontSize: 26,
-    fontFamily: 'Manrope_700Bold',
-    color: '#FFFFFF',
-  },
-  cardSub: {
-    fontSize: 14,
-    fontFamily: 'Manrope_400Regular',
-    color: 'rgba(255,255,255,0.68)',
-    lineHeight: 22,
-  },
-  emailHighlight: {
-    fontFamily: 'Manrope_700Bold',
-    color: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    elevation: 4,
   },
 
-  input: {
-    height: 58,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 18,
-    paddingHorizontal: 20,
-    fontSize: 17,
-    fontFamily: 'Manrope_500Medium',
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  logoWrap: { alignItems: 'center', gap: 6 },
+  logoBox: {
+    width: 76,
+    height: 76,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  codeInput: {
-    textAlign: 'center',
+  logoLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    letterSpacing: 2.5,
+  },
+
+  appName: {
     fontSize: 30,
     fontFamily: 'Manrope_700Bold',
-    letterSpacing: 12,
+    textAlign: 'center',
+    marginTop: -4,
+  },
+
+  heading: {
+    fontSize: 19,
+    fontFamily: 'Manrope_700Bold',
+    textAlign: 'center',
+  },
+  subtext: {
+    fontSize: 14,
+    fontFamily: 'Manrope_400Regular',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    paddingVertical: 12,
+    marginVertical: 2,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Manrope_400Regular',
+  },
+
+  codeInput: {
+    height: 60,
+    borderRadius: 14,
+    borderWidth: 1,
+    textAlign: 'center',
+    fontSize: 28,
+    fontFamily: 'Manrope_700Bold',
+    letterSpacing: 10,
+    marginVertical: 2,
   },
 
   btn: {
-    height: 58,
-    borderRadius: 29,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnText: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Manrope_700Bold',
   },
 
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  backText: {
+  backLink: {
     fontSize: 14,
     fontFamily: 'Manrope_500Medium',
-    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
+  },
+
+  footer: {
+    fontSize: 12,
+    fontFamily: 'Manrope_400Regular',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 4,
   },
 });

@@ -4,17 +4,16 @@ import {
   Alert,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
-  ScrollView,
-  useColorScheme,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,43 +25,69 @@ import {
   getGetNotesSummaryQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
-import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ShareModal } from '@/components/ShareModal';
 
 // ─── Quick reminder presets ───────────────────────────────────────────────────
 
-const quickReminders = () => {
+function getQuickReminders() {
   const now = new Date();
 
   const inOneHour = new Date(now);
   inOneHour.setHours(inOneHour.getHours() + 1, 0, 0, 0);
 
-  const tonight = new Date(now);
-  tonight.setHours(19, 0, 0, 0);
-  if (tonight <= now) tonight.setDate(tonight.getDate() + 1);
-
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(9, 0, 0, 0);
 
-  const nextWeek = new Date(now);
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  nextWeek.setHours(9, 0, 0, 0);
-
   return [
-    { emoji: '⚡', label: 'In 1 hour', color: '#F5A623', date: inOneHour },
-    { emoji: '🌙', label: 'Tonight 7pm', color: '#9B8FE8', date: tonight },
-    { emoji: '☀️', label: 'Tomorrow 9am', color: '#5BB8F5', date: tomorrow },
-    { emoji: '📅', label: 'Next week', color: '#34C88A', date: nextWeek },
+    {
+      icon: 'clock' as const,
+      label: 'In 1 hour',
+      date: inOneHour,
+    },
+    {
+      icon: 'sun' as const,
+      label: 'Tomorrow',
+      date: tomorrow,
+    },
   ];
-};
+}
+
+// ─── Section Card ─────────────────────────────────────────────────────────────
+
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  const colors = useColors();
+  return (
+    <View>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+        {title}
+      </Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        {children}
+      </View>
+    </View>
+  );
+}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function NewNoteScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
   const queryClient = useQueryClient();
 
   const [body, setBody] = useState('');
@@ -78,7 +103,9 @@ export default function NewNoteScreen() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetNotesSummaryQueryKey() });
+        queryClient.invalidateQueries({
+          queryKey: getGetNotesSummaryQueryKey(),
+        });
       },
     },
   });
@@ -102,278 +129,337 @@ export default function NewNoteScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch {
-      Alert.alert('Hmm…', 'Could not save that note. Give it another go!');
+      Alert.alert('Error', 'Could not save that note. Please try again.');
     }
   };
 
-  const presets = quickReminders();
+  const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS !== 'ios') setShowDatePicker(false);
+    if (selected) setRemindAt(selected);
+  };
+
+  const quickReminders = getQuickReminders();
 
   const reminderLabel = remindAt
-    ? remindAt.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    ? remindAt.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
     : null;
 
   return (
-    <View style={styles.root}>
-      {/* Background */}
-      <LinearGradient
-        colors={scheme === 'dark'
-          ? [colors.gradientStart, colors.gradientEnd]
-          : ['#D4F0E8', '#EBF7F3', '#F0F9F6']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Header */}
-      <BlurView
-        intensity={scheme === 'dark' ? 40 : 55}
-        tint={scheme === 'dark' ? 'dark' : 'light'}
-        style={[
-          styles.header,
-          { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 14) },
-        ]}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.closeBtn}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 0),
+        },
+      ]}
+    >
+      {/* Header bar */}
+      <View style={styles.header}>
+        <Pressable style={styles.closeBtn} onPress={() => router.back()}>
           <Feather name="x" size={20} color={colors.foreground} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>New Note</Text>
-        <View style={{ width: 44 }} />
-      </BlurView>
+        <Pressable
+          style={[
+            styles.saveBtn,
+            {
+              backgroundColor: canSave ? colors.primary : colors.secondary,
+            },
+          ]}
+          onPress={handleCreate}
+          disabled={!canSave || createNote.isPending}
+        >
+          {createNote.isPending ? (
+            <ActivityIndicator
+              size="small"
+              color={canSave ? colors.primaryForeground : colors.mutedForeground}
+            />
+          ) : (
+            <Text
+              style={[
+                styles.saveBtnText,
+                {
+                  color: canSave
+                    ? colors.primaryForeground
+                    : colors.mutedForeground,
+                },
+              ]}
+            >
+              SAVE
+            </Text>
+          )}
+        </Pressable>
+      </View>
 
-      <KeyboardAwareScrollViewCompat
-        contentContainerStyle={styles.scroll}
+      <ScrollView
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 40 },
+        ]}
       >
         {/* Body input */}
         <TextInput
-          style={[styles.bodyInput, { color: colors.foreground }]}
-          placeholder={"What needs doing? 🤔"}
+          style={[
+            styles.bodyInput,
+            {
+              color: colors.foreground,
+              backgroundColor: colors.secondary,
+              borderRadius: colors.radius,
+            },
+          ]}
+          placeholder="Write a note..."
           placeholderTextColor={colors.mutedForeground}
           value={body}
           onChangeText={setBody}
           multiline
-          textAlignVertical="top"
           autoFocus
+          textAlignVertical="top"
         />
 
-        {/* ─── Reminder section ─────────────────────────────────────────── */}
-        <View style={styles.sectionBlock}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            ⏰  Remind me
-          </Text>
-
-          {/* Quick preset chips */}
-          <View style={styles.chipGrid}>
-            {presets.map((p) => {
-              const isActive = remindAt?.getTime() === p.date.getTime();
+        {/* Remind Me */}
+        <SectionCard title="Remind Me">
+          <View style={styles.remindRow}>
+            {quickReminders.map((r, i) => {
+              const active =
+                remindAt?.toISOString().slice(0, 16) ===
+                r.date.toISOString().slice(0, 16);
               return (
                 <Pressable
-                  key={p.label}
-                  style={({ pressed }) => [
-                    styles.reminderChip,
+                  key={i}
+                  style={[
+                    styles.remindChip,
                     {
-                      backgroundColor: isActive ? p.color : 'rgba(255,255,255,0.7)',
-                      borderColor: isActive ? p.color : 'rgba(0,0,0,0.08)',
-                      opacity: pressed ? 0.8 : 1,
+                      borderColor: active ? colors.primary : colors.border,
+                      backgroundColor: active
+                        ? colors.secondary
+                        : colors.muted,
+                      borderRadius: 10,
                     },
                   ]}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    if (isActive) {
-                      setRemindAt(null);
-                    } else {
-                      setRemindAt(p.date);
-                      setShowDatePicker(false);
-                    }
+                    setRemindAt(active ? null : r.date);
                   }}
                 >
-                  <Text style={styles.reminderChipEmoji}>{p.emoji}</Text>
+                  <Feather
+                    name={r.icon}
+                    size={13}
+                    color={active ? colors.primary : colors.mutedForeground}
+                  />
                   <Text
                     style={[
-                      styles.reminderChipLabel,
-                      { color: isActive ? '#FFFFFF' : colors.foreground },
+                      styles.remindChipText,
+                      {
+                        color: active ? colors.primary : colors.mutedForeground,
+                      },
                     ]}
                   >
-                    {p.label}
+                    {r.label}
                   </Text>
                 </Pressable>
               );
             })}
-          </View>
-
-          {/* Custom time picker toggle */}
-          <Pressable
-            style={[
-              styles.customTimeRow,
-              {
-                backgroundColor: remindAt && !presets.some(p => p.date.getTime() === remindAt?.getTime())
-                  ? colors.sky + '20'
-                  : 'rgba(255,255,255,0.5)',
-                borderColor: 'rgba(0,0,0,0.07)',
-              },
-            ]}
-            onPress={() => {
-              if (!remindAt) {
-                const d = new Date();
-                d.setDate(d.getDate() + 1);
-                d.setHours(9, 0, 0, 0);
-                setRemindAt(d);
-              }
-              setShowDatePicker((v) => !v);
-            }}
-          >
-            <Feather name="clock" size={16} color={remindAt ? colors.sky : colors.mutedForeground} />
-            <Text style={[styles.customTimeLabel, { color: remindAt ? colors.foreground : colors.mutedForeground, flex: 1 }]}>
-              {reminderLabel ?? 'Pick a custom time…'}
-            </Text>
-            {remindAt && (
-              <Pressable
-                hitSlop={14}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setRemindAt(null);
-                  setShowDatePicker(false);
-                }}
-              >
-                <Feather name="x-circle" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            )}
-          </Pressable>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={remindAt ?? new Date()}
-              mode="datetime"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              minimumDate={new Date()}
-              onChange={(_event: DateTimePickerEvent, date?: Date) => {
-                if (Platform.OS === 'android') setShowDatePicker(false);
-                if (date) setRemindAt(date);
-              }}
-              themeVariant={scheme === 'dark' ? 'dark' : 'light'}
-              accentColor={colors.primary}
-            />
-          )}
-        </View>
-
-        {/* ─── Flags ────────────────────────────────────────────────────── */}
-        <View style={styles.sectionBlock}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Options</Text>
-
-          <View style={[styles.toggleCard, { backgroundColor: 'rgba(255,255,255,0.65)', borderColor: 'rgba(0,0,0,0.07)' }]}>
-            {/* Urgent */}
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleEmoji}>🔥</Text>
-              <View style={styles.toggleLabel}>
-                <Text style={[styles.toggleTitle, { color: colors.foreground }]}>Urgent</Text>
-                <Text style={[styles.toggleDesc, { color: colors.mutedForeground }]}>Moves this to the top</Text>
-              </View>
-              <Switch
-                value={isUrgent}
-                onValueChange={(v) => {
-                  Haptics.selectionAsync();
-                  setIsUrgent(v);
-                }}
-                trackColor={{ false: 'rgba(0,0,0,0.1)', true: colors.urgent + 'cc' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: 'rgba(0,0,0,0.06)' }]} />
-
-            {/* Pin to Home Screen */}
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleEmoji}>📌</Text>
-              <View style={styles.toggleLabel}>
-                <Text style={[styles.toggleTitle, { color: colors.foreground }]}>Lock screen</Text>
-                <Text style={[styles.toggleDesc, { color: colors.mutedForeground }]}>
-                  {remindAt ? 'Notification at reminder time' : 'Always visible on lock screen'}
-                </Text>
-              </View>
-              <Switch
-                value={isPinned}
-                onValueChange={(v) => {
-                  Haptics.selectionAsync();
-                  setIsPinned(v);
-                }}
-                trackColor={{ false: 'rgba(0,0,0,0.1)', true: colors.accent + 'cc' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* ─── Share ────────────────────────────────────────────────────── */}
-        <View style={styles.sectionBlock}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Share</Text>
-          {groupId ? (
             <Pressable
-              style={[styles.groupBadge, { backgroundColor: colors.sky + '18', borderColor: colors.sky }]}
-              onPress={() => setShowShareModal(true)}
-            >
-              <Feather name="users" size={16} color={colors.sky} />
-              <Text style={[styles.groupBadgeText, { color: colors.sky }]}>
-                {groupName ?? 'Shared group'}
-              </Text>
-              <Pressable hitSlop={12} onPress={() => { setGroupId(null); setGroupName(null); }}>
-                <Feather name="x" size={14} color={colors.sky} />
-              </Pressable>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [
-                styles.shareBtn,
+              style={[
+                styles.remindChip,
                 {
-                  backgroundColor: 'rgba(255,255,255,0.65)',
-                  borderColor: 'rgba(0,0,0,0.07)',
-                  opacity: pressed ? 0.75 : 1,
+                  borderColor:
+                    remindAt &&
+                    !quickReminders.some(
+                      (r) =>
+                        r.date.toISOString().slice(0, 16) ===
+                        remindAt.toISOString().slice(0, 16),
+                    )
+                      ? colors.primary
+                      : colors.border,
+                  backgroundColor:
+                    remindAt &&
+                    !quickReminders.some(
+                      (r) =>
+                        r.date.toISOString().slice(0, 16) ===
+                        remindAt.toISOString().slice(0, 16),
+                    )
+                      ? colors.secondary
+                      : colors.muted,
+                  borderRadius: 10,
                 },
               ]}
-              onPress={() => setShowShareModal(true)}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowDatePicker(true);
+              }}
             >
-              <Feather name="share-2" size={18} color={colors.mutedForeground} />
-              <View style={styles.shareBtnLabel}>
-                <Text style={[styles.shareBtnTitle, { color: colors.foreground }]}>Share with a group</Text>
-                <Text style={[styles.shareBtnDesc, { color: colors.mutedForeground }]}>
-                  Collaborate with people you've added
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-            </Pressable>
-          )}
-        </View>
-
-        {/* ─── Big add button ───────────────────────────────────────────── */}
-        <Pressable
-          style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, marginTop: 8, marginBottom: 24 })}
-          onPress={handleCreate}
-          disabled={createNote.isPending || !canSave}
-        >
-          <LinearGradient
-            colors={canSave ? ['#1E5C54', '#2D7A6E'] : ['rgba(0,0,0,0.12)', 'rgba(0,0,0,0.12)']}
-            style={styles.addBtn}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            {createNote.isPending ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={[styles.addBtnText, { color: canSave ? '#FFFFFF' : colors.mutedForeground }]}>
-                {canSave ? 'Add note ✓' : 'Write something first…'}
+              <Feather
+                name="calendar"
+                size={13}
+                color={colors.mutedForeground}
+              />
+              <Text
+                style={[
+                  styles.remindChipText,
+                  { color: colors.mutedForeground },
+                ]}
+              >
+                {reminderLabel && !quickReminders.some(
+                  (r) =>
+                    r.date.toISOString().slice(0, 16) ===
+                    remindAt?.toISOString().slice(0, 16),
+                )
+                  ? reminderLabel
+                  : 'Custom'}
               </Text>
-            )}
-          </LinearGradient>
-        </Pressable>
-      </KeyboardAwareScrollViewCompat>
+            </Pressable>
+          </View>
+
+          {showDatePicker && (
+            <View style={styles.pickerWrap}>
+              <DateTimePicker
+                value={remindAt ?? new Date()}
+                mode="datetime"
+                minimumDate={new Date()}
+                onChange={handleDateChange}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              />
+              {Platform.OS === 'ios' && (
+                <Pressable
+                  style={[
+                    styles.pickerDone,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text
+                    style={[
+                      styles.pickerDoneText,
+                      { color: colors.primaryForeground },
+                    ]}
+                  >
+                    Done
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+        </SectionCard>
+
+        {/* Options */}
+        <SectionCard title="Options">
+          {/* Mark as Urgent */}
+          <View
+            style={[
+              styles.optionRow,
+              {
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.optionIconWrap,
+                { backgroundColor: colors.secondary },
+              ]}
+            >
+              <Feather name="alert-circle" size={14} color={colors.urgent} />
+            </View>
+            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+              Mark as Urgent
+            </Text>
+            <Switch
+              value={isUrgent}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                setIsUrgent(v);
+              }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.card}
+              ios_backgroundColor={colors.border}
+            />
+          </View>
+
+          {/* Pin to Lock Screen */}
+          <View style={styles.optionRow}>
+            <View
+              style={[
+                styles.optionIconWrap,
+                { backgroundColor: colors.secondary },
+              ]}
+            >
+              <Feather name="lock" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+              Pin to Lock Screen
+            </Text>
+            <Switch
+              value={isPinned}
+              onValueChange={(v) => {
+                Haptics.selectionAsync();
+                setIsPinned(v);
+              }}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.card}
+              ios_backgroundColor={colors.border}
+            />
+          </View>
+
+          {/* Share to Group */}
+          <Pressable
+            style={[
+              styles.optionRow,
+              {
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderTopColor: colors.border,
+              },
+            ]}
+            onPress={() => setShowShareModal(true)}
+          >
+            <View
+              style={[
+                styles.optionIconWrap,
+                { backgroundColor: colors.secondary },
+              ]}
+            >
+              <Feather name="users" size={14} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+                Share to Group
+              </Text>
+              {groupName ? (
+                <Text
+                  style={[
+                    styles.optionSub,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
+                  {groupName}
+                </Text>
+              ) : null}
+            </View>
+            <Feather
+              name="chevron-right"
+              size={16}
+              color={colors.mutedForeground}
+            />
+          </Pressable>
+        </SectionCard>
+      </ScrollView>
 
       <ShareModal
         visible={showShareModal}
-        selectedGroupId={groupId}
         onClose={() => setShowShareModal(false)}
-        onSelect={(gid, gname) => {
-          setGroupId(gid);
-          setGroupName(gname ?? null);
+        onSelect={(id, name) => {
+          setGroupId(id);
+          setGroupName(name);
           setShowShareModal(false);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }}
+        selectedGroupId={groupId}
       />
     </View>
   );
@@ -381,118 +467,98 @@ export default function NewNoteScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(30,92,84,0.1)',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   closeBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(30,92,84,0.08)',
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontSize: 17, fontFamily: 'Manrope_700Bold' },
+  saveBtn: {
+    paddingHorizontal: 20,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 72,
+  },
+  saveBtnText: { fontSize: 13, fontFamily: 'Manrope_700Bold', letterSpacing: 0.5 },
 
-  scroll: { padding: 20, gap: 20 },
+  content: { paddingHorizontal: 20, paddingTop: 8, gap: 24 },
 
   bodyInput: {
-    fontSize: 20,
-    fontFamily: 'Manrope_400Regular',
-    lineHeight: 30,
-    minHeight: 160,
+    minHeight: 140,
+    padding: 16,
+    fontSize: 22,
+    fontFamily: 'Manrope_600SemiBold',
+    lineHeight: 32,
   },
 
-  sectionBlock: { gap: 12 },
-  sectionTitle: { fontSize: 13, fontFamily: 'Manrope_700Bold', textTransform: 'uppercase', letterSpacing: 0.8 },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Manrope_700Bold',
+    marginBottom: 10,
+  },
+  sectionCard: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
 
-  chipGrid: {
+  remindRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
+    padding: 14,
   },
-  reminderChip: {
+  remindChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    minWidth: '45%',
-    flex: 1,
-  },
-  reminderChipEmoji: { fontSize: 18 },
-  reminderChipLabel: { fontSize: 13, fontFamily: 'Manrope_600SemiBold' },
-
-  customTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 16,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderWidth: 1,
   },
-  customTimeLabel: { fontSize: 14, fontFamily: 'Manrope_500Medium' },
+  remindChipText: { fontSize: 13, fontFamily: 'Manrope_500Medium' },
 
-  toggleCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-  },
-  toggleEmoji: { fontSize: 22, width: 30, textAlign: 'center' },
-  toggleLabel: { flex: 1 },
-  toggleTitle: { fontSize: 16, fontFamily: 'Manrope_600SemiBold' },
-  toggleDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-  divider: { height: 1, marginHorizontal: 18 },
-
-  shareBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  shareBtnLabel: { flex: 1 },
-  shareBtnTitle: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
-  shareBtnDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-
-  groupBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 18,
-    borderWidth: 1.5,
-  },
-  groupBadgeText: { flex: 1, fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
-
-  addBtn: {
-    height: 60,
-    borderRadius: 30,
+  pickerWrap: { paddingHorizontal: 14, paddingBottom: 12 },
+  pickerDone: {
+    height: 40,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1E5C54',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    marginTop: 8,
   },
-  addBtnText: { fontSize: 17, fontFamily: 'Manrope_700Bold' },
+  pickerDoneText: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
+
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  optionIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  optionLabel: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  optionSub: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 1 },
 });

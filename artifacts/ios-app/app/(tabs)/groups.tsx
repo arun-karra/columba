@@ -2,11 +2,10 @@ import React, { useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -28,7 +27,13 @@ import type { Group } from '@workspace/api-client-react';
 
 // ─── Group Card ───────────────────────────────────────────────────────────────
 
-function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
+function GroupCard({
+  group,
+  onPress,
+}: {
+  group: Group;
+  onPress: () => void;
+}) {
   const colors = useColors();
   const initials = group.name
     .split(' ')
@@ -39,7 +44,7 @@ function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.card,
+        styles.groupCard,
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
@@ -49,16 +54,21 @@ function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
       ]}
       onPress={onPress}
     >
-      <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-        <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
+      <View
+        style={[styles.groupAvatar, { backgroundColor: colors.secondary }]}
+      >
+        <Text style={[styles.groupAvatarText, { color: colors.primary }]}>
           {initials}
         </Text>
       </View>
-      <View style={styles.cardContent}>
-        <Text style={[styles.groupName, { color: colors.foreground }]} numberOfLines={1}>
+      <View style={styles.groupInfo}>
+        <Text
+          style={[styles.groupName, { color: colors.foreground }]}
+          numberOfLines={1}
+        >
           {group.name}
         </Text>
-        <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
+        <Text style={[styles.groupMeta, { color: colors.mutedForeground }]}>
           {group.members.length}{' '}
           {group.members.length === 1 ? 'member' : 'members'}
         </Text>
@@ -76,7 +86,6 @@ export default function GroupsScreen() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const [showCreate, setShowCreate] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -88,7 +97,6 @@ export default function GroupsScreen() {
     mutation: {
       onSuccess: (group) => {
         queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
-        setShowCreate(false);
         setGroupName('');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push(`/group/${group.id}`);
@@ -112,209 +120,163 @@ export default function GroupsScreen() {
     setRefreshing(false);
   }, [queryClient]);
 
-  const fabBottom = insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 72;
-
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScrollView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 20),
+          paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 90,
+        },
+      ]}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing || isLoading}
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+        />
+      }
+    >
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 16),
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Groups</Text>
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+          Columba
+        </Text>
+        <Text style={[styles.sectionHeading, { color: colors.primary }]}>
+          Your Groups
+        </Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>
+          Manage your collaboration spaces.
+        </Text>
       </View>
 
-      {/* Content */}
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      ) : groups.length === 0 ? (
-        <View style={styles.center}>
-          <Feather name="users" size={44} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            No groups yet
-          </Text>
+      {/* Group list */}
+      {groups.length === 0 && !isLoading ? (
+        <View style={styles.empty}>
+          <Feather name="users" size={36} color={colors.secondary} />
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Create a group to share notes with family or friends
+            No groups yet — create one below
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={groups}
-          keyExtractor={(g) => g.id}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: fabBottom + 24 },
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
-          renderItem={({ item }) => (
+        <View style={styles.groupList}>
+          {groups.map((group) => (
             <GroupCard
-              group={item}
-              onPress={() => router.push(`/group/${item.id}`)}
+              key={group.id}
+              group={group}
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.push(`/group/${group.id}`);
+              }}
             />
-          )}
-        />
+          ))}
+        </View>
       )}
 
-      {/* FAB */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.fab,
+      {/* Create New Group */}
+      <View
+        style={[
+          styles.actionCard,
           {
-            backgroundColor: colors.accent,
-            borderRadius: 28,
-            bottom: fabBottom,
-            opacity: pressed ? 0.85 : 1,
+            backgroundColor: colors.secondary,
+            borderRadius: colors.radius,
           },
         ]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          setShowCreate(true);
-        }}
       >
-        <Feather name="plus" size={26} color={colors.accentForeground} />
-      </Pressable>
+        <View style={styles.actionCardHeader}>
+          <Feather name="plus-circle" size={16} color={colors.primary} />
+          <Text style={[styles.actionCardTitle, { color: colors.foreground }]}>
+            Create New Group
+          </Text>
+        </View>
+        <Text style={[styles.actionCardSubtitle, { color: colors.mutedForeground }]}>
+          Start a new space for your team to collaborate and share notes.
+        </Text>
 
-      {/* Create group sheet */}
-      <Modal
-        visible={showCreate}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowCreate(false)}
-      >
+        <TextInput
+          style={[
+            styles.actionInput,
+            {
+              color: colors.foreground,
+              borderBottomColor: colors.border,
+            },
+          ]}
+          placeholder="Group Name"
+          placeholderTextColor={colors.mutedForeground}
+          value={groupName}
+          onChangeText={setGroupName}
+          returnKeyType="done"
+          onSubmitEditing={handleCreate}
+        />
+
         <Pressable
-          style={styles.overlay}
-          onPress={() => {
-            setShowCreate(false);
-            setGroupName('');
-          }}
+          style={[
+            styles.actionBtn,
+            {
+              backgroundColor: groupName.trim() ? colors.primary : colors.card,
+              borderColor: colors.border,
+              borderWidth: groupName.trim() ? 0 : 1,
+            },
+          ]}
+          onPress={handleCreate}
+          disabled={!groupName.trim() || createGroup.isPending}
         >
-          <Pressable
-            style={[
-              styles.sheet,
-              {
-                backgroundColor: colors.card,
-                borderRadius: colors.radius,
-                paddingBottom: insets.bottom + 8,
-              },
-            ]}
-          >
-            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-              New Group
-            </Text>
-            <TextInput
+          {createGroup.isPending ? (
+            <ActivityIndicator
+              color={
+                groupName.trim() ? colors.primaryForeground : colors.mutedForeground
+              }
+            />
+          ) : (
+            <Text
               style={[
-                styles.input,
+                styles.actionBtnText,
                 {
-                  backgroundColor: colors.muted,
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                  borderRadius: colors.radius / 2,
+                  color: groupName.trim()
+                    ? colors.primaryForeground
+                    : colors.mutedForeground,
                 },
               ]}
-              placeholder="e.g. Household, Book Club…"
-              placeholderTextColor={colors.mutedForeground}
-              value={groupName}
-              onChangeText={setGroupName}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={handleCreate}
-            />
-            <View style={styles.sheetActions}>
-              <Pressable
-                style={[
-                  styles.sheetBtn,
-                  {
-                    backgroundColor: colors.muted,
-                    borderRadius: colors.radius / 2,
-                  },
-                ]}
-                onPress={() => {
-                  setShowCreate(false);
-                  setGroupName('');
-                }}
-              >
-                <Text style={[styles.sheetBtnText, { color: colors.mutedForeground }]}>
-                  Cancel
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.sheetBtn,
-                  {
-                    backgroundColor: groupName.trim()
-                      ? colors.primary
-                      : colors.muted,
-                    borderRadius: colors.radius / 2,
-                  },
-                ]}
-                onPress={handleCreate}
-                disabled={createGroup.isPending || !groupName.trim()}
-              >
-                {createGroup.isPending ? (
-                  <ActivityIndicator color={colors.primaryForeground} size="small" />
-                ) : (
-                  <Text
-                    style={[
-                      styles.sheetBtnText,
-                      {
-                        color: groupName.trim()
-                          ? colors.primaryForeground
-                          : colors.mutedForeground,
-                      },
-                    ]}
-                  >
-                    Create
-                  </Text>
-                )}
-              </Pressable>
-            </View>
-          </Pressable>
+            >
+              Create Group  →
+            </Text>
+          )}
         </Pressable>
-      </Modal>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1 },
-  headerTitle: { fontSize: 32, fontFamily: 'Manrope_700Bold' },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 40,
+  content: { paddingHorizontal: 20, gap: 20 },
+
+  header: { gap: 4 },
+  headerTitle: { fontSize: 22, fontFamily: 'Manrope_700Bold', marginBottom: 6 },
+  sectionHeading: {
+    fontSize: 18,
+    fontFamily: 'Manrope_700Bold',
+    fontStyle: 'italic',
   },
-  emptyTitle: { fontSize: 18, fontFamily: 'Manrope_600SemiBold', marginTop: 6 },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: 'Manrope_400Regular',
-    textAlign: 'center',
-    lineHeight: 21,
-  },
-  listContent: { paddingHorizontal: 16, paddingTop: 12, gap: 8 },
-  card: {
+  sectionSubtitle: { fontSize: 13, fontFamily: 'Manrope_400Regular' },
+
+  groupList: { gap: 10 },
+
+  groupCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderWidth: 1,
     gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  avatar: {
+  groupAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -322,44 +284,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
-  cardContent: { flex: 1 },
-  groupName: { fontSize: 16, fontFamily: 'Manrope_600SemiBold' },
-  memberCount: { fontSize: 13, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    width: 56,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-    padding: 12,
-  },
-  sheet: { padding: 24, gap: 16, marginBottom: 4 },
-  sheetTitle: { fontSize: 20, fontFamily: 'Manrope_700Bold' },
-  input: {
-    height: 52,
-    paddingHorizontal: 16,
-    fontSize: 16,
+  groupAvatarText: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
+  groupInfo: { flex: 1 },
+  groupName: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  groupMeta: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
+
+  empty: { alignItems: 'center', gap: 10, paddingVertical: 24 },
+  emptyText: { fontSize: 14, fontFamily: 'Manrope_400Regular', textAlign: 'center' },
+
+  actionCard: { padding: 20, gap: 14 },
+  actionCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionCardTitle: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
+  actionCardSubtitle: { fontSize: 13, fontFamily: 'Manrope_400Regular', lineHeight: 20 },
+
+  actionInput: {
+    fontSize: 15,
     fontFamily: 'Manrope_400Regular',
-    borderWidth: 1,
+    borderBottomWidth: 1,
+    paddingVertical: 10,
   },
-  sheetActions: { flexDirection: 'row', gap: 10 },
-  sheetBtn: {
-    flex: 1,
+  actionBtn: {
     height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  actionBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 });
