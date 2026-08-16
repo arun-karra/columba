@@ -14,7 +14,7 @@
       "backgroundColor": "#F8F6F1"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.columba.notes",
       "buildNumber": "1",
       "infoPlist": {
@@ -42,7 +42,8 @@
         {
           "iosDisplayInForeground": true
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -19,7 +19,11 @@ export function getToken(): Promise<string | null> {
 function setToken(token: string): Promise<void> {
   return Platform.OS === 'web'
     ? AsyncStorage.setItem(TOKEN_KEY, token)
-    : SecureStore.setItemAsync(TOKEN_KEY, token);
+    : SecureStore.setItemAsync(TOKEN_KEY, token, {
+        // Readable while the device is locked after the first unlock of the
+        // boot — required so lock-screen "Mark as Complete" can send the JWT.
+        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+      });
 }
 
 function deleteToken(): Promise<void> {

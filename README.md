@@ -95,6 +95,21 @@ pnpm --filter @workspace/ios-app run dev
 
 Then scan the QR code with Expo Go (iOS) or open in a simulator.
 
+### EAS / development builds
+
+Lock-screen notification actions need a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (they do not work in Expo Go). Run EAS commands from `artifacts/ios-app`, or use the root scripts:
+
+```bash
+pnpm eas:build:dev          # device (internal distribution)
+pnpm eas:build:sim          # iOS Simulator
+pnpm eas:build:preview      # internal preview
+pnpm eas:build:prod         # App Store / production
+```
+
+If Expo or EAS is connected to this GitHub repo, set the **project directory** to `artifacts/ios-app`.
+
+`EXPO_PUBLIC_DOMAIN` (API hostname, no `https://`) must be set as an EAS Environment Variable for each environment (`development`, `preview`, `production`). Do not put API keys, JWT secrets, or signing credentials in `eas.json` — those stay in EAS Environment Variables / EAS Credentials (`credentialsSource: remote`).
+
 ---
 
 ## API overview

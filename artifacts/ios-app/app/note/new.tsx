@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,9 +15,8 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
   useCreateNote,
@@ -26,6 +25,8 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { ShareModal } from '@/components/ShareModal';
+import { AppIcon } from '@/components/AppIcon';
+import { useScreenGutter } from '@/constants/layout';
 
 // ─── Quick reminder presets ───────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ function getQuickReminders() {
       date: inOneHour,
     },
     {
-      icon: 'sun' as const,
+      icon: 'sun.max' as const,
       label: 'Tomorrow',
       date: tomorrow,
     },
@@ -88,6 +89,8 @@ function SectionCard({
 export default function NewNoteScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const gutter = useScreenGutter();
+  const navigation = useNavigation();
   const queryClient = useQueryClient();
 
   const [body, setBody] = useState('');
@@ -133,6 +136,37 @@ export default function NewNoteScreen() {
     }
   };
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Text style={{ color: colors.primary, fontSize: 17 }}>Cancel</Text>
+        </Pressable>
+      ),
+      headerRight: () => (
+        <Pressable
+          onPress={() => void handleCreate()}
+          disabled={!canSave || createNote.isPending}
+          hitSlop={12}
+        >
+          {createNote.isPending ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Text
+              style={{
+                color: canSave ? colors.primary : colors.mutedForeground,
+                fontSize: 17,
+                fontWeight: '600',
+              }}
+            >
+              Add
+            </Text>
+          )}
+        </Pressable>
+      ),
+    });
+  }, [canSave, createNote.isPending, body, isUrgent, isPinned, groupId, remindAt]);
+
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS !== 'ios') setShowDatePicker(false);
     if (selected) setRemindAt(selected);
@@ -150,57 +184,13 @@ export default function NewNoteScreen() {
     : null;
 
   return (
-    <View
-      style={[
-        styles.root,
-        {
-          backgroundColor: colors.background,
-          paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 0),
-        },
-      ]}
-    >
-      {/* Header bar */}
-      <View style={styles.header}>
-        <Pressable style={styles.closeBtn} onPress={() => router.back()}>
-          <Feather name="x" size={20} color={colors.foreground} />
-        </Pressable>
-        <Pressable
-          style={[
-            styles.saveBtn,
-            {
-              backgroundColor: canSave ? colors.primary : colors.secondary,
-            },
-          ]}
-          onPress={handleCreate}
-          disabled={!canSave || createNote.isPending}
-        >
-          {createNote.isPending ? (
-            <ActivityIndicator
-              size="small"
-              color={canSave ? colors.primaryForeground : colors.mutedForeground}
-            />
-          ) : (
-            <Text
-              style={[
-                styles.saveBtnText,
-                {
-                  color: canSave
-                    ? colors.primaryForeground
-                    : colors.mutedForeground,
-                },
-              ]}
-            >
-              SAVE
-            </Text>
-          )}
-        </Pressable>
-      </View>
-
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: insets.bottom + 40 },
+          { paddingHorizontal: gutter, paddingBottom: insets.bottom + 24 },
         ]}
       >
         {/* Body input */}
@@ -247,7 +237,7 @@ export default function NewNoteScreen() {
                     setRemindAt(active ? null : r.date);
                   }}
                 >
-                  <Feather
+                  <AppIcon
                     name={r.icon}
                     size={13}
                     color={active ? colors.primary : colors.mutedForeground}
@@ -295,7 +285,7 @@ export default function NewNoteScreen() {
                 setShowDatePicker(true);
               }}
             >
-              <Feather
+              <AppIcon
                 name="calendar"
                 size={13}
                 color={colors.mutedForeground}
@@ -366,7 +356,7 @@ export default function NewNoteScreen() {
                 { backgroundColor: colors.secondary },
               ]}
             >
-              <Feather name="alert-circle" size={14} color={colors.urgent} />
+              <AppIcon name="exclamationmark.circle" size={14} color={colors.urgent} />
             </View>
             <Text style={[styles.optionLabel, { color: colors.foreground }]}>
               Mark as Urgent
@@ -391,7 +381,7 @@ export default function NewNoteScreen() {
                 { backgroundColor: colors.secondary },
               ]}
             >
-              <Feather name="lock" size={14} color={colors.primary} />
+              <AppIcon name="lock.fill" size={14} color={colors.primary} />
             </View>
             <Text style={[styles.optionLabel, { color: colors.foreground }]}>
               Pin to Lock Screen
@@ -425,7 +415,7 @@ export default function NewNoteScreen() {
                 { backgroundColor: colors.secondary },
               ]}
             >
-              <Feather name="users" size={14} color={colors.primary} />
+              <AppIcon name="person.2" size={14} color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.optionLabel, { color: colors.foreground }]}>
@@ -442,8 +432,8 @@ export default function NewNoteScreen() {
                 </Text>
               ) : null}
             </View>
-            <Feather
-              name="chevron-right"
+            <AppIcon
+              name="chevron.right"
               size={16}
               color={colors.mutedForeground}
             />
@@ -456,7 +446,7 @@ export default function NewNoteScreen() {
         onClose={() => setShowShareModal(false)}
         onSelect={(id, name) => {
           setGroupId(id);
-          setGroupName(name);
+          setGroupName(name ?? null);
           setShowShareModal(false);
         }}
         selectedGroupId={groupId}
@@ -468,31 +458,7 @@ export default function NewNoteScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
-  },
-  closeBtn: {
-    width: 38,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtn: {
-    paddingHorizontal: 20,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 72,
-  },
-  saveBtnText: { fontSize: 13, fontFamily: 'Manrope_700Bold', letterSpacing: 0.5 },
-
-  content: { paddingHorizontal: 20, paddingTop: 8, gap: 24 },
+  content: { paddingTop: 16, gap: 24 },
 
   bodyInput: {
     minHeight: 140,

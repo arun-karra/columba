@@ -3,20 +3,14 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather } from '@expo/vector-icons';
-import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 import {
   useGetGroup,
@@ -28,37 +22,31 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import type { GroupMember } from '@workspace/api-client-react';
-
-// ─── Member Row ───────────────────────────────────────────────────────────────
+import { AppIcon } from '@/components/AppIcon';
+import { confirmDestructive } from '@/utils/iosConfirm';
+import { useScreenGutter } from '@/constants/layout';
 
 function MemberRow({
   member,
   isMe,
   canRemove,
   onRemove,
-  scheme,
 }: {
   member: GroupMember;
   isMe: boolean;
   canRemove: boolean;
   onRemove: () => void;
-  scheme: 'light' | 'dark' | null | undefined;
 }) {
   const colors = useColors();
   const initials = member.email.slice(0, 2).toUpperCase();
 
   return (
-    <BlurView
-      intensity={scheme === 'dark' ? 40 : 65}
-      tint={scheme === 'dark' ? 'dark' : 'light'}
-      style={styles.memberCard}
-    >
-      <LinearGradient
-        colors={['rgba(42,123,111,0.7)', 'rgba(26,79,72,0.7)']}
-        style={styles.memberAvatar}
-      >
-        <Text style={styles.memberInitials}>{initials}</Text>
-      </LinearGradient>
+    <View style={[styles.memberCard, { backgroundColor: colors.card }]}>
+      <View style={[styles.memberAvatar, { backgroundColor: colors.primary }]}>
+        <Text style={[styles.memberInitials, { color: colors.primaryForeground }]}>
+          {initials}
+        </Text>
+      </View>
       <View style={styles.memberInfo}>
         <Text style={[styles.memberEmail, { color: colors.foreground }]} numberOfLines={1}>
           {member.email}
@@ -69,7 +57,7 @@ function MemberRow({
             styles.roleBadge,
             {
               backgroundColor:
-                member.role === 'admin' ? colors.primary + '22' : 'rgba(30,92,84,0.1)',
+                member.role === 'admin' ? colors.secondary : colors.muted,
             },
           ]}
         >
@@ -86,24 +74,18 @@ function MemberRow({
           </Text>
         </View>
       </View>
-      {canRemove && (
-        <Pressable onPress={onRemove} hitSlop={14}>
-          {Platform.OS === 'ios' ? (
-            <SymbolView name="person.badge.minus" tintColor={colors.destructive} size={20} />
-          ) : (
-            <Feather name="user-minus" size={20} color={colors.destructive} />
-          )}
+      {canRemove ? (
+        <Pressable onPress={onRemove} hitSlop={14} accessibilityLabel={isMe ? 'Leave group' : 'Remove member'}>
+          <AppIcon name="person.badge.minus" size={20} color={colors.destructive} />
         </Pressable>
-      )}
-    </BlurView>
+      ) : null}
+    </View>
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 export default function GroupDetailScreen() {
   const colors = useColors();
-  const scheme = useColorScheme();
+  const gutter = useScreenGutter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -152,37 +134,23 @@ export default function GroupDetailScreen() {
 
   const handleRemove = (member: GroupMember) => {
     const isMe = member.userId === user?.id;
-    Alert.alert(
-      isMe ? 'Leave group' : 'Remove member',
-      isMe
+    confirmDestructive({
+      title: isMe ? 'Leave group' : 'Remove member',
+      message: isMe
         ? 'Are you sure you want to leave this group?'
         : `Remove ${member.email} from the group?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: isMe ? 'Leave' : 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            await removeMutation.mutateAsync({ id: id ?? '', userId: member.userId });
-            if (isMe) router.back();
-          },
-        },
-      ],
-    );
+      confirmLabel: isMe ? 'Leave' : 'Remove',
+      onConfirm: async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        await removeMutation.mutateAsync({ id: id ?? '', userId: member.userId });
+        if (isMe) router.back();
+      },
+    });
   };
 
   if (isLoading || !group) {
     return (
-      <View style={styles.loadingRoot}>
-        <LinearGradient
-          colors={
-            scheme === 'dark'
-              ? [colors.gradientStart, colors.gradientEnd]
-              : ['#D4F0E8', '#EBF7F3', '#F0F9F6']
-          }
-          style={StyleSheet.absoluteFill}
-        />
+      <View style={[styles.loadingRoot, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.primary} />
       </View>
     );
@@ -198,44 +166,33 @@ export default function GroupDetailScreen() {
     .join('');
 
   return (
-    <View style={styles.root}>
-      {/* Background gradient */}
-      <LinearGradient
-        colors={
-          scheme === 'dark'
-            ? [colors.gradientStart, colors.gradientEnd]
-            : ['#D4F0E8', '#EBF7F3', '#F0F9F6']
-        }
-        style={StyleSheet.absoluteFill}
-      />
-
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <FlatList
         data={group.members}
         keyExtractor={(m) => m.userId}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingHorizontal: gutter }]}
+        contentInsetAdjustmentBehavior="automatic"
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListHeaderComponent={
           <View>
-            {/* Group avatar + name hero */}
-            <LinearGradient
-              colors={['#1A4F48', '#2A7B6F']}
-              style={styles.groupHero}
-            >
-              <View style={styles.groupAvatarWrap}>
-                <Text style={styles.groupAvatarText}>{groupInitials}</Text>
+            <View style={styles.hero}>
+              <View style={[styles.groupAvatarWrap, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.groupAvatarText, { color: colors.primaryForeground }]}>
+                  {groupInitials}
+                </Text>
               </View>
-              <Text style={styles.groupName}>{group.name}</Text>
-              <Text style={styles.memberCount}>
+              <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
+              <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
                 {group.members.length}{' '}
                 {group.members.length === 1 ? 'member' : 'members'}
               </Text>
-            </LinearGradient>
+            </View>
 
-            {/* Invite card */}
-            <BlurView
-              intensity={scheme === 'dark' ? 40 : 65}
-              tint={scheme === 'dark' ? 'dark' : 'light'}
-              style={styles.inviteCard}
+            <View
+              style={[
+                styles.inviteCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
             >
               <Text style={[styles.inviteLabel, { color: colors.foreground }]}>
                 Invite someone
@@ -245,9 +202,9 @@ export default function GroupDetailScreen() {
                   style={[
                     styles.inviteInput,
                     {
-                      backgroundColor: 'rgba(30,92,84,0.06)',
+                      backgroundColor: colors.secondary,
                       color: colors.foreground,
-                      borderColor: 'rgba(30,92,84,0.15)',
+                      borderColor: colors.border,
                     },
                   ]}
                   placeholder="their@email.com"
@@ -256,48 +213,40 @@ export default function GroupDetailScreen() {
                   onChangeText={setInviteEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  returnKeyType="done"
+                  autoCorrect={false}
+                  returnKeyType="send"
                   onSubmitEditing={handleInvite}
                 />
                 <Pressable
-                  style={({ pressed }) => [
+                  accessibilityRole="button"
+                  accessibilityLabel="Send invite"
+                  style={[
                     styles.inviteBtn,
-                    { opacity: pressed ? 0.8 : 1 },
+                    {
+                      backgroundColor: inviteEmail.includes('@')
+                        ? colors.primary
+                        : colors.secondary,
+                    },
                   ]}
                   onPress={handleInvite}
                   disabled={inviteMutation.isPending || !inviteEmail.includes('@')}
                 >
-                  <LinearGradient
-                    colors={
-                      inviteEmail.includes('@')
-                        ? ['#1A4F48', '#2A7B6F']
-                        : ['rgba(30,92,84,0.2)', 'rgba(30,92,84,0.2)']
-                    }
-                    style={styles.inviteBtnGradient}
-                  >
-                    {inviteMutation.isPending ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : Platform.OS === 'ios' ? (
-                      <SymbolView
-                        name="person.badge.plus"
-                        tintColor={
-                          inviteEmail.includes('@') ? '#FFFFFF' : colors.mutedForeground
-                        }
-                        size={18}
-                      />
-                    ) : (
-                      <Feather
-                        name="user-plus"
-                        size={18}
-                        color={
-                          inviteEmail.includes('@') ? '#FFFFFF' : colors.mutedForeground
-                        }
-                      />
-                    )}
-                  </LinearGradient>
+                  {inviteMutation.isPending ? (
+                    <ActivityIndicator size="small" color={colors.primaryForeground} />
+                  ) : (
+                    <AppIcon
+                      name="person.badge.plus"
+                      size={18}
+                      color={
+                        inviteEmail.includes('@')
+                          ? colors.primaryForeground
+                          : colors.mutedForeground
+                      }
+                    />
+                  )}
                 </Pressable>
               </View>
-            </BlurView>
+            </View>
 
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
               Members
@@ -310,7 +259,6 @@ export default function GroupDetailScreen() {
             isMe={item.userId === user?.id}
             canRemove={isAdmin || item.userId === user?.id}
             onRemove={() => handleRemove(item)}
-            scheme={scheme}
           />
         )}
       />
@@ -321,76 +269,57 @@ export default function GroupDetailScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   loadingRoot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { paddingHorizontal: 16, paddingBottom: 48 },
+  listContent: { paddingBottom: 48 },
 
-  groupHero: {
+  hero: {
     alignItems: 'center',
-    marginHorizontal: -16,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+    paddingVertical: 24,
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 8,
   },
   groupAvatarWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(245,166,35,0.9)',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F5A623',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
     marginBottom: 4,
   },
-  groupAvatarText: { fontSize: 30, fontFamily: 'Manrope_700Bold', color: '#FFFFFF' },
-  groupName: { fontSize: 24, fontFamily: 'Manrope_700Bold', color: '#FFFFFF' },
-  memberCount: { fontSize: 14, fontFamily: 'Manrope_400Regular', color: 'rgba(255,255,255,0.7)' },
+  groupAvatarText: { fontSize: 28, fontFamily: 'Manrope_700Bold' },
+  groupName: { fontSize: 22, fontFamily: 'Manrope_700Bold' },
+  memberCount: { fontSize: 15, fontFamily: 'Manrope_400Regular' },
 
   inviteCard: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(30,92,84,0.12)',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     gap: 12,
     marginBottom: 24,
-    shadowColor: '#1E5C54',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
-    shadowRadius: 10,
-    elevation: 3,
   },
   inviteLabel: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
   inviteRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   inviteInput: {
     flex: 1,
-    height: 48,
+    height: 44,
     paddingHorizontal: 14,
-    fontSize: 15,
+    fontSize: 17,
     fontFamily: 'Manrope_400Regular',
-    borderWidth: 1,
-    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
   },
   inviteBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  inviteBtnGradient: {
-    flex: 1,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
     marginBottom: 8,
   },
 
@@ -399,27 +328,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(30,92,84,0.1)',
-    shadowColor: '#1E5C54',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 16,
   },
   memberAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  memberInitials: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: '#FFFFFF' },
+  memberInitials: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
   memberInfo: { flex: 1, gap: 4 },
-  memberEmail: { fontSize: 14, fontFamily: 'Manrope_500Medium' },
+  memberEmail: { fontSize: 16, fontFamily: 'Manrope_500Medium' },
   roleBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' },
-  roleText: { fontSize: 11, fontFamily: 'Manrope_600SemiBold' },
+  roleText: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', textTransform: 'capitalize' },
 });

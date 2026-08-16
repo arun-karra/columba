@@ -98,7 +98,10 @@ function RootLayoutNav() {
           name="note/new"
           options={{
             presentation: 'modal',
-            headerShown: false,
+            title: 'New Note',
+            headerShown: true,
+            headerBackVisible: false,
+            headerShadowVisible: false,
           }}
         />
         <Stack.Screen

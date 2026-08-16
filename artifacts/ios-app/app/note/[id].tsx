@@ -28,7 +28,6 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
   useGetNote,
@@ -41,6 +40,9 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { ShareModal } from '@/components/ShareModal';
 import { dismissNoteNotification } from '@/utils/notifications';
+import { AppIcon } from '@/components/AppIcon';
+import { confirmDestructive } from '@/utils/iosConfirm';
+import { useScreenGutter } from '@/constants/layout';
 
 // ─── Quick reminder presets ────────────────────────────────────────────────────
 
@@ -56,7 +58,7 @@ function getQuickReminders() {
 
   return [
     { icon: 'clock' as const, label: 'In 1 hour', date: inOneHour },
-    { icon: 'sun' as const, label: 'Tomorrow', date: tomorrow },
+    { icon: 'sun.max' as const, label: 'Tomorrow', date: tomorrow },
   ];
 }
 
@@ -91,6 +93,7 @@ function SectionCard({
 
 export default function NoteDetailScreen() {
   const colors = useColors();
+  const gutter = useScreenGutter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
@@ -181,28 +184,26 @@ export default function NoteDetailScreen() {
   }, [id, note, body, isUrgent, isPinned, remindAt, groupId]);
 
   const handleDelete = useCallback(() => {
-    Alert.alert('Delete note', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          if (!id) return;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          try {
-            await deleteNote.mutateAsync({ id });
-            void dismissNoteNotification(id);
-            queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
-            queryClient.invalidateQueries({
-              queryKey: getGetNotesSummaryQueryKey(),
-            });
-            router.back();
-          } catch {
-            Alert.alert('Error', 'Could not delete this note.');
-          }
-        },
+    confirmDestructive({
+      title: 'Delete note',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        if (!id) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        try {
+          await deleteNote.mutateAsync({ id });
+          void dismissNoteNotification(id);
+          queryClient.invalidateQueries({ queryKey: getListNotesQueryKey() });
+          queryClient.invalidateQueries({
+            queryKey: getGetNotesSummaryQueryKey(),
+          });
+          router.back();
+        } catch {
+          Alert.alert('Error', 'Could not delete this note.');
+        }
       },
-    ]);
+    });
   }, [id]);
 
   const handleToggleDone = useCallback(async () => {
@@ -272,7 +273,8 @@ export default function NoteDetailScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
       >
         {/* Body input */}
         <TextInput
@@ -320,7 +322,7 @@ export default function NoteDetailScreen() {
                     setDirty(true);
                   }}
                 >
-                  <Feather
+                  <AppIcon
                     name={r.icon}
                     size={13}
                     color={active ? colors.primary : colors.mutedForeground}
@@ -370,7 +372,7 @@ export default function NoteDetailScreen() {
                 setShowDatePicker(true);
               }}
             >
-              <Feather name="calendar" size={13} color={colors.mutedForeground} />
+              <AppIcon name="calendar" size={13} color={colors.mutedForeground} />
               <Text
                 style={[styles.remindChipText, { color: colors.mutedForeground }]}
               >
@@ -428,7 +430,7 @@ export default function NoteDetailScreen() {
             <View
               style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
             >
-              <Feather name="alert-circle" size={14} color={colors.urgent} />
+              <AppIcon name="exclamationmark.circle" size={14} color={colors.urgent} />
             </View>
             <Text style={[styles.optionLabel, { color: colors.foreground }]}>
               Mark as Urgent
@@ -458,7 +460,7 @@ export default function NoteDetailScreen() {
             <View
               style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
             >
-              <Feather name="lock" size={14} color={colors.primary} />
+              <AppIcon name="lock.fill" size={14} color={colors.primary} />
             </View>
             <Text style={[styles.optionLabel, { color: colors.foreground }]}>
               Pin to Lock Screen
@@ -483,7 +485,7 @@ export default function NoteDetailScreen() {
             <View
               style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
             >
-              <Feather name="users" size={14} color={colors.primary} />
+              <AppIcon name="person.2" size={14} color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.optionLabel, { color: colors.foreground }]}>
@@ -497,7 +499,7 @@ export default function NoteDetailScreen() {
                 </Text>
               ) : null}
             </View>
-            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            <AppIcon name="chevron.right" size={16} color={colors.mutedForeground} />
           </Pressable>
         </SectionCard>
 
@@ -518,8 +520,8 @@ export default function NoteDetailScreen() {
                 onPress={handleToggleDone}
                 disabled={toggleDone.isPending}
               >
-                <Feather
-                  name={isDone ? 'rotate-ccw' : 'check'}
+                <AppIcon
+                  name={isDone ? 'arrow.counterclockwise' : 'checkmark'}
                   size={18}
                   color={isDone ? colors.foreground : colors.primaryForeground}
                 />
@@ -558,7 +560,7 @@ export default function NoteDetailScreen() {
             ]}
             onPress={handleDelete}
           >
-            <Feather name="trash-2" size={18} color={colors.destructive} />
+            <AppIcon name="trash" size={18} color={colors.destructive} />
           </Pressable>
         </View>
 
@@ -585,7 +587,7 @@ export default function NoteDetailScreen() {
         onClose={() => setShowShareModal(false)}
         onSelect={(id, name) => {
           setGroupId(id);
-          setGroupName(name);
+          setGroupName(name ?? null);
           setShowShareModal(false);
           setDirty(true);
         }}
@@ -599,7 +601,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40, gap: 24 },
+  content: { paddingTop: 16, paddingBottom: 40, gap: 24 },
 
   bodyInput: {
     minHeight: 130,

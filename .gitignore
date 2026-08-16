@@ -47,3 +47,17 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Secrets and signing credentials — never commit these.
+# Store Apple/Google keys in EAS (credentialsSource: remote) or a local
+# credentials.json that stays untracked. Server secrets live in env vars.
+.env
+.env.*
+!.env.example
+credentials.json
+*.p8
+*.p12
+*.jks
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist

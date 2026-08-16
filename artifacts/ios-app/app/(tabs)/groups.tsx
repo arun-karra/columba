@@ -11,14 +11,10 @@ import {
   Text,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
   useListGroups,
@@ -28,12 +24,12 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import type { Group } from '@workspace/api-client-react';
-
-// ─── Group Card ───────────────────────────────────────────────────────────────
+import { AppIcon } from '@/components/AppIcon';
+import { promptText } from '@/utils/iosConfirm';
+import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
 
 function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
   const colors = useColors();
-  const scheme = useColorScheme();
   const initials = group.name
     .split(' ')
     .slice(0, 2)
@@ -42,41 +38,40 @@ function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
 
   return (
     <Pressable
-      style={({ pressed }) => [{ opacity: pressed ? 0.82 : 1 }]}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: colors.card,
+          borderRadius: colors.radius,
+          opacity: pressed ? 0.82 : 1,
+        },
+      ]}
       onPress={onPress}
     >
-      <BlurView
-        intensity={scheme === 'dark' ? 40 : 65}
-        tint={scheme === 'dark' ? 'dark' : 'light'}
-        style={styles.card}
-      >
-        <LinearGradient
-          colors={['#1A4F48', '#2A7B6F']}
-          style={styles.avatar}
-        >
-          <Text style={styles.avatarText}>{initials}</Text>
-        </LinearGradient>
-        <View style={styles.cardContent}>
-          <Text style={[styles.groupName, { color: colors.foreground }]} numberOfLines={1}>
-            {group.name}
-          </Text>
-          <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
-            {group.members.length}{' '}
-            {group.members.length === 1 ? 'member' : 'members'}
-          </Text>
-        </View>
-        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-      </BlurView>
+      <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+        <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
+          {initials}
+        </Text>
+      </View>
+      <View style={styles.cardContent}>
+        <Text style={[styles.groupName, { color: colors.foreground }]} numberOfLines={1}>
+          {group.name}
+        </Text>
+        <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
+          {group.members.length} {group.members.length === 1 ? 'member' : 'members'}
+        </Text>
+      </View>
+      <AppIcon name="chevron.right" size={16} color={colors.mutedForeground} />
     </Pressable>
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 export default function GroupsScreen() {
   const colors = useColors();
-  const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
+  const gutter = useScreenGutter();
+  const fabBottom = useFabBottom();
+  const listBottom = useListBottomPadding(true);
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -100,14 +95,31 @@ export default function GroupsScreen() {
     },
   });
 
-  const handleCreate = async () => {
-    if (!groupName.trim()) return;
+  const submitName = async (name: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await createGroup.mutateAsync({ data: { name: groupName.trim() } });
+      await createGroup.mutateAsync({ data: { name } });
     } catch {
       Alert.alert('Error', 'Could not create group. Please try again.');
     }
+  };
+
+  const handleCreatePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const usedNativePrompt = promptText({
+      title: 'New Group',
+      message: 'Choose a name for this group.',
+      confirmLabel: 'Create',
+      onSubmit: (name) => {
+        void submitName(name);
+      },
+    });
+    if (!usedNativePrompt) setShowCreate(true);
+  };
+
+  const handleCreateFromModal = async () => {
+    if (!groupName.trim()) return;
+    await submitName(groupName.trim());
   };
 
   const onRefresh = useCallback(async () => {
@@ -116,38 +128,27 @@ export default function GroupsScreen() {
     setRefreshing(false);
   }, [queryClient]);
 
-  const fabBottom = insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 72;
-
   return (
-    <View style={styles.root}>
-      {/* Background gradient */}
-      <LinearGradient
-        colors={
-          scheme === 'dark'
-            ? [colors.gradientStart, colors.gradientEnd]
-            : ['#D4F0E8', '#EBF7F3', '#F0F9F6']
-        }
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Header */}
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View
         style={[
           styles.header,
-          { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 12) },
+          {
+            paddingTop: insets.top + 8,
+            paddingHorizontal: gutter,
+          },
         ]}
       >
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Groups</Text>
       </View>
 
-      {/* Content */}
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : groups.length === 0 ? (
         <View style={styles.center}>
-          <Feather name="users" size={44} color={colors.mutedForeground} />
+          <AppIcon name="person.2" size={44} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
             No groups yet
           </Text>
@@ -161,8 +162,9 @@ export default function GroupsScreen() {
           keyExtractor={(g) => g.id}
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: fabBottom + 24 },
+            { paddingHorizontal: gutter, paddingBottom: listBottom },
           ]}
+          contentInsetAdjustmentBehavior="automatic"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -183,45 +185,45 @@ export default function GroupsScreen() {
         />
       )}
 
-      {/* FAB */}
-      <View style={[styles.fabWrap, { bottom: fabBottom }]}>
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowCreate(true);
-          }}
-          style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-        >
-          <LinearGradient
-            colors={['#F5A623', '#FF6B5B']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.fab}
-          >
-            <Feather name="plus" size={28} color="#FFFFFF" />
-          </LinearGradient>
-        </Pressable>
-      </View>
-
-      {/* Create group sheet */}
-      <Modal
-        visible={showCreate}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowCreate(false)}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="New group"
+        onPress={handleCreatePress}
+        style={[
+          styles.fab,
+          {
+            bottom: fabBottom,
+            right: gutter,
+            backgroundColor: colors.primary,
+            shadowColor: colors.primary,
+          },
+        ]}
       >
-        <Pressable
-          style={styles.overlay}
-          onPress={() => {
-            setShowCreate(false);
-            setGroupName('');
-          }}
+        <AppIcon name="plus" size={26} color={colors.primaryForeground} />
+      </Pressable>
+
+      {Platform.OS !== 'ios' ? (
+        <Modal
+          visible={showCreate}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowCreate(false)}
         >
-          <Pressable style={[styles.sheetWrap, { paddingBottom: insets.bottom + 8 }]}>
-            <BlurView
-              intensity={scheme === 'dark' ? 60 : 80}
-              tint={scheme === 'dark' ? 'dark' : 'light'}
-              style={styles.sheet}
+          <Pressable
+            style={styles.overlay}
+            onPress={() => {
+              setShowCreate(false);
+              setGroupName('');
+            }}
+          >
+            <Pressable
+              style={[
+                styles.sheet,
+                {
+                  backgroundColor: colors.card,
+                  paddingBottom: insets.bottom + 16,
+                },
+              ]}
             >
               <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
                 New Group
@@ -230,9 +232,9 @@ export default function GroupsScreen() {
                 style={[
                   styles.input,
                   {
-                    backgroundColor: 'rgba(30,92,84,0.06)',
+                    backgroundColor: colors.secondary,
                     color: colors.foreground,
-                    borderColor: 'rgba(30,92,84,0.15)',
+                    borderColor: colors.border,
                   },
                 ]}
                 placeholder="e.g. Household, Book Club…"
@@ -241,15 +243,11 @@ export default function GroupsScreen() {
                 onChangeText={setGroupName}
                 autoFocus
                 returnKeyType="done"
-                onSubmitEditing={handleCreate}
+                onSubmitEditing={handleCreateFromModal}
               />
               <View style={styles.sheetActions}>
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.sheetBtn,
-                    styles.sheetBtnCancel,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
+                  style={[styles.sheetBtn, { backgroundColor: colors.secondary }]}
                   onPress={() => {
                     setShowCreate(false);
                     setGroupName('');
@@ -260,50 +258,52 @@ export default function GroupsScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={({ pressed }) => [
+                  style={[
                     styles.sheetBtn,
-                    { opacity: pressed ? 0.85 : 1 },
+                    {
+                      backgroundColor: groupName.trim()
+                        ? colors.primary
+                        : colors.secondary,
+                    },
                   ]}
-                  onPress={handleCreate}
+                  onPress={handleCreateFromModal}
                   disabled={createGroup.isPending || !groupName.trim()}
                 >
-                  <LinearGradient
-                    colors={
-                      groupName.trim()
-                        ? ['#1A4F48', '#2A7B6F']
-                        : ['rgba(30,92,84,0.2)', 'rgba(30,92,84,0.2)']
-                    }
-                    style={styles.sheetBtnGradient}
-                  >
-                    {createGroup.isPending ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
-                    ) : (
-                      <Text
-                        style={[
-                          styles.sheetBtnText,
-                          {
-                            color: groupName.trim() ? '#FFFFFF' : colors.mutedForeground,
-                          },
-                        ]}
-                      >
-                        Create
-                      </Text>
-                    )}
-                  </LinearGradient>
+                  {createGroup.isPending ? (
+                    <ActivityIndicator color={colors.primaryForeground} size="small" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.sheetBtnText,
+                        {
+                          color: groupName.trim()
+                            ? colors.primaryForeground
+                            : colors.mutedForeground,
+                        },
+                      ]}
+                    >
+                      Create
+                    </Text>
+                  )}
                 </Pressable>
               </View>
-            </BlurView>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 22, paddingBottom: 14 },
-  headerTitle: { fontSize: 36, fontFamily: 'Manrope_700Bold', letterSpacing: -0.5 },
+  header: { paddingBottom: 8 },
+  headerTitle: {
+    fontSize: 34,
+    lineHeight: 41,
+    fontFamily: 'Manrope_700Bold',
+    letterSpacing: 0.4,
+  },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -313,26 +313,23 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontFamily: 'Manrope_600SemiBold', marginTop: 6 },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Manrope_400Regular',
     textAlign: 'center',
     lineHeight: 21,
   },
-  listContent: { paddingHorizontal: 16, paddingTop: 8 },
+  listContent: { paddingTop: 8 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 22,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(30,92,84,0.12)',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     gap: 12,
-    shadowColor: '#1E5C54',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   avatar: {
     width: 44,
@@ -342,51 +339,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText: { fontSize: 16, fontFamily: 'Manrope_700Bold', color: '#FFFFFF' },
+  avatarText: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
   cardContent: { flex: 1 },
-  groupName: { fontSize: 16, fontFamily: 'Manrope_600SemiBold' },
+  groupName: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
   memberCount: { fontSize: 13, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-  fabWrap: { position: 'absolute', right: 20 },
   fab: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    position: 'absolute',
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B5B',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 6,
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
-    padding: 12,
   },
-  sheetWrap: { borderRadius: 28, overflow: 'hidden' },
-  sheet: { padding: 24, gap: 16 },
+  sheet: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    gap: 16,
+  },
   sheetTitle: { fontSize: 20, fontFamily: 'Manrope_700Bold' },
   input: {
-    height: 52,
+    height: 48,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: 'Manrope_400Regular',
-    borderWidth: 1,
-    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
   },
   sheetActions: { flexDirection: 'row', gap: 10 },
-  sheetBtn: { flex: 1, height: 50, borderRadius: 14, overflow: 'hidden' },
-  sheetBtnCancel: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(30,92,84,0.08)',
-  },
-  sheetBtnGradient: {
+  sheetBtn: {
     flex: 1,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  sheetBtnText: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
 });
