@@ -49,11 +49,6 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "extra": {
-      "eas": {
-        "projectId": "17de48ff-6f95-4fc8-9518-35dc0058a638"
-      }
-    },
     "owner": "arunkarras-team"
   }
 }
