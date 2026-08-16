@@ -585,7 +585,7 @@ export default function NoteDetailScreen() {
         onClose={() => setShowShareModal(false)}
         onSelect={(id, name) => {
           setGroupId(id);
-          setGroupName(name);
+          setGroupName(name ?? null);
           setShowShareModal(false);
           setDirty(true);
         }}

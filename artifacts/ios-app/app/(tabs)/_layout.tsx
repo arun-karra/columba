@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
 
 // iOS 26+: native liquid-glass tab bar
 function NativeTabLayout() {
@@ -32,10 +32,12 @@ function NativeTabLayout() {
 function TabIcon({
   name,
   sfName,
+  sfNameFilled,
   focused,
 }: {
   name: React.ComponentProps<typeof Feather>['name'];
-  sfName: string;
+  sfName: SFSymbol;
+  sfNameFilled: SFSymbol;
   focused: boolean;
 }) {
   const colors = useColors();
@@ -50,7 +52,7 @@ function TabIcon({
     >
       {Platform.OS === 'ios' ? (
         <SymbolView
-          name={focused ? `${sfName}.fill` : sfName}
+          name={focused ? sfNameFilled : sfName}
           tintColor={focused ? colors.primary : colors.mutedForeground}
           size={20}
         />
@@ -100,7 +102,12 @@ function ClassicTabLayout() {
         options={{
           title: 'Notes',
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="file-text" sfName="doc.text" focused={focused} />
+            <TabIcon
+              name="file-text"
+              sfName="doc.text"
+              sfNameFilled="doc.text.fill"
+              focused={focused}
+            />
           ),
         }}
       />
@@ -109,7 +116,12 @@ function ClassicTabLayout() {
         options={{
           title: 'Groups',
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="users" sfName="person.3" focused={focused} />
+            <TabIcon
+              name="users"
+              sfName="person.3"
+              sfNameFilled="person.3.fill"
+              focused={focused}
+            />
           ),
         }}
       />
@@ -118,7 +130,12 @@ function ClassicTabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="user" sfName="person.circle" focused={focused} />
+            <TabIcon
+              name="user"
+              sfName="person.circle"
+              sfNameFilled="person.circle.fill"
+              focused={focused}
+            />
           ),
         }}
       />
