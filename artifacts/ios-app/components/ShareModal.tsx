@@ -11,12 +11,8 @@ import {
   TextInput,
   TouchableWithoutFeedback,
   View,
-  useColorScheme,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useListGroups,
@@ -24,24 +20,21 @@ import {
   getListGroupsQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
-
-// ── Types ────────────────────────────────────────────────────────────────────
+import { AppIcon } from '@/components/AppIcon';
+import { promptText } from '@/utils/iosConfirm';
+import { useScreenGutter } from '@/constants/layout';
 
 interface ShareModalProps {
   visible: boolean;
-  /** currently selected groupId (for highlighting) */
   selectedGroupId?: string | null;
   onClose: () => void;
-  /** called with the chosen groupId and its name */
   onSelect: (groupId: string, groupName?: string) => void;
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
-
 export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: ShareModalProps) {
   const colors = useColors();
-  const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
+  const gutter = useScreenGutter();
   const queryClient = useQueryClient();
 
   const [showCreate, setShowCreate] = useState(false);
@@ -59,14 +52,27 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
     },
   });
 
-  const handleCreateGroup = async () => {
-    if (!newGroupName.trim()) return;
+  const handleCreateGroup = async (name?: string) => {
+    const value = (name ?? newGroupName).trim();
+    if (!value) return;
     Keyboard.dismiss();
     try {
-      await createGroup.mutateAsync({ data: { name: newGroupName.trim() } });
+      await createGroup.mutateAsync({ data: { name: value } });
     } catch {
       Alert.alert('Error', 'Could not create group. Try again.');
     }
+  };
+
+  const handleNewGroup = () => {
+    const usedNative = promptText({
+      title: 'New Group',
+      message: 'Choose a name, then this note will be shared with it.',
+      confirmLabel: 'Create',
+      onSubmit: (name) => {
+        void handleCreateGroup(name);
+      },
+    });
+    if (!usedNative) setShowCreate(true);
   };
 
   const handleReset = () => {
@@ -74,71 +80,73 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
     setNewGroupName('');
   };
 
-  const blurIntensity = scheme === 'dark' ? 40 : 65;
-  const blurTint = scheme === 'dark' ? ('dark' as const) : ('light' as const);
-
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
       onRequestClose={() => {
         handleReset();
         onClose();
       }}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.root}>
-          {/* Background gradient */}
-          <LinearGradient
-            colors={
-              scheme === 'dark'
-                ? [colors.background, colors.muted]
-                : ['#D4F0E8', '#EBF7F3', '#F0F9F6']
-            }
-            style={StyleSheet.absoluteFill}
-          />
-
-          {/* Header */}
-          <BlurView
-            intensity={blurIntensity}
-            tint={blurTint}
+        <View style={[styles.root, { backgroundColor: colors.background }]}>
+          <View
             style={[
               styles.header,
               {
-                paddingTop: Platform.OS === 'android' ? insets.top + 12 : 20,
-                borderBottomColor: 'rgba(30,92,84,0.12)',
+                paddingTop: Platform.OS === 'ios' ? 16 : insets.top + 12,
+                paddingHorizontal: gutter,
+                borderBottomColor: colors.border,
+                backgroundColor: colors.card,
               },
             ]}
           >
-            <Pressable onPress={() => { handleReset(); onClose(); }} hitSlop={14}>
-              <Feather name="x" size={22} color={colors.mutedForeground} />
+            <Pressable
+              onPress={() => {
+                handleReset();
+                onClose();
+              }}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Text style={[styles.headerAction, { color: colors.primary }]}>Cancel</Text>
             </Pressable>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>
               Share with a group
             </Text>
-            <View style={{ width: 22 }} />
-          </BlurView>
+            <View style={{ width: 64 }} />
+          </View>
 
-          <View style={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
-            {/* Hint */}
+          <View
+            style={[
+              styles.body,
+              { paddingHorizontal: gutter, paddingBottom: insets.bottom + 24 },
+            ]}
+          >
             <Text style={[styles.hint, { color: colors.mutedForeground }]}>
               Pick a group to share this note with all its members.
             </Text>
 
-            {/* Group list */}
             {isLoading ? (
               <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
             ) : groups.length === 0 && !showCreate ? (
               <View style={styles.emptyState}>
-                <Feather name="users" size={36} color={colors.mutedForeground} />
+                <AppIcon name="person.2" size={36} color={colors.mutedForeground} />
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
                   You're not in any groups yet.
                 </Text>
               </View>
             ) : (
-              <View style={styles.groupList}>
-                {groups.map((g) => {
+              <View
+                style={[
+                  styles.groupList,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                {groups.map((g, index) => {
                   const isSelected = g.id === selectedGroupId;
                   const initials = g.name
                     .split(' ')
@@ -148,58 +156,46 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
                   return (
                     <Pressable
                       key={g.id}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.82 : 1 }]}
+                      style={({ pressed }) => [
+                        styles.groupRow,
+                        index < groups.length - 1 && {
+                          borderBottomWidth: StyleSheet.hairlineWidth,
+                          borderBottomColor: colors.border,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}
                       onPress={() => onSelect(g.id, g.name)}
                     >
-                      <BlurView
-                        intensity={blurIntensity}
-                        tint={blurTint}
-                        style={[
-                          styles.groupRow,
-                          {
-                            borderColor: isSelected
-                              ? colors.primary
-                              : 'rgba(30,92,84,0.12)',
-                          },
-                        ]}
-                      >
-                        {isSelected && (
-                          <LinearGradient
-                            colors={[colors.primary + '18', colors.primary + '08']}
-                            style={StyleSheet.absoluteFill}
-                          />
-                        )}
-                        <LinearGradient
-                          colors={['#1A4F48', '#2A7B6F']}
-                          style={styles.groupAvatar}
+                      <View style={[styles.groupAvatar, { backgroundColor: colors.primary }]}>
+                        <Text
+                          style={[styles.groupAvatarText, { color: colors.primaryForeground }]}
                         >
-                          <Text style={styles.groupAvatarText}>{initials}</Text>
-                        </LinearGradient>
-                        <View style={styles.groupInfo}>
-                          <Text style={[styles.groupName, { color: colors.foreground }]}>
-                            {g.name}
-                          </Text>
-                          <Text style={[styles.groupMeta, { color: colors.mutedForeground }]}>
-                            {g.members.length}{' '}
-                            {g.members.length === 1 ? 'member' : 'members'}
-                          </Text>
-                        </View>
-                        {isSelected && (
-                          <Feather name="check-circle" size={20} color={colors.primary} />
-                        )}
-                      </BlurView>
+                          {initials}
+                        </Text>
+                      </View>
+                      <View style={styles.groupInfo}>
+                        <Text style={[styles.groupName, { color: colors.foreground }]}>
+                          {g.name}
+                        </Text>
+                        <Text style={[styles.groupMeta, { color: colors.mutedForeground }]}>
+                          {g.members.length} {g.members.length === 1 ? 'member' : 'members'}
+                        </Text>
+                      </View>
+                      {isSelected ? (
+                        <AppIcon name="checkmark.circle.fill" size={22} color={colors.primary} />
+                      ) : null}
                     </Pressable>
                   );
                 })}
               </View>
             )}
 
-            {/* Create new group */}
             {showCreate ? (
-              <BlurView
-                intensity={blurIntensity}
-                tint={blurTint}
-                style={styles.createCard}
+              <View
+                style={[
+                  styles.createCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
               >
                 <Text style={[styles.createLabel, { color: colors.foreground }]}>
                   New group name
@@ -208,9 +204,9 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
                   style={[
                     styles.createInput,
                     {
-                      backgroundColor: 'rgba(30,92,84,0.06)',
+                      backgroundColor: colors.secondary,
                       color: colors.foreground,
-                      borderColor: 'rgba(30,92,84,0.15)',
+                      borderColor: colors.border,
                     },
                   ]}
                   placeholder="e.g. Family, Work, Flatmates…"
@@ -219,71 +215,57 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
                   onChangeText={setNewGroupName}
                   autoFocus
                   returnKeyType="done"
-                  onSubmitEditing={handleCreateGroup}
+                  onSubmitEditing={() => void handleCreateGroup()}
                 />
                 <View style={styles.createActions}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.cancelBtn,
-                      { opacity: pressed ? 0.7 : 1 },
-                    ]}
-                    onPress={() => setShowCreate(false)}
-                  >
+                  <Pressable style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
                     <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>
                       Cancel
                     </Text>
                   </Pressable>
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.confirmBtnWrap,
-                      { opacity: pressed ? 0.85 : 1, flex: 1 },
+                    style={[
+                      styles.confirmBtn,
+                      {
+                        backgroundColor: newGroupName.trim()
+                          ? colors.primary
+                          : colors.secondary,
+                      },
                     ]}
-                    onPress={handleCreateGroup}
+                    onPress={() => void handleCreateGroup()}
                     disabled={createGroup.isPending || !newGroupName.trim()}
                   >
-                    <LinearGradient
-                      colors={
-                        newGroupName.trim()
-                          ? ['#1A4F48', '#2A7B6F']
-                          : ['rgba(30,92,84,0.2)', 'rgba(30,92,84,0.2)']
-                      }
-                      style={styles.confirmBtnGradient}
-                    >
-                      {createGroup.isPending ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Text
-                          style={[
-                            styles.confirmBtnText,
-                            {
-                              color: newGroupName.trim()
-                                ? '#FFFFFF'
-                                : colors.mutedForeground,
-                            },
-                          ]}
-                        >
-                          Create &amp; share
-                        </Text>
-                      )}
-                    </LinearGradient>
+                    {createGroup.isPending ? (
+                      <ActivityIndicator size="small" color={colors.primaryForeground} />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.confirmBtnText,
+                          {
+                            color: newGroupName.trim()
+                              ? colors.primaryForeground
+                              : colors.mutedForeground,
+                          },
+                        ]}
+                      >
+                        Create & share
+                      </Text>
+                    )}
                   </Pressable>
                 </View>
-              </BlurView>
+              </View>
             ) : (
               <Pressable
-                style={({ pressed }) => [{ opacity: pressed ? 0.75 : 1 }]}
-                onPress={() => setShowCreate(true)}
+                style={[
+                  styles.newGroupBtn,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+                onPress={handleNewGroup}
               >
-                <BlurView
-                  intensity={blurIntensity}
-                  tint={blurTint}
-                  style={styles.newGroupBtn}
-                >
-                  <Feather name="plus-circle" size={18} color={colors.primary} />
-                  <Text style={[styles.newGroupBtnText, { color: colors.primary }]}>
-                    Create a new group
-                  </Text>
-                </BlurView>
+                <AppIcon name="plus" size={18} color={colors.primary} />
+                <Text style={[styles.newGroupBtnText, { color: colors.primary }]}>
+                  Create a new group
+                </Text>
               </Pressable>
             )}
           </View>
@@ -293,8 +275,6 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
   );
 }
 
-// ── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
 
@@ -302,97 +282,84 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 16, fontFamily: 'Manrope_600SemiBold' },
+  headerAction: { fontSize: 17, width: 64 },
+  headerTitle: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
 
-  body: { flex: 1, padding: 20, gap: 16 },
+  body: { flex: 1, paddingTop: 20, gap: 16 },
 
-  hint: { fontSize: 14, fontFamily: 'Manrope_400Regular', lineHeight: 20 },
+  hint: { fontSize: 15, fontFamily: 'Manrope_400Regular', lineHeight: 20 },
 
   emptyState: { alignItems: 'center', gap: 10, paddingVertical: 32 },
   emptyText: { fontSize: 15, fontFamily: 'Manrope_400Regular', textAlign: 'center' },
 
-  groupList: { gap: 10 },
+  groupList: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   groupRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    shadowColor: '#1E5C54',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   groupAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  groupAvatarText: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: '#FFFFFF' },
+  groupAvatarText: { fontSize: 14, fontFamily: 'Manrope_700Bold' },
   groupInfo: { flex: 1 },
-  groupName: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
-  groupMeta: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
+  groupName: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
+  groupMeta: { fontSize: 13, fontFamily: 'Manrope_400Regular', marginTop: 2 },
 
   newGroupBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 18,
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(30,92,84,0.25)',
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  newGroupBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  newGroupBtnText: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
 
   createCard: {
     padding: 16,
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(30,92,84,0.12)',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
     gap: 12,
-    shadowColor: '#1E5C54',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
   },
-  createLabel: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
+  createLabel: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
   createInput: {
-    height: 48,
+    height: 44,
     paddingHorizontal: 14,
-    fontSize: 15,
+    fontSize: 17,
     fontFamily: 'Manrope_400Regular',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 12,
   },
   createActions: { flexDirection: 'row', gap: 10 },
   cancelBtn: {
     paddingHorizontal: 18,
     paddingVertical: 12,
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(30,92,84,0.08)',
   },
-  cancelBtnText: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
-  confirmBtnWrap: { borderRadius: 12, overflow: 'hidden' },
-  confirmBtnGradient: {
+  cancelBtnText: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
+  confirmBtn: {
+    flex: 1,
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  confirmBtnText: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
+  confirmBtnText: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
 });

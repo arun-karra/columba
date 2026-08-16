@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -7,7 +7,6 @@ import { Tabs } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 
-// iOS 26+: native liquid-glass tab bar
 function NativeTabLayout() {
   return (
     <NativeTabs>
@@ -27,47 +26,32 @@ function NativeTabLayout() {
   );
 }
 
-// ─── Tab icon with active circle ─────────────────────────────────────────────
-
 function TabIcon({
   name,
   sfName,
   sfNameFilled,
   focused,
+  color,
 }: {
   name: React.ComponentProps<typeof Feather>['name'];
   sfName: SFSymbol;
   sfNameFilled: SFSymbol;
   focused: boolean;
+  color: string;
 }) {
-  const colors = useColors();
-  return (
-    <View
-      style={[
-        styles.iconWrap,
-        focused && {
-          backgroundColor: colors.secondary,
-        },
-      ]}
-    >
-      {Platform.OS === 'ios' ? (
-        <SymbolView
-          name={focused ? sfNameFilled : sfName}
-          tintColor={focused ? colors.primary : colors.mutedForeground}
-          size={20}
-        />
-      ) : (
-        <Feather
-          name={name}
-          size={20}
-          color={focused ? colors.primary : colors.mutedForeground}
-        />
-      )}
-    </View>
-  );
+  if (Platform.OS === 'ios') {
+    return (
+      <SymbolView
+        name={focused ? sfNameFilled : sfName}
+        tintColor={color}
+        size={24}
+        style={styles.symbol}
+      />
+    );
+  }
+  return <Feather name={name} size={22} color={color} />;
 }
 
-// Older iOS / Android / Web: classic Tabs
 function ClassicTabLayout() {
   const colors = useColors();
 
@@ -78,22 +62,13 @@ function ClassicTabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         tabBarShowLabel: true,
-        tabBarLabelStyle: {
-          fontFamily: 'Manrope_500Medium',
-          fontSize: 11,
-          marginTop: 0,
-        },
+        tabBarHideOnKeyboard: true,
+        tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: {
-          position: 'absolute',
           backgroundColor: colors.card,
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.border,
           elevation: 0,
-          // subtle top shadow so the bar lifts from content
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -1 },
-          shadowOpacity: 0.06,
-          shadowRadius: 4,
         },
       }}
     >
@@ -101,12 +76,13 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: 'Notes',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: ({ focused, color }) => (
             <TabIcon
               name="file-text"
               sfName="doc.text"
               sfNameFilled="doc.text.fill"
               focused={focused}
+              color={color}
             />
           ),
         }}
@@ -115,12 +91,13 @@ function ClassicTabLayout() {
         name="groups"
         options={{
           title: 'Groups',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: ({ focused, color }) => (
             <TabIcon
               name="users"
               sfName="person.3"
               sfNameFilled="person.3.fill"
               focused={focused}
+              color={color}
             />
           ),
         }}
@@ -129,12 +106,13 @@ function ClassicTabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: ({ focused, color }) => (
             <TabIcon
               name="user"
               sfName="person.circle"
               sfNameFilled="person.circle.fill"
               focused={focused}
+              color={color}
             />
           ),
         }}
@@ -144,18 +122,16 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }
   return <ClassicTabLayout />;
 }
 
 const styles = StyleSheet.create({
-  iconWrap: {
-    width: 44,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+  symbol: { width: 28, height: 28 },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '500',
   },
 });

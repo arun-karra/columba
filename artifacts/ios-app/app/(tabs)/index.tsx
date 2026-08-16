@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react';
 import {
   FlatList,
-  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -10,7 +9,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -21,8 +19,8 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-
-// ─── Note Card ────────────────────────────────────────────────────────────────
+import { AppIcon } from '@/components/AppIcon';
+import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
 
 function NoteCard({
   note,
@@ -64,16 +62,17 @@ function NoteCard({
           {note.body}
         </Text>
       </View>
-      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+      <AppIcon name="chevron.right" size={16} color={colors.mutedForeground} />
     </Pressable>
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 export default function NotesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const gutter = useScreenGutter();
+  const fabBottom = useFabBottom();
+  const listBottom = useListBottomPadding(true);
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -98,40 +97,23 @@ export default function NotesScreen() {
     router.push('/note/new');
   }, []);
 
-  // Tab bar is position:absolute, so we need to clear it manually.
-  // Standard iOS tab bar content height is 49 px; insets.bottom adds the home-indicator gap.
-  const TAB_H = 49;
-  const fabBottom = insets.bottom + TAB_H + 16;
-
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View
         style={[
           styles.header,
           {
-            paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 20),
+            paddingTop: insets.top + 8,
+            paddingHorizontal: gutter,
             backgroundColor: colors.background,
           },
         ]}
       >
-        <Pressable
-          style={styles.avatarBtn}
-          onPress={() => router.push('/(tabs)/profile')}
-        >
-          <View
-            style={[styles.headerAvatar, { backgroundColor: colors.secondary }]}
-          >
-            <Feather name="user" size={14} color={colors.primary} />
-          </View>
-        </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          Columba
+          Notes
         </Text>
-        <View style={styles.headerRight} />
       </View>
 
-      {/* List */}
       <FlatList
         data={notes}
         keyExtractor={(n) => n.id}
@@ -140,8 +122,9 @@ export default function NotesScreen() {
         )}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: fabBottom + 68 }, // clear FAB (56 h) + 12 gap
+          { paddingHorizontal: gutter, paddingBottom: listBottom },
         ]}
+        contentInsetAdjustmentBehavior="automatic"
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         refreshControl={
           <RefreshControl
@@ -153,7 +136,7 @@ export default function NotesScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Feather name="file-text" size={40} color={colors.secondary} />
+              <AppIcon name="doc.text" size={40} color={colors.secondary} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                 No notes yet
               </Text>
@@ -167,19 +150,21 @@ export default function NotesScreen() {
         }
       />
 
-      {/* FAB */}
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="New note"
         style={[
           styles.fab,
           {
             bottom: fabBottom,
+            right: gutter,
             backgroundColor: colors.card,
             shadowColor: colors.primary,
           },
         ]}
         onPress={handleNewNote}
       >
-        <Feather name="plus" size={26} color={colors.primary} />
+        <AppIcon name="plus" size={26} color={colors.primary} />
       </Pressable>
     </View>
   );
@@ -189,35 +174,23 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-  },
-  avatarBtn: {},
-  headerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingBottom: 8,
   },
   headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 22,
+    fontSize: 34,
+    lineHeight: 41,
     fontFamily: 'Manrope_700Bold',
+    letterSpacing: 0.4,
   },
-  headerRight: { width: 32 },
 
-  list: { paddingHorizontal: 16, paddingTop: 8 },
+  list: { paddingTop: 8 },
   sep: { height: 10 },
 
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 18,
+    paddingVertical: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -239,7 +212,7 @@ const styles = StyleSheet.create({
   },
   cardText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 17,
     fontFamily: 'Manrope_500Medium',
     lineHeight: 22,
   },
@@ -247,17 +220,16 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 80, gap: 10 },
   emptyTitle: { fontSize: 18, fontFamily: 'Manrope_700Bold' },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Manrope_400Regular',
     textAlign: 'center',
   },
 
   fab: {
     position: 'absolute',
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 4 },

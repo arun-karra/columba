@@ -10,11 +10,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
+import { AppIcon } from '@/components/AppIcon';
+import { confirmDestructive } from '@/utils/iosConfirm';
+import { useScreenGutter } from '@/constants/layout';
+import type { SFSymbol } from 'expo-symbols';
 
 // ─── Section ─────────────────────────────────────────────────────────────────
 
@@ -29,13 +32,13 @@ function Section({
   return (
     <View>
       <View style={styles.sectionHeader}>
-        <Feather
+        <AppIcon
           name={
             title === 'General'
-              ? 'sliders'
+              ? 'gearshape'
               : title === 'Notifications'
               ? 'bell'
-              : 'refresh-cw'
+              : 'arrow.clockwise'
           }
           size={15}
           color={colors.primary}
@@ -67,7 +70,7 @@ function SettingRow({
   onPress,
   last,
 }: {
-  icon: React.ComponentProps<typeof Feather>['name'];
+  icon: SFSymbol;
   label: string;
   subtitle?: string;
   chevron?: boolean;
@@ -87,7 +90,7 @@ function SettingRow({
       disabled={!onPress && !chevron}
     >
       <View style={[styles.iconCircle, { backgroundColor: colors.secondary }]}>
-        <Feather name={icon} size={14} color={colors.primary} />
+        <AppIcon name={icon} size={14} color={colors.primary} />
       </View>
       <View style={styles.rowLabel}>
         <Text style={[styles.rowTitle, { color: colors.foreground }]}>{label}</Text>
@@ -99,7 +102,7 @@ function SettingRow({
       </View>
       {right ?? null}
       {chevron ? (
-        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+        <AppIcon name="chevron.right" size={16} color={colors.mutedForeground} />
       ) : null}
     </Pressable>
   );
@@ -110,6 +113,7 @@ function SettingRow({
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const gutter = useScreenGutter();
   const { user, signOut } = useAuth();
   const queryClient = useQueryClient();
 
@@ -121,18 +125,16 @@ export default function ProfileScreen() {
   const initials = displayName.slice(0, 2).toUpperCase();
 
   const handleSignOut = () => {
-    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          queryClient.clear();
-          await signOut();
-        },
+    confirmDestructive({
+      title: 'Sign out',
+      message: 'Are you sure you want to sign out?',
+      confirmLabel: 'Sign Out',
+      onConfirm: async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        queryClient.clear();
+        await signOut();
       },
-    ]);
+    });
   };
 
   const handleNotificationsToggle = async (value: boolean) => {
@@ -180,32 +182,26 @@ export default function ProfileScreen() {
         style={[
           styles.topBar,
           {
-            paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 16),
+            paddingTop: insets.top + 8,
+            paddingHorizontal: gutter,
             backgroundColor: colors.background,
           },
         ]}
       >
-        <Feather name="send" size={16} color={colors.primary} />
         <Text style={[styles.topBarTitle, { color: colors.foreground }]}>
-          Columba
+          Profile
         </Text>
-        <View
-          style={[styles.topBarAvatar, { backgroundColor: colors.secondary }]}
-        >
-          <Text style={[styles.topBarAvatarText, { color: colors.primary }]}>
-            {initials}
-          </Text>
-        </View>
       </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.content,
           {
-            paddingBottom:
-              insets.bottom + 49 + 20,
+            paddingHorizontal: gutter,
+            paddingBottom: 32,
           },
         ]}
+        contentInsetAdjustmentBehavior="automatic"
       >
         {/* Avatar & info */}
         <View style={styles.hero}>
@@ -234,7 +230,7 @@ export default function ProfileScreen() {
         {/* General */}
         <Section title="General">
           <SettingRow
-            icon="user"
+            icon="person"
             label="Account Details"
             subtitle="Update your personal information"
             chevron
@@ -254,7 +250,7 @@ export default function ProfileScreen() {
         {/* Notifications */}
         <Section title="Notifications">
           <SettingRow
-            icon="mail"
+            icon="envelope"
             label="Email Digests"
             subtitle="Weekly summaries of your activity"
             right={
@@ -268,7 +264,7 @@ export default function ProfileScreen() {
             }
           />
           <SettingRow
-            icon="smartphone"
+            icon="iphone"
             label="Push Notifications"
             subtitle="Immediate alerts for mentions"
             last
@@ -288,7 +284,7 @@ export default function ProfileScreen() {
         {/* Data & Sync */}
         <Section title="Data & Sync">
           <SettingRow
-            icon="database"
+            icon="folder"
             label="Storage Usage"
             subtitle="Synced across your devices"
             last
@@ -323,7 +319,7 @@ export default function ProfileScreen() {
           ]}
           onPress={handleSignOut}
         >
-          <Feather name="log-out" size={16} color={colors.destructive} />
+          <AppIcon name="rectangle.portrait.and.arrow.right" size={16} color={colors.destructive} />
           <Text style={[styles.signOutText, { color: colors.destructive }]}>
             Sign Out
           </Text>
@@ -337,23 +333,16 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
 
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
-  topBarTitle: { fontSize: 15, fontFamily: 'Manrope_600SemiBold', flex: 1 },
-  topBarAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+  topBarTitle: {
+    fontSize: 34,
+    lineHeight: 41,
+    fontFamily: 'Manrope_700Bold',
+    letterSpacing: 0.4,
   },
-  topBarAvatarText: { fontSize: 11, fontFamily: 'Manrope_700Bold' },
 
-  content: { paddingHorizontal: 20, paddingTop: 8, gap: 20 },
+  content: { paddingTop: 8, gap: 20 },
 
   hero: { alignItems: 'center', gap: 6, paddingVertical: 12 },
   avatar: {
