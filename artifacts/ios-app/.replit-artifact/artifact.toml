@@ -1,6 +1,6 @@
 kind = "mobile"
 previewPath = "/ios-app/"
-title = "Kindred iOS"
+title = "Columba iOS"
 description = "Native iOS companion for the Shared Notes system. Handles email-code sign-in, personal and group notes, completion, reminders, group management and invitations."
 version = "1.0.0"
 id = "artifacts/ios-app"
