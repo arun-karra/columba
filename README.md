@@ -101,6 +101,8 @@ Then scan the QR code with Expo Go (iOS) or open in a simulator.
 
 This is a **pnpm monorepo**. The Expo app lives in `artifacts/ios-app`, not the repo root. EAS config (`eas.json`, `app.json`) must be used from that folder.
 
+The name **workspace** you may see in the terminal is only the npm package name of this repo (`package.json` → `"name": "workspace"`). It is not your Expo project. Your Expo account is **arunkarra** and the Expo project is **columba**.
+
 If this GitHub repo is linked on [expo.dev](https://expo.dev), set **Base directory** to `artifacts/ios-app` (Project → GitHub settings). Leaving it as `/` makes Expo look at the repo root, where there is no app.
 
 `EXPO_PUBLIC_DOMAIN` (API hostname, no `https://`) must be set as an EAS Environment Variable for each environment (`development`, `preview`, `production`). Do not put API keys, JWT secrets, or signing credentials in `eas.json` — those stay in EAS Environment Variables / EAS Credentials (`credentialsSource: remote`).
@@ -108,7 +110,7 @@ If this GitHub repo is linked on [expo.dev](https://expo.dev), set **Base direct
 #### One-time setup
 
 1. Install [Node.js 20+](https://nodejs.org/) and [pnpm](https://pnpm.io/installation) if you do not have them.
-2. Create a free account at [expo.dev](https://expo.dev) (same account that owns `arunkarras-team`).
+2. Log in to [expo.dev](https://expo.dev) as **arunkarra** (the account that owns the **columba** project).
 3. On your computer, in a terminal:
 
 ```bash
@@ -120,9 +122,9 @@ cd artifacts/ios-app
 eas init
 ```
 
-`eas init` links this app to your Expo project and writes `extra.eas.projectId` into `app.json`. That is expected — commit that change. If it asks to create a new project vs link an existing one, link **Columba** / `ios-app` under `arunkarras-team` if it exists; otherwise create a new project.
+`eas init` links this app to your Expo project and writes `extra.eas.projectId` into `app.json`. That is expected — commit that change. If it asks to create a new project vs link an existing one, choose the existing **columba** project under **arunkarra**.
 
-4. In [expo.dev](https://expo.dev) → your project → **Environment variables**, add `EXPO_PUBLIC_DOMAIN` (public) for the **development** environment. Use your API host without `https://`, for example `columba.example.com`.
+4. In [expo.dev](https://expo.dev) → **columba** → **Environment variables**, add `EXPO_PUBLIC_DOMAIN` (public) for the **development** environment. Use your API host without `https://`, for example `columba.example.com`.
 5. For a **physical iPhone** build you need a paid [Apple Developer](https://developer.apple.com) account. EAS will ask to manage credentials the first time — say yes. For **Simulator only**, skip Apple credentials (the `development-simulator` profile already sets `withoutCredentials`).
 
 #### Create the native app (once per native-change)
@@ -143,7 +145,7 @@ eas build --profile development --platform ios
 
 The first run asks a few questions (credentials, generate a new keystore / provisioning profile). Accept the defaults unless you already manage signing yourself.
 
-Wait for the build on [expo.dev/accounts/arunkarras-team/projects/ios-app/builds](https://expo.dev/accounts/arunkarras-team/projects/ios-app/builds) (the slug may differ if `eas init` created a new project). It usually takes 10–20 minutes.
+Wait for the build on [expo.dev/accounts/arunkarra/projects/columba/builds](https://expo.dev/accounts/arunkarra/projects/columba/builds). It usually takes 10–20 minutes.
 
 - **Simulator:** download the `.tar.gz`, unpack it, drag `Columba.app` onto the Simulator (or `xcrun simctl install booted Columba.app`).
 - **iPhone:** install [Expo Orbit](https://expo.dev/orbit) or scan the QR code from the build page. The device must be registered with your Apple team; EAS walks you through that.
