@@ -1,25 +1,31 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
-const config = getDefaultConfig(__dirname);
+const projectRoot = __dirname;
+const workspaceRoot = path.resolve(projectRoot, '../..');
 
-// Exclude vitest temp dirs (created by the api-server test suite) from
-// Metro's file watcher — they don't exist when vitest isn't running and
+const config = getDefaultConfig(projectRoot);
+
+// Watch the pnpm workspace so EAS / Metro can resolve @workspace/* packages.
+// Strip vitest temp dirs — they don't exist when vitest isn't running and
 // cause Metro to crash with ENOENT on startup.
-config.watchFolders = (config.watchFolders ?? []).filter(
+config.watchFolders = [workspaceRoot, ...(config.watchFolders ?? [])].filter(
   (folder) => !folder.includes('vitest_tmp'),
 );
 
-// Also tell Metro's resolver to block-list paths it should never watch.
 const { blockList } = config.resolver ?? {};
 const existingBlockList = Array.isArray(blockList)
   ? blockList
   : blockList
-  ? [blockList]
-  : [];
+    ? [blockList]
+    : [];
 
 config.resolver = {
   ...config.resolver,
+  nodeModulesPaths: [
+    path.resolve(projectRoot, 'node_modules'),
+    path.resolve(workspaceRoot, 'node_modules'),
+  ],
   blockList: [
     ...existingBlockList,
     // Ignore vitest temp directories inside pnpm store

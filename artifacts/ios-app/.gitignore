@@ -18,6 +18,9 @@ android/
 *.p12
 *.key
 *.mobileprovision
+credentials.json
+google-services.json
+GoogleService-Info.plist
 
 # Metro
 .metro-health-check*
