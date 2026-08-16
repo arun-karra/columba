@@ -124,7 +124,7 @@ export default function GroupsScreen() {
       <LinearGradient
         colors={
           scheme === 'dark'
-            ? [colors.gradientStart, colors.gradientEnd]
+            ? [colors.background, colors.muted]
             : ['#D4F0E8', '#EBF7F3', '#F0F9F6']
         }
         style={StyleSheet.absoluteFill}

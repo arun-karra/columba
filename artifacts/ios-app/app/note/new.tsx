@@ -456,7 +456,7 @@ export default function NewNoteScreen() {
         onClose={() => setShowShareModal(false)}
         onSelect={(id, name) => {
           setGroupId(id);
-          setGroupName(name);
+          setGroupName(name ?? null);
           setShowShareModal(false);
         }}
         selectedGroupId={groupId}
