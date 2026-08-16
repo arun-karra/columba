@@ -89,7 +89,6 @@ router.post(
     }
 
     const result = await prisma.$transaction(async (tx) => {
-<<<<<<< HEAD
       if (loginCodeId) {
         await tx.loginCode.update({ where: { id: loginCodeId }, data: { consumedAt: new Date() } });
       }
