@@ -2,15 +2,19 @@ import React, { useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useColorScheme,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -27,14 +31,9 @@ import type { Group } from '@workspace/api-client-react';
 
 // ─── Group Card ───────────────────────────────────────────────────────────────
 
-function GroupCard({
-  group,
-  onPress,
-}: {
-  group: Group;
-  onPress: () => void;
-}) {
+function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
   const colors = useColors();
+  const scheme = useColorScheme();
   const initials = group.name
     .split(' ')
     .slice(0, 2)
@@ -43,37 +42,31 @@ function GroupCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.groupCard,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          borderRadius: colors.radius,
-          opacity: pressed ? 0.8 : 1,
-        },
-      ]}
+      style={({ pressed }) => [{ opacity: pressed ? 0.82 : 1 }]}
       onPress={onPress}
     >
-      <View
-        style={[styles.groupAvatar, { backgroundColor: colors.secondary }]}
+      <BlurView
+        intensity={scheme === 'dark' ? 40 : 65}
+        tint={scheme === 'dark' ? 'dark' : 'light'}
+        style={styles.card}
       >
-        <Text style={[styles.groupAvatarText, { color: colors.primary }]}>
-          {initials}
-        </Text>
-      </View>
-      <View style={styles.groupInfo}>
-        <Text
-          style={[styles.groupName, { color: colors.foreground }]}
-          numberOfLines={1}
+        <LinearGradient
+          colors={['#1A4F48', '#2A7B6F']}
+          style={styles.avatar}
         >
-          {group.name}
-        </Text>
-        <Text style={[styles.groupMeta, { color: colors.mutedForeground }]}>
-          {group.members.length}{' '}
-          {group.members.length === 1 ? 'member' : 'members'}
-        </Text>
-      </View>
-      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          <Text style={styles.avatarText}>{initials}</Text>
+        </LinearGradient>
+        <View style={styles.cardContent}>
+          <Text style={[styles.groupName, { color: colors.foreground }]} numberOfLines={1}>
+            {group.name}
+          </Text>
+          <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
+            {group.members.length}{' '}
+            {group.members.length === 1 ? 'member' : 'members'}
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+      </BlurView>
     </Pressable>
   );
 }
@@ -82,21 +75,24 @@ function GroupCard({
 
 export default function GroupsScreen() {
   const colors = useColors();
+  const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  const [showCreate, setShowCreate] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: groups = [], isLoading } = useListGroups({
-    query: { enabled: !!user, queryKey: getListGroupsQueryKey() },
+    query: { queryKey: getListGroupsQueryKey(), enabled: !!user },
   });
 
   const createGroup = useCreateGroup({
     mutation: {
       onSuccess: (group) => {
         queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+        setShowCreate(false);
         setGroupName('');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push(`/group/${group.id}`);
@@ -120,163 +116,225 @@ export default function GroupsScreen() {
     setRefreshing(false);
   }, [queryClient]);
 
+  const fabBottom = insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 72;
+
   return (
-    <ScrollView
-      style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 20),
-          paddingBottom: insets.bottom + 49 + 20,
-        },
-      ]}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing || isLoading}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-        />
-      }
-    >
+    <View style={styles.root}>
+      {/* Background gradient */}
+      <LinearGradient
+        colors={
+          scheme === 'dark'
+            ? [colors.gradientStart, colors.gradientEnd]
+            : ['#D4F0E8', '#EBF7F3', '#F0F9F6']
+        }
+        style={StyleSheet.absoluteFill}
+      />
+
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          Columba
-        </Text>
-        <Text style={[styles.sectionHeading, { color: colors.primary }]}>
-          Your Groups
-        </Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>
-          Manage your collaboration spaces.
-        </Text>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 12) },
+        ]}
+      >
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Groups</Text>
       </View>
 
-      {/* Group list */}
-      {groups.length === 0 && !isLoading ? (
-        <View style={styles.empty}>
-          <Feather name="users" size={36} color={colors.secondary} />
+      {/* Content */}
+      {isLoading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : groups.length === 0 ? (
+        <View style={styles.center}>
+          <Feather name="users" size={44} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+            No groups yet
+          </Text>
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            No groups yet — create one below
+            Create a group to share notes with family or friends
           </Text>
         </View>
       ) : (
-        <View style={styles.groupList}>
-          {groups.map((group) => (
+        <FlatList
+          data={groups}
+          keyExtractor={(g) => g.id}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: fabBottom + 24 },
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          renderItem={({ item }) => (
             <GroupCard
-              key={group.id}
-              group={group}
+              group={item}
               onPress={() => {
                 Haptics.selectionAsync();
-                router.push(`/group/${group.id}`);
+                router.push(`/group/${item.id}`);
               }}
             />
-          ))}
-        </View>
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        />
       )}
 
-      {/* Create New Group */}
-      <View
-        style={[
-          styles.actionCard,
-          {
-            backgroundColor: colors.secondary,
-            borderRadius: colors.radius,
-          },
-        ]}
-      >
-        <View style={styles.actionCardHeader}>
-          <Feather name="plus-circle" size={16} color={colors.primary} />
-          <Text style={[styles.actionCardTitle, { color: colors.foreground }]}>
-            Create New Group
-          </Text>
-        </View>
-        <Text style={[styles.actionCardSubtitle, { color: colors.mutedForeground }]}>
-          Start a new space for your team to collaborate and share notes.
-        </Text>
-
-        <TextInput
-          style={[
-            styles.actionInput,
-            {
-              color: colors.foreground,
-              borderBottomColor: colors.border,
-            },
-          ]}
-          placeholder="Group Name"
-          placeholderTextColor={colors.mutedForeground}
-          value={groupName}
-          onChangeText={setGroupName}
-          returnKeyType="done"
-          onSubmitEditing={handleCreate}
-        />
-
+      {/* FAB */}
+      <View style={[styles.fabWrap, { bottom: fabBottom }]}>
         <Pressable
-          style={[
-            styles.actionBtn,
-            {
-              backgroundColor: groupName.trim() ? colors.primary : colors.card,
-              borderColor: colors.border,
-              borderWidth: groupName.trim() ? 0 : 1,
-            },
-          ]}
-          onPress={handleCreate}
-          disabled={!groupName.trim() || createGroup.isPending}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowCreate(true);
+          }}
+          style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
         >
-          {createGroup.isPending ? (
-            <ActivityIndicator
-              color={
-                groupName.trim() ? colors.primaryForeground : colors.mutedForeground
-              }
-            />
-          ) : (
-            <Text
-              style={[
-                styles.actionBtnText,
-                {
-                  color: groupName.trim()
-                    ? colors.primaryForeground
-                    : colors.mutedForeground,
-                },
-              ]}
-            >
-              Create Group  →
-            </Text>
-          )}
+          <LinearGradient
+            colors={['#F5A623', '#FF6B5B']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fab}
+          >
+            <Feather name="plus" size={28} color="#FFFFFF" />
+          </LinearGradient>
         </Pressable>
       </View>
-    </ScrollView>
+
+      {/* Create group sheet */}
+      <Modal
+        visible={showCreate}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreate(false)}
+      >
+        <Pressable
+          style={styles.overlay}
+          onPress={() => {
+            setShowCreate(false);
+            setGroupName('');
+          }}
+        >
+          <Pressable style={[styles.sheetWrap, { paddingBottom: insets.bottom + 8 }]}>
+            <BlurView
+              intensity={scheme === 'dark' ? 60 : 80}
+              tint={scheme === 'dark' ? 'dark' : 'light'}
+              style={styles.sheet}
+            >
+              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
+                New Group
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: 'rgba(30,92,84,0.06)',
+                    color: colors.foreground,
+                    borderColor: 'rgba(30,92,84,0.15)',
+                  },
+                ]}
+                placeholder="e.g. Household, Book Club…"
+                placeholderTextColor={colors.mutedForeground}
+                value={groupName}
+                onChangeText={setGroupName}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleCreate}
+              />
+              <View style={styles.sheetActions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.sheetBtn,
+                    styles.sheetBtnCancel,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
+                  onPress={() => {
+                    setShowCreate(false);
+                    setGroupName('');
+                  }}
+                >
+                  <Text style={[styles.sheetBtnText, { color: colors.mutedForeground }]}>
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.sheetBtn,
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
+                  onPress={handleCreate}
+                  disabled={createGroup.isPending || !groupName.trim()}
+                >
+                  <LinearGradient
+                    colors={
+                      groupName.trim()
+                        ? ['#1A4F48', '#2A7B6F']
+                        : ['rgba(30,92,84,0.2)', 'rgba(30,92,84,0.2)']
+                    }
+                    style={styles.sheetBtnGradient}
+                  >
+                    {createGroup.isPending ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.sheetBtnText,
+                          {
+                            color: groupName.trim() ? '#FFFFFF' : colors.mutedForeground,
+                          },
+                        ]}
+                      >
+                        Create
+                      </Text>
+                    )}
+                  </LinearGradient>
+                </Pressable>
+              </View>
+            </BlurView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingHorizontal: 20, gap: 20 },
-
-  header: { gap: 4 },
-  headerTitle: { fontSize: 22, fontFamily: 'Manrope_700Bold', marginBottom: 6 },
-  sectionHeading: {
-    fontSize: 18,
-    fontFamily: 'Manrope_700Bold',
-    fontStyle: 'italic',
+  header: { paddingHorizontal: 22, paddingBottom: 14 },
+  headerTitle: { fontSize: 36, fontFamily: 'Manrope_700Bold', letterSpacing: -0.5 },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 40,
   },
-  sectionSubtitle: { fontSize: 13, fontFamily: 'Manrope_400Regular' },
-
-  groupList: { gap: 10 },
-
-  groupCard: {
+  emptyTitle: { fontSize: 18, fontFamily: 'Manrope_600SemiBold', marginTop: 6 },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: 'Manrope_400Regular',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  listContent: { paddingHorizontal: 16, paddingTop: 8 },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 14,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(30,92,84,0.12)',
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowColor: '#1E5C54',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.09,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  groupAvatar: {
+  avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -284,30 +342,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  groupAvatarText: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
-  groupInfo: { flex: 1 },
-  groupName: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
-  groupMeta: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-
-  empty: { alignItems: 'center', gap: 10, paddingVertical: 24 },
-  emptyText: { fontSize: 14, fontFamily: 'Manrope_400Regular', textAlign: 'center' },
-
-  actionCard: { padding: 20, gap: 14 },
-  actionCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  actionCardTitle: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
-  actionCardSubtitle: { fontSize: 13, fontFamily: 'Manrope_400Regular', lineHeight: 20 },
-
-  actionInput: {
-    fontSize: 15,
-    fontFamily: 'Manrope_400Regular',
-    borderBottomWidth: 1,
-    paddingVertical: 10,
+  avatarText: { fontSize: 16, fontFamily: 'Manrope_700Bold', color: '#FFFFFF' },
+  cardContent: { flex: 1 },
+  groupName: { fontSize: 16, fontFamily: 'Manrope_600SemiBold' },
+  memberCount: { fontSize: 13, fontFamily: 'Manrope_400Regular', marginTop: 2 },
+  fabWrap: { position: 'absolute', right: 20 },
+  fab: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF6B5B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 8,
   },
-  actionBtn: {
-    height: 48,
-    borderRadius: 24,
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+    padding: 12,
+  },
+  sheetWrap: { borderRadius: 28, overflow: 'hidden' },
+  sheet: { padding: 24, gap: 16 },
+  sheetTitle: { fontSize: 20, fontFamily: 'Manrope_700Bold' },
+  input: {
+    height: 52,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    fontFamily: 'Manrope_400Regular',
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  sheetActions: { flexDirection: 'row', gap: 10 },
+  sheetBtn: { flex: 1, height: 50, borderRadius: 14, overflow: 'hidden' },
+  sheetBtnCancel: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(30,92,84,0.08)',
+  },
+  sheetBtnGradient: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  sheetBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 });
