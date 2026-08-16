@@ -10,7 +10,8 @@
       "environment": "development",
       "credentialsSource": "remote",
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "image": "macos-sequoia-15.6-xcode-26.0"
       }
     },
     "development-simulator": {
@@ -18,19 +19,26 @@
       "distribution": "internal",
       "environment": "development",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "image": "macos-sequoia-15.6-xcode-26.0"
       },
       "withoutCredentials": true
     },
     "preview": {
       "distribution": "internal",
       "environment": "preview",
-      "credentialsSource": "remote"
+      "credentialsSource": "remote",
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.0"
+      }
     },
     "production": {
       "autoIncrement": true,
       "environment": "production",
-      "credentialsSource": "remote"
+      "credentialsSource": "remote",
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.0"
+      }
     }
   },
   "submit": {
