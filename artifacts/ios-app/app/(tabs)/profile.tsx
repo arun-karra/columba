@@ -203,7 +203,7 @@ export default function ProfileScreen() {
           styles.content,
           {
             paddingBottom:
-              insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 90,
+              insets.bottom + 49 + 20,
           },
         ]}
       >

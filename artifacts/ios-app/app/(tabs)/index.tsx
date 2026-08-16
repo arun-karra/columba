@@ -98,8 +98,10 @@ export default function NotesScreen() {
     router.push('/note/new');
   }, []);
 
-  const fabBottom =
-    insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 72;
+  // Tab bar is position:absolute, so we need to clear it manually.
+  // Standard iOS tab bar content height is 49 px; insets.bottom adds the home-indicator gap.
+  const TAB_H = 49;
+  const fabBottom = insets.bottom + TAB_H + 16;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -138,7 +140,7 @@ export default function NotesScreen() {
         )}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: fabBottom + 24 },
+          { paddingBottom: fabBottom + 68 }, // clear FAB (56 h) + 12 gap
         ]}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         refreshControl={
@@ -170,7 +172,7 @@ export default function NotesScreen() {
         style={[
           styles.fab,
           {
-            bottom: fabBottom - 56,
+            bottom: fabBottom,
             backgroundColor: colors.card,
             shadowColor: colors.primary,
           },

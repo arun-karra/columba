@@ -79,14 +79,19 @@ function ClassicTabLayout() {
         tabBarLabelStyle: {
           fontFamily: 'Manrope_500Medium',
           fontSize: 11,
-          marginBottom: Platform.OS === 'ios' ? 0 : 4,
+          marginTop: 0,
         },
         tabBarStyle: {
+          position: 'absolute',
           backgroundColor: colors.card,
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.border,
           elevation: 0,
-          shadowOpacity: 0,
+          // subtle top shadow so the bar lifts from content
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
         },
       }}
     >
@@ -130,11 +135,10 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   iconWrap: {
-    width: 40,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
   },
 });

@@ -22,6 +22,7 @@ import {
   getGetNotesSummaryQueryKey,
 } from '@workspace/api-client-react';
 import { AuthProvider, useAuth, getToken } from '@/context/AuthContext';
+import { useColors } from '@/hooks/useColors';
 import {
   PINNED_NOTE_CATEGORY,
   MARK_COMPLETE_ACTION,
@@ -75,10 +76,22 @@ function AuthGate() {
 // ── Navigation ──────────────────────────────────────────────────────────────
 
 function RootLayoutNav() {
+  const colors = useColors();
   return (
     <>
       <AuthGate />
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.card },
+          headerTintColor: colors.primary,
+          headerTitleStyle: {
+            fontFamily: 'Manrope_700Bold',
+            color: colors.foreground,
+            fontSize: 17,
+          },
+          headerShadowVisible: false,
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen

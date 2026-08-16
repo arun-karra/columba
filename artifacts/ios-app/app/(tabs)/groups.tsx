@@ -127,7 +127,7 @@ export default function GroupsScreen() {
         styles.content,
         {
           paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 20),
-          paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) + 90,
+          paddingBottom: insets.bottom + 49 + 20,
         },
       ]}
       refreshControl={
