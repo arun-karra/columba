@@ -11,6 +11,13 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
+import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
@@ -85,6 +92,15 @@ export default function NoteDetailScreen() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  // Done-button spring animation
+  const doneBtnScale = useSharedValue(1);
+  const doneBtnAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: doneBtnScale.value }],
+  }));
+
+  // Confetti burst — increment to fire
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
+
   useEffect(() => {
     if (!note) return;
     setTitle(note.title ?? '');
@@ -143,11 +159,26 @@ export default function NoteDetailScreen() {
 
   const handleToggle = useCallback(async () => {
     if (!note) return;
+    const markingDone = !note.isDone;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Spring pulse on the button
+    doneBtnScale.value = withSequence(
+      withSpring(0.88, { damping: 5, stiffness: 500, mass: 0.5 }),
+      withSpring(1.08, { damping: 4, stiffness: 350 }),
+      withSpring(1, { damping: 14, stiffness: 200 }),
+    );
+
     await toggleDone.mutateAsync({ id: note.id });
     invalidate();
     void dismissNoteNotification(note.id);
-  }, [note, toggleDone, invalidate]);
+
+    // Fire confetti only when completing (not reopening)
+    if (markingDone) {
+      setConfettiTrigger((t) => t + 1);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }, [note, toggleDone, invalidate, doneBtnScale]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -420,37 +451,43 @@ export default function NoteDetailScreen() {
             onPress={handleToggle}
             disabled={toggleDone.isPending}
           >
-            <LinearGradient
-              colors={note.isDone
-                ? ['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.1)']
-                : ['#1E5C54', '#2D7A6E']}
-              style={styles.doneBtn}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {toggleDone.isPending ? (
-                <ActivityIndicator size="small" color={note.isDone ? colors.mutedForeground : '#FFFFFF'} />
-              ) : (
-                <>
-                  {Platform.OS === 'ios' ? (
-                    <SymbolView
-                      name={note.isDone ? 'arrow.uturn.backward' : 'checkmark.circle.fill'}
-                      tintColor={note.isDone ? colors.mutedForeground : '#FFFFFF'}
-                      size={20}
-                    />
-                  ) : (
-                    <Feather
-                      name={note.isDone ? 'rotate-ccw' : 'check-circle'}
-                      size={20}
-                      color={note.isDone ? colors.mutedForeground : '#FFFFFF'}
-                    />
-                  )}
-                  <Text style={[styles.doneBtnText, { color: note.isDone ? colors.mutedForeground : '#FFFFFF' }]}>
-                    {note.isDone ? 'Reopen' : 'Mark done! ✓'}
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
+            <Animated.View style={[{ borderRadius: 30, overflow: 'hidden', flex: 1 }, doneBtnAnimStyle]}>
+              <LinearGradient
+                colors={note.isDone
+                  ? ['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.1)']
+                  : ['#1E5C54', '#2D7A6E']}
+                style={styles.doneBtn}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {toggleDone.isPending ? (
+                  <ActivityIndicator size="small" color={note.isDone ? colors.mutedForeground : '#FFFFFF'} />
+                ) : (
+                  <>
+                    {Platform.OS === 'ios' ? (
+                      <SymbolView
+                        name={note.isDone ? 'arrow.uturn.backward' : 'checkmark.circle.fill'}
+                        tintColor={note.isDone ? colors.mutedForeground : '#FFFFFF'}
+                        size={20}
+                      />
+                    ) : (
+                      <Feather
+                        name={note.isDone ? 'rotate-ccw' : 'check-circle'}
+                        size={20}
+                        color={note.isDone ? colors.mutedForeground : '#FFFFFF'}
+                      />
+                    )}
+                    <Text style={[styles.doneBtnText, { color: note.isDone ? colors.mutedForeground : '#FFFFFF' }]}>
+                      {note.isDone ? 'Reopen' : 'Mark done! ✓'}
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
+            </Animated.View>
+            {/* Confetti burst centered on the button */}
+            <View style={styles.confettiAnchor} pointerEvents="none">
+              <ConfettiBurst trigger={confettiTrigger} size={240} />
+            </View>
           </Pressable>
 
           {/* Delete */}
@@ -562,7 +599,15 @@ const styles = StyleSheet.create({
   shareBtnDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
 
   actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  doneWrap: {},
+  doneWrap: { position: 'relative' },
+  confettiAnchor: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -120,   // half of ConfettiBurst size={240}
+    marginLeft: -120,
+    pointerEvents: 'none',
+  },
   doneBtn: {
     flexDirection: 'row',
     alignItems: 'center',

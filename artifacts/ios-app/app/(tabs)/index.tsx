@@ -9,6 +9,12 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -104,6 +110,20 @@ function NoteCard({
   const stripColor = noteStrip(note, colors);
   const bg = noteBg(note);
 
+  // Spring-pulse animation for the checkbox
+  const checkScale = useSharedValue(1);
+  const checkAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+  }));
+
+  const handleCheckPress = useCallback(() => {
+    checkScale.value = withSequence(
+      withSpring(1.45, { damping: 3, stiffness: 400, mass: 0.6 }),
+      withSpring(1, { damping: 12, stiffness: 200 }),
+    );
+    onToggle(note.id);
+  }, [note.id, onToggle, checkScale]);
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -121,17 +141,22 @@ function NoteCard({
 
       {/* Checkbox */}
       <Pressable
-        onPress={() => onToggle(note.id)}
+        onPress={handleCheckPress}
         hitSlop={14}
-        style={[
-          styles.checkbox,
-          {
-            borderColor: note.isDone ? colors.done : colors.primary + '60',
-            backgroundColor: note.isDone ? colors.done : 'transparent',
-          },
-        ]}
+        style={styles.checkboxWrap}
       >
-        {note.isDone && <Feather name="check" size={14} color="#FFFFFF" />}
+        <Animated.View
+          style={[
+            styles.checkbox,
+            {
+              borderColor: note.isDone ? colors.done : colors.primary + '60',
+              backgroundColor: note.isDone ? colors.done : 'transparent',
+            },
+            checkAnimStyle,
+          ]}
+        >
+          {note.isDone && <Feather name="check" size={14} color="#FFFFFF" />}
+        </Animated.View>
       </Pressable>
 
       {/* Content */}
@@ -449,6 +474,13 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   strip: { width: 6, alignSelf: 'stretch', flexShrink: 0 },
+  checkboxWrap: {
+    marginTop: 14,
+    marginLeft: 14,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   checkbox: {
     width: 28,
     height: 28,
@@ -456,9 +488,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
-    marginLeft: 14,
-    flexShrink: 0,
   },
   cardBody: { flex: 1, paddingVertical: 14, paddingRight: 14, paddingLeft: 12 },
   cardTitle: { fontSize: 15, fontFamily: 'Manrope_700Bold', marginBottom: 3 },
