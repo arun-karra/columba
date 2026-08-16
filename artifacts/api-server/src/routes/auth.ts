@@ -70,7 +70,6 @@ router.post(
       process.env.NODE_ENV !== "production" && input.code === "000000";
 
     let loginCodeId: string | undefined;
-
     if (!isBypass) {
       const loginCode = await prisma.loginCode.findFirst({
         where: { email, consumedAt: null },
@@ -90,8 +89,9 @@ router.post(
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      if (!isBypass) {
-        await tx.loginCode.update({ where: { id: loginCodeId! }, data: { consumedAt: new Date() } });
+<<<<<<< HEAD
+      if (loginCodeId) {
+        await tx.loginCode.update({ where: { id: loginCodeId }, data: { consumedAt: new Date() } });
       }
       const user = await tx.user.upsert({ where: { email }, update: {}, create: { email } });
       const invites = await tx.groupInvite.findMany({ where: { email, status: "pending" } });

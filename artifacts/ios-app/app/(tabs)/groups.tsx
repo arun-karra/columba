@@ -81,7 +81,7 @@ export default function GroupsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: groups = [], isLoading } = useListGroups({
-    query: { queryKey: getListGroupsQueryKey(), enabled: !!user },
+    query: { enabled: !!user, queryKey: getListGroupsQueryKey() },
   });
 
   const createGroup = useCreateGroup({
