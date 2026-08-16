@@ -122,7 +122,7 @@ cd artifacts/ios-app
 eas init
 ```
 
-`eas init` links this app to your Expo project and writes `extra.eas.projectId` into `app.json`. That is expected — commit that change. If it asks to create a new project vs link an existing one, choose the existing **columba** project under **arunkarra**.
+`eas init` links this app to your Expo project and writes `extra.eas.projectId` into `app.json`. That is expected — commit that change. If it asks to create a new project vs link an existing one, choose the existing **columba** project under **arunkarra** (see `owner` in `app.json`).
 
 4. In [expo.dev](https://expo.dev) → **columba** → **Environment variables**, add `EXPO_PUBLIC_DOMAIN` (public) for the **development** environment. Use your API host without `https://`, for example `columba.example.com`.
 5. For a **physical iPhone** build you need a paid [Apple Developer](https://developer.apple.com) account. EAS will ask to manage credentials the first time — say yes. For **Simulator only**, skip Apple credentials (the `development-simulator` profile already sets `withoutCredentials`).
