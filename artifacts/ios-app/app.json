@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Columba",
-    "slug": "ios-app",
+    "slug": "columba",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -18,7 +18,9 @@
       "bundleIdentifier": "com.columba.notes",
       "buildNumber": "1",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -28,6 +30,7 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
+      "expo-dev-client",
       [
         "expo-router",
         {
@@ -40,15 +43,24 @@
       [
         "expo-notifications",
         {
-          "iosDisplayInForeground": true
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": true,
+      "autolinkingModuleResolution": true
     },
-    "owner": "arunkarras-team"
+    "extra": {
+      "router": {
+        "origin": "https://replit.com/"
+      },
+      "eas": {
+        "projectId": "00aa6323-a8d3-4d7d-9329-3f7dc2020c9b"
+      }
+    },
+    "owner": "arunkarra"
   }
 }

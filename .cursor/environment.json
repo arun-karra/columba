@@ -1,0 +1,4 @@
+{
+  "name": "Columba",
+  "install": "pnpm install\npnpm --filter @workspace/api-server run prisma:generate"
+}
