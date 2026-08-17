@@ -68,10 +68,25 @@ catalog:
 
 autoInstallPeers: false
 
+# pnpm 11+: which packages may run install/postinstall scripts (required on Mac with pnpm 11+).
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@swc/core': true
+  esbuild: true
+  msw: true
+  prisma: true
+  unrs-resolver: true
+
+# pnpm 10.x allowlist (ignored by pnpm 11, kept for older installs).
 onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@prisma/client'
   - '@swc/core'
   - esbuild
   - msw
+  - prisma
   - unrs-resolver
 
 overrides:
