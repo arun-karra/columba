@@ -51,7 +51,14 @@
           "enableBackgroundRemoteNotifications": true
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Columba uses the microphone so you can dictate notes with your voice instead of typing.",
+          "speechRecognitionPermission": "Columba converts your speech to text on your device so you can create notes by voice. Audio stays on your iPhone when on-device recognition is available."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
