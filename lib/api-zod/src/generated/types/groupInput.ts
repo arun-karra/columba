@@ -12,4 +12,6 @@ export interface GroupInput {
      * @maxLength 100
      */
   name: string;
+  /** @maxLength 8 */
+  emoji?: string;
 }

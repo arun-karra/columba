@@ -285,12 +285,11 @@ describe("GET /api/notes/summary", () => {
     mockPrisma.note.count
       .mockResolvedValueOnce(10) // total
       .mockResolvedValueOnce(4) // completed
-      .mockResolvedValueOnce(2) // urgent
       .mockResolvedValueOnce(3); // upcomingReminders
 
     const res = await request(app).get("/api/notes/summary").set(authHeader(owner));
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ total: 10, open: 6, completed: 4, urgent: 2, upcomingReminders: 3 });
+    expect(res.body).toEqual({ total: 10, open: 6, completed: 4, upcomingReminders: 3 });
   });
 });

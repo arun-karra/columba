@@ -284,6 +284,35 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateGroup
+      tags: [groups]
+      summary: Update a group (emoji, etc.)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupUpdate"
+      responses:
+        "200":
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /groups/{id}/invite:
     post:
       operationId: inviteToGroup
@@ -513,6 +542,8 @@ components:
           type: string
         name:
           type: string
+        emoji:
+          type: [string, "null"]
         createdByUserId:
           type: string
         createdAt:
@@ -522,7 +553,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GroupMember"
-      required: [id, name, createdByUserId, createdAt, members]
+      required: [id, name, emoji, createdByUserId, createdAt, members]
     GroupInput:
       type: object
       properties:
@@ -530,7 +561,16 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+        emoji:
+          type: string
+          maxLength: 8
       required: [name]
+    GroupUpdate:
+      type: object
+      properties:
+        emoji:
+          type: string
+          maxLength: 8
     InviteInput:
       type: object
       properties:
@@ -561,14 +601,14 @@ components:
           type: [string, "null"]
         groupName:
           type: [string, "null"]
+        groupEmoji:
+          type: [string, "null"]
         title:
           type: [string, "null"]
         body:
           type: string
         audioUrl:
           type: [string, "null"]
-        isUrgent:
-          type: boolean
         remindAt:
           type: [string, "null"]
           format: date-time
@@ -597,10 +637,10 @@ components:
         - ownerId
         - groupId
         - groupName
+        - groupEmoji
         - title
         - body
         - audioUrl
-        - isUrgent
         - remindAt
         - reminderSentAt
         - isDone
@@ -621,8 +661,6 @@ components:
           minLength: 1
         audioUrl:
           type: [string, "null"]
-        isUrgent:
-          type: boolean
         isPinned:
           type: boolean
         remindAt:
@@ -642,8 +680,6 @@ components:
           minLength: 1
         audioUrl:
           type: [string, "null"]
-        isUrgent:
-          type: boolean
         isPinned:
           type: boolean
         remindAt:
@@ -659,11 +695,9 @@ components:
           type: number
         completed:
           type: number
-        urgent:
-          type: number
         upcomingReminders:
           type: number
-      required: [total, open, completed, urgent, upcomingReminders]
+      required: [total, open, completed, upcomingReminders]
     PushTokenInput:
       type: object
       properties:

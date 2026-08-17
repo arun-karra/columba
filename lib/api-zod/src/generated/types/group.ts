@@ -10,6 +10,8 @@ import type { GroupMember } from './groupMember';
 export interface Group {
   id: string;
   name: string;
+  /** @nullable */
+  emoji: string | null;
   createdByUserId: string;
   createdAt: Date;
   members: GroupMember[];

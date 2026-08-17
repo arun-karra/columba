@@ -17,6 +17,7 @@ import {
   useGetGroup,
   useInviteToGroup,
   useRemoveGroupMember,
+  useUpdateGroup,
   getListGroupsQueryKey,
   getGetGroupQueryKey,
 } from '@workspace/api-client-react';
@@ -30,8 +31,6 @@ import { confirmDestructive } from '@/utils/iosConfirm';
 import { useScreenGutter } from '@/constants/layout';
 import {
   defaultEmojiForGroup,
-  getGroupEmoji,
-  resolveGroupEmoji,
   setGroupEmoji,
 } from '@/utils/groupEmoji';
 
@@ -106,12 +105,19 @@ export default function GroupDetailScreen() {
 
   const { data: group, isLoading } = useGetGroup(id ?? '');
 
+  const updateGroup = useUpdateGroup({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetGroupQueryKey(id ?? '') });
+        queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+      },
+    },
+  });
+
   useEffect(() => {
-    if (!id) return;
-    void getGroupEmoji(id).then((emoji) => {
-      setGroupEmojiState(emoji);
-    });
-  }, [id]);
+    if (!group) return;
+    setGroupEmojiState(group.emoji);
+  }, [group?.id, group?.emoji]);
 
   const inviteMutation = useInviteToGroup({
     mutation: {
@@ -184,15 +190,21 @@ export default function GroupDetailScreen() {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
 
-  const emoji = groupEmoji ?? resolveGroupEmoji(group.id, group.name, {});
+  const emoji = groupEmoji ?? group.emoji ?? defaultEmojiForGroup(group.name);
 
   const openEmojiEditor = () => {
     setDraftEmoji(emoji);
     setShowEmojiEditor(true);
   };
 
+  const closeEmojiEditor = () => {
+    setDraftEmoji(emoji);
+    setShowEmojiEditor(false);
+  };
+
   const saveEmoji = async () => {
     if (!id) return;
+    await updateGroup.mutateAsync({ id, data: { emoji: draftEmoji } });
     await setGroupEmoji(id, draftEmoji);
     setGroupEmojiState(draftEmoji);
     setShowEmojiEditor(false);
@@ -302,10 +314,13 @@ export default function GroupDetailScreen() {
         visible={showEmojiEditor}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowEmojiEditor(false)}
+        onRequestClose={closeEmojiEditor}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+        <Pressable style={styles.modalBackdrop} onPress={closeEmojiEditor}>
+          <Pressable
+            style={[styles.modalCard, { backgroundColor: colors.card }]}
+            onPress={() => undefined}
+          >
             <Text style={[styles.groupName, { color: colors.foreground, fontSize: 18 }]}>
               Group icon
             </Text>
@@ -318,13 +333,8 @@ export default function GroupDetailScreen() {
                 Save
               </Text>
             </Pressable>
-            <Pressable onPress={() => setShowEmojiEditor(false)}>
-              <Text style={[styles.changeEmoji, { color: colors.mutedForeground }]}>
-                Cancel
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );

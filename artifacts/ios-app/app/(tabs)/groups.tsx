@@ -117,7 +117,7 @@ export default function GroupsScreen() {
   const submitName = async (name: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await createGroup.mutateAsync({ data: { name } });
+      await createGroup.mutateAsync({ data: { name, emoji: selectedEmoji } });
     } catch {
       Alert.alert('Error', 'Could not create group. Please try again.');
     }
@@ -190,7 +190,7 @@ export default function GroupsScreen() {
           renderItem={({ item }) => (
             <GroupCard
               group={item}
-              emoji={resolveGroupEmoji(item.id, item.name, emojiMap)}
+              emoji={resolveGroupEmoji(item.id, item.name, emojiMap, item.emoji)}
               onPress={() => {
                 Haptics.selectionAsync();
                 router.push(`/group/${item.id}`);
@@ -239,6 +239,7 @@ export default function GroupsScreen() {
                 paddingBottom: insets.bottom + 16,
               },
             ]}
+            onPress={() => undefined}
           >
             <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
               New Group
@@ -271,23 +272,13 @@ export default function GroupsScreen() {
             />
             <View style={styles.sheetActions}>
               <Pressable
-                style={[styles.sheetBtn, { backgroundColor: colors.secondary }]}
-                onPress={() => {
-                  setShowCreate(false);
-                  setGroupName('');
-                }}
-              >
-                <Text style={[styles.sheetBtnText, { color: colors.mutedForeground }]}>
-                  Cancel
-                </Text>
-              </Pressable>
-              <Pressable
                 style={[
                   styles.sheetBtn,
                   {
                     backgroundColor: groupName.trim()
                       ? colors.primary
                       : colors.secondary,
+                    flex: 1,
                   },
                 ]}
                 onPress={handleCreateFromModal}

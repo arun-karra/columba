@@ -6,9 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface NotesSummary {
-  total: number;
-  open: number;
-  completed: number;
-  upcomingReminders: number;
+export interface GroupUpdate {
+  /** @maxLength 8 */
+  emoji?: string;
 }

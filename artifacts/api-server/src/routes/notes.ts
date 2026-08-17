@@ -10,6 +10,7 @@ import {
 import { prisma } from "../lib/prisma";
 import { asyncHandler, HttpError, parseOrThrow, requireParam } from "../lib/errors";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { formatNoteNotificationText, resolveGroupEmoji } from "../lib/groupEmoji";
 import { sendPush, sendDismissPush } from "../lib/push";
 
 const PINNED_NOTE_CATEGORY = "PINNED_NOTE";
@@ -29,7 +30,6 @@ function mapNote(note: {
   title: string | null;
   body: string;
   audioUrl: string | null;
-  isUrgent: boolean;
   remindAt: Date | null;
   reminderSentAt: Date | null;
   isDone: boolean;
@@ -38,18 +38,22 @@ function mapNote(note: {
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  group: { name: string } | null;
+  group: { name: string; emoji: string | null } | null;
   completedBy: { id: string; email: string | null } | null;
 }) {
+  const groupEmoji = note.group
+    ? resolveGroupEmoji(note.group.emoji, note.group.name)
+    : null;
+
   return {
     id: note.id,
     ownerId: note.ownerId,
     groupId: note.groupId,
     groupName: note.group?.name ?? null,
+    groupEmoji,
     title: note.title,
     body: note.body,
     audioUrl: note.audioUrl,
-    isUrgent: note.isUrgent,
     remindAt: note.remindAt,
     reminderSentAt: note.reminderSentAt,
     isDone: note.isDone,
@@ -60,6 +64,16 @@ function mapNote(note: {
     createdAt: note.createdAt,
     updatedAt: note.updatedAt,
   };
+}
+
+function notificationTextForNote(note: {
+  body: string;
+  group: { name: string; emoji: string | null } | null;
+}) {
+  const groupEmoji = note.group
+    ? resolveGroupEmoji(note.group.emoji, note.group.name)
+    : null;
+  return formatNoteNotificationText(note.body, groupEmoji);
 }
 
 async function groupIdsForUser(userId: string) {
@@ -113,22 +127,18 @@ router.post(
         body: input.body,
         title: input.title ?? null,
         audioUrl: input.audioUrl ?? null,
-        isUrgent: input.isUrgent ?? false,
         isPinned: input.isPinned ?? false,
         remindAt: input.remindAt ?? null,
         groupId: input.groupId ?? null,
       },
       include: noteInclude,
     });
-    // Only fire immediately if no reminder is set — if remindAt is set,
-    // the scheduler will fire the pinned notification at that time instead.
     if (note.isPinned && !note.remindAt) {
       void sendPush(
         [userId],
-        note.title ?? "Pinned note",
-        note.body,
+        notificationTextForNote(note),
         { noteId: note.id },
-        { urgent: true, categoryId: PINNED_NOTE_CATEGORY, pinned: true },
+        { pinned: true, categoryId: PINNED_NOTE_CATEGORY },
       );
     }
     res.status(201).json(mapNote(note));
@@ -141,13 +151,12 @@ router.get(
     const userId = (req as AuthenticatedRequest).userId;
     const groupIds = await groupIdsForUser(userId);
     const where = { OR: [{ ownerId: userId, groupId: null }, { groupId: { in: groupIds } }] };
-    const [total, completed, urgent, upcomingReminders] = await Promise.all([
+    const [total, completed, upcomingReminders] = await Promise.all([
       prisma.note.count({ where }),
       prisma.note.count({ where: { ...where, isDone: true } }),
-      prisma.note.count({ where: { ...where, isUrgent: true, isDone: false } }),
       prisma.note.count({ where: { ...where, remindAt: { gt: new Date() }, isDone: false } }),
     ]);
-    res.json({ total, open: total - completed, completed, urgent, upcomingReminders });
+    res.json({ total, open: total - completed, completed, upcomingReminders });
   }),
 );
 
@@ -180,7 +189,6 @@ router.patch(
         ...(Object.prototype.hasOwnProperty.call(req.body, "title") ? { title: input.title ?? null } : {}),
         ...(input.body !== undefined ? { body: input.body } : {}),
         ...(input.audioUrl !== undefined ? { audioUrl: input.audioUrl ?? null } : {}),
-        ...(input.isUrgent !== undefined ? { isUrgent: input.isUrgent } : {}),
         ...(input.isPinned !== undefined ? { isPinned: input.isPinned } : {}),
         ...(Object.prototype.hasOwnProperty.call(req.body, "remindAt")
           ? { remindAt: input.remindAt ? new Date(input.remindAt) : null, reminderSentAt: remindAtChanged ? null : note.reminderSentAt }
@@ -189,16 +197,13 @@ router.patch(
       },
       include: noteInclude,
     });
-    // Fire pin/unpin push after the DB write
     const nowPinned = updated.isPinned;
     if (!wasPinned && nowPinned && !updated.remindAt) {
-      // Becoming pinned with no scheduled reminder → notify immediately.
       void sendPush(
         [userId],
-        updated.title ?? "Pinned note",
-        updated.body,
+        notificationTextForNote(updated),
         { noteId: updated.id },
-        { urgent: true, categoryId: PINNED_NOTE_CATEGORY, pinned: true },
+        { pinned: true, categoryId: PINNED_NOTE_CATEGORY },
       );
     } else if (wasPinned && !nowPinned) {
       void sendDismissPush([userId], updated.id);
@@ -223,8 +228,6 @@ router.post(
         : { isDone: true, completedByUserId: userId, completedAt: new Date() },
       include: noteInclude,
     });
-    // When a pinned note is marked done, tell the device to clear the
-    // persistent lock-screen notification.
     if (updated.isPinned && updated.isDone) {
       void sendDismissPush([userId], updated.id);
     }
@@ -232,9 +235,6 @@ router.post(
   }),
 );
 
-// Idempotent endpoint used by the lock-screen "Mark as Complete" action button.
-// Unlike toggle-done, this only ever sets the note to done — safe to call
-// multiple times (e.g. from both the cold-start and listener paths).
 router.post(
   "/notes/:id/mark-done",
   asyncHandler(async (req, res) => {
@@ -244,7 +244,6 @@ router.post(
     if (note.groupId === null && note.ownerId !== userId) {
       throw new HttpError(403, "FORBIDDEN", "You cannot complete this note.");
     }
-    // No-op if already done — avoids reopening the note on duplicate calls.
     if (note.isDone) {
       res.json(mapNote({ ...note, group: note.group ?? null, completedBy: null }));
       return;

@@ -24,9 +24,11 @@ import {
   getGetNotesSummaryQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
-import { ShareModal } from '@/components/ShareModal';
+import { ShareGroupPicker } from '@/components/ShareGroupPicker';
 import { AppIcon } from '@/components/AppIcon';
 import { useScreenGutter } from '@/constants/layout';
+import { presentPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
+import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 
 // ─── Quick reminder presets ───────────────────────────────────────────────────
 
@@ -94,13 +96,10 @@ export default function NewNoteScreen() {
   const queryClient = useQueryClient();
 
   const [body, setBody] = useState('');
-  const [isUrgent, setIsUrgent] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [groupName, setGroupName] = useState<string | null>(null);
   const [remindAt, setRemindAt] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
 
   const createNote = useCreateNote({
     mutation: {
@@ -118,17 +117,35 @@ export default function NewNoteScreen() {
   const handleCreate = async () => {
     if (!canSave) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (isPinned && !remindAt) {
+      const granted = await ensureLocalNotificationPermission();
+      if (!granted) {
+        Alert.alert(
+          'Notifications needed',
+          'Allow notifications in Settings to pin notes to your lock screen.',
+        );
+        return;
+      }
+    }
     try {
-      await createNote.mutateAsync({
+      const created = await createNote.mutateAsync({
         data: {
           title: null,
           body: body.trim(),
-          isUrgent,
           isPinned,
           groupId: groupId || null,
           remindAt: remindAt ? remindAt.toISOString() : null,
         },
       });
+      if (isPinned && !remindAt) {
+        await presentPinnedNoteNotification({
+          id: created.id,
+          body: body.trim(),
+          groupId: created.groupId,
+          groupName: created.groupName,
+          groupEmoji: created.groupEmoji,
+        });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch {
@@ -165,7 +182,7 @@ export default function NewNoteScreen() {
         </Pressable>
       ),
     });
-  }, [canSave, createNote.isPending, body, isUrgent, isPinned, groupId, remindAt]);
+  }, [canSave, createNote.isPending, body, isPinned, groupId, remindAt]);
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS !== 'ios') setShowDatePicker(false);
@@ -338,42 +355,21 @@ export default function NewNoteScreen() {
           )}
         </SectionCard>
 
-        {/* Options */}
-        <SectionCard title="Options">
-          {/* Mark as Urgent */}
-          <View
-            style={[
-              styles.optionRow,
-              {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.optionIconWrap,
-                { backgroundColor: colors.secondary },
-              ]}
-            >
-              <AppIcon name="exclamationmark.circle" size={14} color={colors.urgent} />
-            </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-              Mark as Urgent
-            </Text>
-            <Switch
-              value={isUrgent}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                setIsUrgent(v);
+        <SectionCard title="Select Group">
+          <View style={styles.groupPickerWrap}>
+            <ShareGroupPicker
+              showTitle={false}
+              selectedGroupId={groupId}
+              onSelect={(id) => {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setGroupId(id);
               }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.card}
-              ios_backgroundColor={colors.border}
             />
           </View>
+        </SectionCard>
 
-          {/* Pin to Lock Screen */}
+        {/* Options */}
+        <SectionCard title="Options">
           <View style={styles.optionRow}>
             <View
               style={[
@@ -383,74 +379,34 @@ export default function NewNoteScreen() {
             >
               <AppIcon name="lock.fill" size={14} color={colors.primary} />
             </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+            <Text style={[styles.optionLabel, { color: colors.foreground, flex: 1 }]}>
               Pin to Lock Screen
             </Text>
             <Switch
               value={isPinned}
               onValueChange={(v) => {
                 Haptics.selectionAsync();
-                setIsPinned(v);
+                void (async () => {
+                  if (v) {
+                    const granted = await ensureLocalNotificationPermission();
+                    if (!granted) {
+                      Alert.alert(
+                        'Notifications needed',
+                        'Allow notifications in Settings to pin notes to your lock screen.',
+                      );
+                      return;
+                    }
+                  }
+                  setIsPinned(v);
+                })();
               }}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.card}
               ios_backgroundColor={colors.border}
             />
           </View>
-
-          {/* Share to Group */}
-          <Pressable
-            style={[
-              styles.optionRow,
-              {
-                borderTopWidth: StyleSheet.hairlineWidth,
-                borderTopColor: colors.border,
-              },
-            ]}
-            onPress={() => setShowShareModal(true)}
-          >
-            <View
-              style={[
-                styles.optionIconWrap,
-                { backgroundColor: colors.secondary },
-              ]}
-            >
-              <AppIcon name="person.2" size={14} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-                Share to Group
-              </Text>
-              {groupName ? (
-                <Text
-                  style={[
-                    styles.optionSub,
-                    { color: colors.mutedForeground },
-                  ]}
-                >
-                  {groupName}
-                </Text>
-              ) : null}
-            </View>
-            <AppIcon
-              name="chevron.right"
-              size={16}
-              color={colors.mutedForeground}
-            />
-          </Pressable>
         </SectionCard>
       </ScrollView>
-
-      <ShareModal
-        visible={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        onSelect={(id, name) => {
-          setGroupId(id);
-          setGroupName(name ?? null);
-          setShowShareModal(false);
-        }}
-        selectedGroupId={groupId}
-      />
     </View>
   );
 }
@@ -499,6 +455,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   remindChipText: { fontSize: 13, fontFamily: 'Manrope_500Medium' },
+  groupPickerWrap: { padding: 14 },
 
   pickerWrap: { paddingHorizontal: 14, paddingBottom: 12 },
   pickerDone: {
@@ -525,6 +482,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  optionLabel: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium' },
-  optionSub: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 1 },
+  optionLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
 });

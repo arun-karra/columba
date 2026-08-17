@@ -65,6 +65,8 @@ export function resolveGroupEmoji(
   groupId: string,
   groupName: string,
   map: Record<string, string>,
+  serverEmoji?: string | null,
 ): string {
+  if (serverEmoji) return serverEmoji;
   return map[groupId] ?? defaultEmojiForGroup(groupName);
 }

@@ -1,7 +1,15 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useRef } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
+import { AppIcon } from '@/components/AppIcon';
 import { GROUP_EMOJI_OPTIONS } from '@/utils/groupEmoji';
 
 type Props = {
@@ -9,8 +17,20 @@ type Props = {
   onChange: (emoji: string) => void;
 };
 
+function firstEmoji(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  return [...trimmed][0] ?? '';
+}
+
 export function EmojiPicker({ value, onChange }: Props) {
   const colors = useColors();
+  const customRef = useRef<TextInput>(null);
+
+  const openEmojiKeyboard = () => {
+    Haptics.selectionAsync();
+    customRef.current?.focus();
+  };
 
   return (
     <View style={styles.wrap}>
@@ -19,6 +39,7 @@ export function EmojiPicker({ value, onChange }: Props) {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
+        keyboardShouldPersistTaps="handled"
       >
         {GROUP_EMOJI_OPTIONS.map((emoji) => {
           const selected = value === emoji;
@@ -41,7 +62,38 @@ export function EmojiPicker({ value, onChange }: Props) {
             </Pressable>
           );
         })}
+        <Pressable
+          onPress={openEmojiKeyboard}
+          style={[
+            styles.chip,
+            styles.plusChip,
+            {
+              backgroundColor: colors.muted,
+              borderColor: colors.border,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Choose any emoji"
+        >
+          <AppIcon name="plus" size={18} color={colors.primary} />
+        </Pressable>
       </ScrollView>
+      <TextInput
+        ref={customRef}
+        style={styles.hiddenInput}
+        value=""
+        onChangeText={(text) => {
+          const emoji = firstEmoji(text);
+          if (emoji) {
+            onChange(emoji);
+            customRef.current?.blur();
+          }
+        }}
+        autoCorrect={false}
+        autoCapitalize="none"
+        returnKeyType="done"
+        caretHidden
+      />
     </View>
   );
 }
@@ -62,5 +114,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
+  plusChip: { borderStyle: 'dashed' },
   emoji: { fontSize: 22 },
+  hiddenInput: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
 });

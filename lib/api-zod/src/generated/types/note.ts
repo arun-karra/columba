@@ -14,11 +14,12 @@ export interface Note {
   /** @nullable */
   groupName: string | null;
   /** @nullable */
+  groupEmoji: string | null;
+  /** @nullable */
   title: string | null;
   body: string;
   /** @nullable */
   audioUrl: string | null;
-  isUrgent: boolean;
   /** @nullable */
   remindAt: Date | null;
   /** @nullable */

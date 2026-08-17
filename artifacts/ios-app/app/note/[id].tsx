@@ -34,12 +34,13 @@ import {
   getGetNoteQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
-import { ShareModal } from '@/components/ShareModal';
+import { ShareGroupPicker } from '@/components/ShareGroupPicker';
 import {
   clearPinnedNoteNotification,
   presentPinnedNoteNotification,
 } from '@/utils/pinnedNoteNotification';
 import { dismissNoteNotification } from '@/utils/notifications';
+import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 import { AppIcon } from '@/components/AppIcon';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { useScreenGutter } from '@/constants/layout';
@@ -92,13 +93,12 @@ export default function NoteDetailScreen() {
   const toggleDone = useToggleNoteDone();
 
   const [body, setBody] = useState('');
-  const [isUrgent, setIsUrgent] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
+  const [groupEmoji, setGroupEmoji] = useState<string | null>(null);
   const [remindAt, setRemindAt] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
 
   const hydratedRef = useRef(false);
   const bodyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,10 +113,10 @@ export default function NoteDetailScreen() {
     if (!note) return;
     hydratedRef.current = false;
     setBody(note.body);
-    setIsUrgent(note.isUrgent);
     setIsPinned(note.isPinned);
     setGroupId(note.groupId ?? null);
     setGroupName(note.groupName ?? null);
+    setGroupEmoji(note.groupEmoji ?? null);
     setRemindAt(note.remindAt ? new Date(note.remindAt) : null);
     hydratedRef.current = true;
   }, [note?.id]);
@@ -133,7 +133,6 @@ export default function NoteDetailScreen() {
   const persistNote = useCallback(
     async (patch: {
       body?: string;
-      isUrgent?: boolean;
       isPinned?: boolean;
       groupId?: string | null;
       remindAt?: string | null;
@@ -141,7 +140,6 @@ export default function NoteDetailScreen() {
       if (!id || !note || !hydratedRef.current) return;
 
       const nextBody = (patch.body ?? body.trim()) || note.body;
-      const nextUrgent = patch.isUrgent ?? isUrgent;
       const nextPinned = patch.isPinned ?? isPinned;
       const nextGroupId =
         patch.groupId !== undefined ? patch.groupId : groupId;
@@ -159,7 +157,6 @@ export default function NoteDetailScreen() {
           id,
           data: {
             body: nextBody,
-            isUrgent: nextUrgent,
             isPinned: nextPinned,
             groupId: nextGroupId,
             remindAt: nextRemindAt,
@@ -167,22 +164,30 @@ export default function NoteDetailScreen() {
         });
 
         if (patch.body !== undefined) setBody(nextBody);
-        if (patch.isUrgent !== undefined) setIsUrgent(nextUrgent);
         if (patch.isPinned !== undefined) setIsPinned(nextPinned);
         if (patch.groupId !== undefined) {
           setGroupId(nextGroupId);
           setGroupName(updated.groupName ?? null);
+          setGroupEmoji(updated.groupEmoji ?? null);
         }
         if (patch.remindAt !== undefined) {
           setRemindAt(nextRemindAt ? new Date(nextRemindAt) : null);
         }
 
         if (!wasPinned && nextPinned && !nextRemindAt) {
-          await presentPinnedNoteNotification({
+          const shown = await presentPinnedNoteNotification({
             id,
             body: nextBody,
-            title: updated.title,
+            groupId: updated.groupId,
+            groupName: updated.groupName,
+            groupEmoji: updated.groupEmoji,
           });
+          if (!shown) {
+            Alert.alert(
+              'Notifications needed',
+              'Allow notifications in Settings to show pinned notes on your lock screen.',
+            );
+          }
         } else if (wasPinned && !nextPinned) {
           await clearPinnedNoteNotification(id);
           await dismissNoteNotification(id);
@@ -197,7 +202,6 @@ export default function NoteDetailScreen() {
       id,
       note,
       body,
-      isUrgent,
       isPinned,
       groupId,
       remindAt,
@@ -277,11 +281,10 @@ export default function NoteDetailScreen() {
     }
   };
 
-  const handleShareSelect = async (selectedGroupId: string, name?: string) => {
-    setShowShareModal(false);
+  const handleShareSelect = async (selectedGroupId: string, name: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await persistNote({ groupId: selectedGroupId });
-    if (name) setGroupName(name);
+    setGroupName(name);
   };
 
   const quickReminders = getQuickReminders();
@@ -419,85 +422,52 @@ export default function NoteDetailScreen() {
           ) : null}
         </SectionCard>
 
-        <SectionCard title="Options">
-          <View
-            style={[
-              styles.optionRow,
-              {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
-            >
-              <AppIcon name="exclamationmark.circle" size={14} color={colors.urgent} />
-            </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-              Mark as Urgent
-            </Text>
-            <Switch
-              value={isUrgent}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                setIsUrgent(v);
-                void persistNote({ isUrgent: v });
+        <SectionCard title="Select Group">
+          <View style={styles.groupPickerWrap}>
+            <ShareGroupPicker
+              showTitle={false}
+              selectedGroupId={groupId}
+              onSelect={(id, name) => {
+                void handleShareSelect(id, name);
               }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.card}
-              ios_backgroundColor={colors.border}
             />
           </View>
+        </SectionCard>
 
-          <View
-            style={[
-              styles.optionRow,
-              {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: colors.border,
-              },
-            ]}
-          >
+        <SectionCard title="Options">
+          <View style={styles.optionRow}>
             <View
               style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
             >
               <AppIcon name="lock.fill" size={14} color={colors.primary} />
             </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+            <Text style={[styles.optionLabel, { color: colors.foreground, flex: 1 }]}>
               Pin to Lock Screen
             </Text>
             <Switch
               value={isPinned}
               onValueChange={(v) => {
                 Haptics.selectionAsync();
-                setIsPinned(v);
-                void persistNote({ isPinned: v });
+                void (async () => {
+                  if (v) {
+                    const granted = await ensureLocalNotificationPermission();
+                    if (!granted) {
+                      Alert.alert(
+                        'Notifications needed',
+                        'Allow notifications in Settings to pin notes to your lock screen.',
+                      );
+                      return;
+                    }
+                  }
+                  setIsPinned(v);
+                  void persistNote({ isPinned: v });
+                })();
               }}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.card}
               ios_backgroundColor={colors.border}
             />
           </View>
-
-          <Pressable style={styles.optionRow} onPress={() => setShowShareModal(true)}>
-            <View
-              style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
-            >
-              <AppIcon name="person.2" size={14} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-                Share to Group
-              </Text>
-              {groupName ? (
-                <Text style={[styles.optionSub, { color: colors.mutedForeground }]}>
-                  {groupName}
-                </Text>
-              ) : null}
-            </View>
-            <AppIcon name="chevron.right" size={16} color={colors.mutedForeground} />
-          </Pressable>
         </SectionCard>
 
         <View style={styles.actions}>
@@ -548,15 +518,6 @@ export default function NoteDetailScreen() {
           </Pressable>
         </View>
       </ScrollView>
-
-      <ShareModal
-        visible={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        onSelect={(groupId, name) => {
-          void handleShareSelect(groupId, name);
-        }}
-        selectedGroupId={groupId}
-      />
     </View>
   );
 }
@@ -602,6 +563,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   remindChipText: { fontSize: 13, fontFamily: 'Manrope_500Medium' },
+  groupPickerWrap: { padding: 14 },
   pickerWrap: { paddingHorizontal: 14, paddingBottom: 12 },
   pickerDone: {
     height: 40,
@@ -626,8 +588,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  optionLabel: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium' },
-  optionSub: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 1 },
+  optionLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
   actions: { flexDirection: 'row', gap: 12 },
   doneWrap: { flex: 1, position: 'relative' },
   doneBtnOuter: { flex: 1 },
