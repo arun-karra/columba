@@ -39,7 +39,20 @@ export interface User {
   id: string;
   /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
   email?: string | null;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  displayName: string | null;
   createdAt: string;
+}
+
+export interface UserUpdate {
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  displayName?: string | null;
 }
 
 export interface AuthResponse {

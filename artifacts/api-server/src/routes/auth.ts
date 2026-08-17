@@ -59,14 +59,24 @@ async function findOrCreateAppleUser(input: {
   });
 }
 
-async function finalizeAuth(user: { id: string; email: string | null; createdAt: Date }) {
+async function finalizeAuth(user: {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  createdAt: Date;
+}) {
   await prisma.$transaction(async (tx) => {
     await acceptPendingInvitesForUser(tx, user);
   });
 
   return {
     token: signUserToken(user),
-    user,
+    user: {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      createdAt: user.createdAt,
+    },
   };
 }
 

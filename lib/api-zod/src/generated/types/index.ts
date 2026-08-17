@@ -34,3 +34,4 @@ export * from './pushTokenInputPlatform';
 export * from './tooManyRequestsResponse';
 export * from './unauthorizedResponse';
 export * from './user';
+export * from './userUpdate';

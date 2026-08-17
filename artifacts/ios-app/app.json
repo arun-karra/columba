@@ -18,6 +18,9 @@
       "bundleIdentifier": "com.columba.notes",
       "usesAppleSignIn": true,
       "buildNumber": "1",
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      },
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"

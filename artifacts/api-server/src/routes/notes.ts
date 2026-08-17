@@ -138,7 +138,7 @@ router.post(
         [userId],
         notificationTextForNote(note),
         { noteId: note.id },
-        { pinned: true, categoryId: PINNED_NOTE_CATEGORY },
+        { pinned: true, timeSensitive: true, categoryId: PINNED_NOTE_CATEGORY },
       );
     }
     res.status(201).json(mapNote(note));
@@ -203,7 +203,7 @@ router.patch(
         [userId],
         notificationTextForNote(updated),
         { noteId: updated.id },
-        { pinned: true, categoryId: PINNED_NOTE_CATEGORY },
+        { pinned: true, timeSensitive: true, categoryId: PINNED_NOTE_CATEGORY },
       );
     } else if (wasPinned && !nowPinned) {
       void sendDismissPush([userId], updated.id);

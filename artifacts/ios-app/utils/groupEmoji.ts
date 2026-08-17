@@ -21,6 +21,9 @@ export const GROUP_EMOJI_OPTIONS = [
   '🎵',
 ] as const;
 
+/** Six quick picks in the icon row; slot 7 opens the system emoji keyboard. */
+export const QUICK_GROUP_EMOJI_OPTIONS = GROUP_EMOJI_OPTIONS.slice(0, 6);
+
 export type GroupEmoji = (typeof GROUP_EMOJI_OPTIONS)[number];
 
 function hashString(value: string): number {

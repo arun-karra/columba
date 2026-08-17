@@ -2,18 +2,13 @@ import React, { useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useNavigation } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,38 +20,15 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { ShareGroupPicker } from '@/components/ShareGroupPicker';
-import { AppIcon } from '@/components/AppIcon';
-import { useScreenGutter } from '@/constants/layout';
+import {
+  NotifySection,
+  defaultNotifyValue,
+  notifyPayload,
+  type NotifyValue,
+} from '@/components/NotifySection';
 import { presentPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
 import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
-
-// ─── Quick reminder presets ───────────────────────────────────────────────────
-
-function getQuickReminders() {
-  const now = new Date();
-
-  const inOneHour = new Date(now);
-  inOneHour.setHours(inOneHour.getHours() + 1, 0, 0, 0);
-
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(9, 0, 0, 0);
-
-  return [
-    {
-      icon: 'clock' as const,
-      label: 'In 1 hour',
-      date: inOneHour,
-    },
-    {
-      icon: 'sun.max' as const,
-      label: 'Tomorrow',
-      date: tomorrow,
-    },
-  ];
-}
-
-// ─── Section Card ─────────────────────────────────────────────────────────────
+import { useScreenGutter } from '@/constants/layout';
 
 function SectionCard({
   title,
@@ -86,8 +58,6 @@ function SectionCard({
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 export default function NewNoteScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -96,9 +66,8 @@ export default function NewNoteScreen() {
   const queryClient = useQueryClient();
 
   const [body, setBody] = useState('');
-  const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [remindAt, setRemindAt] = useState<Date | null>(null);
+  const [notify, setNotify] = useState<NotifyValue>(defaultNotifyValue);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const createNote = useCreateNote({
@@ -117,27 +86,30 @@ export default function NewNoteScreen() {
   const handleCreate = async () => {
     if (!canSave) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (isPinned && !remindAt) {
+
+    const payload = notifyPayload(notify);
+    if (payload.isPinned && !payload.remindAt) {
       const granted = await ensureLocalNotificationPermission();
       if (!granted) {
         Alert.alert(
           'Notifications needed',
-          'Allow notifications in Settings to pin notes to your lock screen.',
+          'Allow notifications in Settings to show notes on your lock screen.',
         );
         return;
       }
     }
+
     try {
       const created = await createNote.mutateAsync({
         data: {
           title: null,
           body: body.trim(),
-          isPinned,
+          isPinned: payload.isPinned,
           groupId: groupId || null,
-          remindAt: remindAt ? remindAt.toISOString() : null,
+          remindAt: payload.remindAt,
         },
       });
-      if (isPinned && !remindAt) {
+      if (payload.isPinned && !payload.remindAt) {
         await presentPinnedNoteNotification({
           id: created.id,
           body: body.trim(),
@@ -176,29 +148,13 @@ export default function NewNoteScreen() {
                 fontWeight: '600',
               }}
             >
-              Add
+              Save
             </Text>
           )}
         </Pressable>
       ),
     });
-  }, [canSave, createNote.isPending, body, isPinned, groupId, remindAt]);
-
-  const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
-    if (Platform.OS !== 'ios') setShowDatePicker(false);
-    if (selected) setRemindAt(selected);
-  };
-
-  const quickReminders = getQuickReminders();
-
-  const reminderLabel = remindAt
-    ? remindAt.toLocaleString([], {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
+  }, [canSave, createNote.isPending, body, notify, groupId]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -210,7 +166,6 @@ export default function NewNoteScreen() {
           { paddingHorizontal: gutter, paddingBottom: insets.bottom + 24 },
         ]}
       >
-        {/* Body input */}
         <TextInput
           style={[
             styles.bodyInput,
@@ -229,180 +184,23 @@ export default function NewNoteScreen() {
           textAlignVertical="top"
         />
 
-        {/* Remind Me */}
-        <SectionCard title="Remind Me">
-          <View style={styles.remindRow}>
-            {quickReminders.map((r, i) => {
-              const active =
-                remindAt?.toISOString().slice(0, 16) ===
-                r.date.toISOString().slice(0, 16);
-              return (
-                <Pressable
-                  key={i}
-                  style={[
-                    styles.remindChip,
-                    {
-                      borderColor: active ? colors.primary : colors.border,
-                      backgroundColor: active
-                        ? colors.secondary
-                        : colors.muted,
-                      borderRadius: 10,
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setRemindAt(active ? null : r.date);
-                  }}
-                >
-                  <AppIcon
-                    name={r.icon}
-                    size={13}
-                    color={active ? colors.primary : colors.mutedForeground}
-                  />
-                  <Text
-                    style={[
-                      styles.remindChipText,
-                      {
-                        color: active ? colors.primary : colors.mutedForeground,
-                      },
-                    ]}
-                  >
-                    {r.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-            <Pressable
-              style={[
-                styles.remindChip,
-                {
-                  borderColor:
-                    remindAt &&
-                    !quickReminders.some(
-                      (r) =>
-                        r.date.toISOString().slice(0, 16) ===
-                        remindAt.toISOString().slice(0, 16),
-                    )
-                      ? colors.primary
-                      : colors.border,
-                  backgroundColor:
-                    remindAt &&
-                    !quickReminders.some(
-                      (r) =>
-                        r.date.toISOString().slice(0, 16) ===
-                        remindAt.toISOString().slice(0, 16),
-                    )
-                      ? colors.secondary
-                      : colors.muted,
-                  borderRadius: 10,
-                },
-              ]}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setShowDatePicker(true);
-              }}
-            >
-              <AppIcon
-                name="calendar"
-                size={13}
-                color={colors.mutedForeground}
-              />
-              <Text
-                style={[
-                  styles.remindChipText,
-                  { color: colors.mutedForeground },
-                ]}
-              >
-                {reminderLabel && !quickReminders.some(
-                  (r) =>
-                    r.date.toISOString().slice(0, 16) ===
-                    remindAt?.toISOString().slice(0, 16),
-                )
-                  ? reminderLabel
-                  : 'Custom'}
-              </Text>
-            </Pressable>
-          </View>
-
-          {showDatePicker && (
-            <View style={styles.pickerWrap}>
-              <DateTimePicker
-                value={remindAt ?? new Date()}
-                mode="datetime"
-                minimumDate={new Date()}
-                onChange={handleDateChange}
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              />
-              {Platform.OS === 'ios' && (
-                <Pressable
-                  style={[
-                    styles.pickerDone,
-                    { backgroundColor: colors.primary },
-                  ]}
-                  onPress={() => setShowDatePicker(false)}
-                >
-                  <Text
-                    style={[
-                      styles.pickerDoneText,
-                      { color: colors.primaryForeground },
-                    ]}
-                  >
-                    Done
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          )}
-        </SectionCard>
+        <NotifySection
+          value={notify}
+          onChange={setNotify}
+          showDatePicker={showDatePicker}
+          onShowDatePicker={setShowDatePicker}
+        />
 
         <SectionCard title="Select Group">
           <View style={styles.groupPickerWrap}>
             <ShareGroupPicker
               showTitle={false}
+              allowCreate={false}
               selectedGroupId={groupId}
               onSelect={(id) => {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setGroupId(id);
               }}
-            />
-          </View>
-        </SectionCard>
-
-        {/* Options */}
-        <SectionCard title="Options">
-          <View style={styles.optionRow}>
-            <View
-              style={[
-                styles.optionIconWrap,
-                { backgroundColor: colors.secondary },
-              ]}
-            >
-              <AppIcon name="lock.fill" size={14} color={colors.primary} />
-            </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground, flex: 1 }]}>
-              Pin to Lock Screen
-            </Text>
-            <Switch
-              value={isPinned}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                void (async () => {
-                  if (v) {
-                    const granted = await ensureLocalNotificationPermission();
-                    if (!granted) {
-                      Alert.alert(
-                        'Notifications needed',
-                        'Allow notifications in Settings to pin notes to your lock screen.',
-                      );
-                      return;
-                    }
-                  }
-                  setIsPinned(v);
-                })();
-              }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.card}
-              ios_backgroundColor={colors.border}
             />
           </View>
         </SectionCard>
@@ -413,9 +211,7 @@ export default function NewNoteScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-
   content: { paddingTop: 16, gap: 24 },
-
   bodyInput: {
     minHeight: 140,
     padding: 16,
@@ -423,7 +219,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope_600SemiBold',
     lineHeight: 32,
   },
-
   sectionTitle: {
     fontSize: 16,
     fontFamily: 'Manrope_700Bold',
@@ -439,48 +234,5 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-
-  remindRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    padding: 14,
-  },
-  remindChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderWidth: 1,
-  },
-  remindChipText: { fontSize: 13, fontFamily: 'Manrope_500Medium' },
   groupPickerWrap: { padding: 14 },
-
-  pickerWrap: { paddingHorizontal: 14, paddingBottom: 12 },
-  pickerDone: {
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  pickerDoneText: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
-
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  optionIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  optionLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
 });

@@ -2,25 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSequence,
-  withSpring,
-} from 'react-native-reanimated';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -36,6 +25,13 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { ShareGroupPicker } from '@/components/ShareGroupPicker';
 import {
+  NotifySection,
+  notifyPayload,
+  notifyValueFromNote,
+  type NotifyValue,
+} from '@/components/NotifySection';
+import { SlideToComplete } from '@/components/SlideToComplete';
+import {
   clearPinnedNoteNotification,
   presentPinnedNoteNotification,
 } from '@/utils/pinnedNoteNotification';
@@ -44,19 +40,6 @@ import { ensureLocalNotificationPermission } from '@/utils/notificationPermissio
 import { AppIcon } from '@/components/AppIcon';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { useScreenGutter } from '@/constants/layout';
-
-function getQuickReminders() {
-  const now = new Date();
-  const inOneHour = new Date(now);
-  inOneHour.setHours(inOneHour.getHours() + 1, 0, 0, 0);
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(9, 0, 0, 0);
-  return [
-    { icon: 'clock' as const, label: 'In 1 hour', date: inOneHour },
-    { icon: 'sun.max' as const, label: 'Tomorrow', date: tomorrow },
-  ];
-}
 
 function SectionCard({
   title,
@@ -93,31 +76,22 @@ export default function NoteDetailScreen() {
   const toggleDone = useToggleNoteDone();
 
   const [body, setBody] = useState('');
-  const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
-  const [groupEmoji, setGroupEmoji] = useState<string | null>(null);
-  const [remindAt, setRemindAt] = useState<Date | null>(null);
+  const [notify, setNotify] = useState<NotifyValue>(notifyValueFromNote({ isPinned: true, remindAt: null }));
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const hydratedRef = useRef(false);
   const bodyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const doneBtnScale = useSharedValue(1);
-  const doneBtnAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: doneBtnScale.value }],
-  }));
   const [confettiTrigger, setConfettiTrigger] = useState(0);
 
   useEffect(() => {
     if (!note) return;
     hydratedRef.current = false;
     setBody(note.body);
-    setIsPinned(note.isPinned);
     setGroupId(note.groupId ?? null);
     setGroupName(note.groupName ?? null);
-    setGroupEmoji(note.groupEmoji ?? null);
-    setRemindAt(note.remindAt ? new Date(note.remindAt) : null);
+    setNotify(notifyValueFromNote(note));
     hydratedRef.current = true;
   }, [note?.id]);
 
@@ -140,17 +114,17 @@ export default function NoteDetailScreen() {
       if (!id || !note || !hydratedRef.current) return;
 
       const nextBody = (patch.body ?? body.trim()) || note.body;
-      const nextPinned = patch.isPinned ?? isPinned;
-      const nextGroupId =
-        patch.groupId !== undefined ? patch.groupId : groupId;
+      const nextPinned = patch.isPinned ?? notify.isPinned;
+      const nextGroupId = patch.groupId !== undefined ? patch.groupId : groupId;
       const nextRemindAt =
         patch.remindAt !== undefined
           ? patch.remindAt
-          : remindAt
-            ? remindAt.toISOString()
+          : notify.remindAt
+            ? notify.remindAt.toISOString()
             : null;
 
       const wasPinned = note.isPinned;
+      const hadImmediatePin = wasPinned && !note.remindAt;
 
       try {
         const updated = await updateNote.mutateAsync({
@@ -164,17 +138,16 @@ export default function NoteDetailScreen() {
         });
 
         if (patch.body !== undefined) setBody(nextBody);
-        if (patch.isPinned !== undefined) setIsPinned(nextPinned);
         if (patch.groupId !== undefined) {
           setGroupId(nextGroupId);
           setGroupName(updated.groupName ?? null);
-          setGroupEmoji(updated.groupEmoji ?? null);
         }
-        if (patch.remindAt !== undefined) {
-          setRemindAt(nextRemindAt ? new Date(nextRemindAt) : null);
+        if (patch.isPinned !== undefined || patch.remindAt !== undefined) {
+          setNotify(notifyValueFromNote(updated));
         }
 
-        if (!wasPinned && nextPinned && !nextRemindAt) {
+        const nowImmediate = nextPinned && !nextRemindAt;
+        if (!hadImmediatePin && nowImmediate) {
           const shown = await presentPinnedNoteNotification({
             id,
             body: nextBody,
@@ -185,10 +158,13 @@ export default function NoteDetailScreen() {
           if (!shown) {
             Alert.alert(
               'Notifications needed',
-              'Allow notifications in Settings to show pinned notes on your lock screen.',
+              'Allow notifications in Settings to show notes on your lock screen.',
             );
           }
-        } else if (wasPinned && !nextPinned) {
+        } else if (hadImmediatePin && !nowImmediate) {
+          await clearPinnedNoteNotification(id);
+          await dismissNoteNotification(id);
+        } else if (!nextPinned) {
           await clearPinnedNoteNotification(id);
           await dismissNoteNotification(id);
         }
@@ -198,16 +174,7 @@ export default function NoteDetailScreen() {
         Alert.alert('Error', 'Could not save. Please try again.');
       }
     },
-    [
-      id,
-      note,
-      body,
-      isPinned,
-      groupId,
-      remindAt,
-      updateNote,
-      invalidateNoteQueries,
-    ],
+    [id, note, body, notify, groupId, updateNote, invalidateNoteQueries],
   );
 
   useEffect(() => {
@@ -223,6 +190,32 @@ export default function NoteDetailScreen() {
       if (bodyDebounceRef.current) clearTimeout(bodyDebounceRef.current);
     };
   }, [body, note?.body, persistNote]);
+
+  const handleNotifyChange = useCallback(
+    async (next: NotifyValue) => {
+      const previous = notify;
+      setNotify(next);
+
+      if (next.mode !== 'off') {
+        const granted = await ensureLocalNotificationPermission();
+        if (!granted) {
+          Alert.alert(
+            'Notifications needed',
+            'Allow notifications in Settings to show notes on your lock screen.',
+          );
+          setNotify(previous);
+          return;
+        }
+      }
+
+      const payload = notifyPayload(next);
+      await persistNote({
+        isPinned: payload.isPinned,
+        remindAt: payload.remindAt,
+      });
+    },
+    [notify, persistNote],
+  );
 
   const handleDelete = useCallback(() => {
     confirmDestructive({
@@ -248,13 +241,7 @@ export default function NoteDetailScreen() {
   const handleToggleDone = useCallback(async () => {
     if (!id || !note) return;
 
-    doneBtnScale.value = withSequence(
-      withSpring(0.9, { damping: 4, stiffness: 350 }),
-      withSpring(1.12, { damping: 3, stiffness: 400, mass: 0.5 }),
-      withSpring(1, { damping: 14, stiffness: 220 }),
-    );
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
     const wasDone = note.isDone;
     if (!wasDone) setConfettiTrigger((n) => n + 1);
 
@@ -271,31 +258,13 @@ export default function NoteDetailScreen() {
     } catch {
       Alert.alert('Error', 'Could not update this note.');
     }
-  }, [id, note, toggleDone, invalidateNoteQueries, doneBtnScale]);
-
-  const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
-    if (Platform.OS !== 'ios') setShowDatePicker(false);
-    if (selected) {
-      setRemindAt(selected);
-      void persistNote({ remindAt: selected.toISOString() });
-    }
-  };
+  }, [id, note, toggleDone, invalidateNoteQueries]);
 
   const handleShareSelect = async (selectedGroupId: string, name: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await persistNote({ groupId: selectedGroupId });
     setGroupName(name);
   };
-
-  const quickReminders = getQuickReminders();
-  const reminderLabel = remindAt
-    ? remindAt.toLocaleString([], {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
 
   if (isLoading || !note) {
     return (
@@ -332,191 +301,74 @@ export default function NoteDetailScreen() {
           textAlignVertical="top"
         />
 
-        <SectionCard title="Remind Me">
-          <View style={styles.remindRow}>
-            {quickReminders.map((r, i) => {
-              const active =
-                remindAt?.toISOString().slice(0, 16) ===
-                r.date.toISOString().slice(0, 16);
-              return (
-                <Pressable
-                  key={i}
-                  style={[
-                    styles.remindChip,
-                    {
-                      borderColor: active ? colors.primary : colors.border,
-                      backgroundColor: active ? colors.secondary : colors.muted,
-                      borderRadius: 10,
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    const next = active ? null : r.date;
-                    setRemindAt(next);
-                    void persistNote({
-                      remindAt: next ? next.toISOString() : null,
-                    });
-                  }}
-                >
-                  <AppIcon
-                    name={r.icon}
-                    size={13}
-                    color={active ? colors.primary : colors.mutedForeground}
-                  />
-                  <Text
-                    style={[
-                      styles.remindChipText,
-                      {
-                        color: active ? colors.primary : colors.mutedForeground,
-                      },
-                    ]}
-                  >
-                    {r.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-            <Pressable
-              style={[
-                styles.remindChip,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.muted,
-                  borderRadius: 10,
-                },
-              ]}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setShowDatePicker(true);
-              }}
-            >
-              <AppIcon name="calendar" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.remindChipText, { color: colors.mutedForeground }]}>
-                {reminderLabel ?? 'Custom'}
-              </Text>
-            </Pressable>
-          </View>
-
-          {showDatePicker ? (
-            <View style={styles.pickerWrap}>
-              <DateTimePicker
-                value={remindAt ?? new Date()}
-                mode="datetime"
-                minimumDate={new Date()}
-                onChange={handleDateChange}
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              />
-              {Platform.OS === 'ios' ? (
-                <Pressable
-                  style={[styles.pickerDone, { backgroundColor: colors.primary }]}
-                  onPress={() => setShowDatePicker(false)}
-                >
-                  <Text
-                    style={[styles.pickerDoneText, { color: colors.primaryForeground }]}
-                  >
-                    Done
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : null}
-        </SectionCard>
+        <NotifySection
+          value={notify}
+          onChange={(next) => {
+            void handleNotifyChange(next);
+          }}
+          showDatePicker={showDatePicker}
+          onShowDatePicker={setShowDatePicker}
+        />
 
         <SectionCard title="Select Group">
           <View style={styles.groupPickerWrap}>
             <ShareGroupPicker
               showTitle={false}
               selectedGroupId={groupId}
-              onSelect={(id, name) => {
-                void handleShareSelect(id, name);
+              onSelect={(groupIdValue, name) => {
+                void handleShareSelect(groupIdValue, name);
               }}
             />
           </View>
         </SectionCard>
 
-        <SectionCard title="Options">
-          <View style={styles.optionRow}>
-            <View
-              style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
-            >
-              <AppIcon name="lock.fill" size={14} color={colors.primary} />
-            </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground, flex: 1 }]}>
-              Pin to Lock Screen
-            </Text>
-            <Switch
-              value={isPinned}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                void (async () => {
-                  if (v) {
-                    const granted = await ensureLocalNotificationPermission();
-                    if (!granted) {
-                      Alert.alert(
-                        'Notifications needed',
-                        'Allow notifications in Settings to pin notes to your lock screen.',
-                      );
-                      return;
-                    }
-                  }
-                  setIsPinned(v);
-                  void persistNote({ isPinned: v });
-                })();
-              }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.card}
-              ios_backgroundColor={colors.border}
-            />
-          </View>
-        </SectionCard>
-
-        <View style={styles.actions}>
-          <View style={styles.doneWrap}>
-            <Animated.View style={[styles.doneBtnOuter, doneBtnAnimStyle]}>
-              <Pressable
-                style={[
-                  styles.doneBtn,
-                  {
-                    backgroundColor: isDone ? colors.secondary : colors.primary,
-                    borderColor: isDone ? colors.border : 'transparent',
-                    borderWidth: isDone ? 1 : 0,
-                  },
-                ]}
-                onPress={handleToggleDone}
+        {!isDone ? (
+          <View style={styles.actions}>
+            <View style={styles.slideWrap}>
+              <SlideToComplete
+                key="complete"
                 disabled={toggleDone.isPending}
-              >
-                <AppIcon
-                  name={isDone ? 'arrow.counterclockwise' : 'checkmark'}
-                  size={18}
-                  color={isDone ? colors.foreground : colors.primaryForeground}
-                />
-                <Text
-                  style={[
-                    styles.doneBtnText,
-                    {
-                      color: isDone ? colors.foreground : colors.primaryForeground,
-                    },
-                  ]}
-                >
-                  {isDone ? 'Mark undone' : 'Mark done'}
-                </Text>
-              </Pressable>
-            </Animated.View>
-            <View pointerEvents="none" style={styles.confettiAnchor}>
-              <ConfettiBurst trigger={confettiTrigger} size={240} />
+                onComplete={() => {
+                  void handleToggleDone();
+                }}
+              />
+              <View pointerEvents="none" style={styles.confettiAnchor}>
+                <ConfettiBurst trigger={confettiTrigger} size={240} />
+              </View>
             </View>
+            <Pressable
+              style={[
+                styles.deleteBtn,
+                { borderColor: colors.border, backgroundColor: colors.card },
+              ]}
+              onPress={handleDelete}
+            >
+              <AppIcon name="trash" size={18} color={colors.destructive} />
+            </Pressable>
           </View>
-
-          <Pressable
-            style={[
-              styles.deleteBtn,
-              { borderColor: colors.border, backgroundColor: colors.card },
-            ]}
-            onPress={handleDelete}
-          >
-            <AppIcon name="trash" size={18} color={colors.destructive} />
-          </Pressable>
-        </View>
+        ) : (
+          <View style={styles.actions}>
+            <View style={styles.slideWrap}>
+              <SlideToComplete
+                key="reopen"
+                label="Slide to reopen"
+                disabled={toggleDone.isPending}
+                onComplete={() => {
+                  void handleToggleDone();
+                }}
+              />
+            </View>
+            <Pressable
+              style={[
+                styles.deleteBtn,
+                { borderColor: colors.border, backgroundColor: colors.card },
+              ]}
+              onPress={handleDelete}
+            >
+              <AppIcon name="trash" size={18} color={colors.destructive} />
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -548,59 +400,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  remindRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    padding: 14,
-  },
-  remindChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderWidth: 1,
-  },
-  remindChipText: { fontSize: 13, fontFamily: 'Manrope_500Medium' },
   groupPickerWrap: { padding: 14 },
-  pickerWrap: { paddingHorizontal: 14, paddingBottom: 12 },
-  pickerDone: {
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  pickerDoneText: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  optionIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  optionLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
-  actions: { flexDirection: 'row', gap: 12 },
-  doneWrap: { flex: 1, position: 'relative' },
-  doneBtnOuter: { flex: 1 },
-  doneBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 52,
-    borderRadius: 26,
-  },
-  doneBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  actions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  slideWrap: { flex: 1, position: 'relative' },
   confettiAnchor: {
     position: 'absolute',
     top: '50%',
