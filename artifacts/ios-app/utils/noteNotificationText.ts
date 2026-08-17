@@ -1,5 +1,15 @@
 import { resolveGroupEmoji } from '@/utils/groupEmoji';
 
+export function resolveNoteGroupEmoji(
+  groupId: string | null | undefined,
+  groupName: string | null | undefined,
+  emojiMap: Record<string, string>,
+  serverGroupEmoji?: string | null,
+): string | null {
+  if (!groupId || !groupName) return null;
+  return resolveGroupEmoji(groupId, groupName, emojiMap, serverGroupEmoji);
+}
+
 export function formatNoteNotificationText(
   body: string,
   groupId?: string | null,
@@ -8,9 +18,7 @@ export function formatNoteNotificationText(
   serverGroupEmoji?: string | null,
 ): string {
   const text = body.trim() || 'Note';
-  const emoji =
-    serverGroupEmoji ??
-    (groupId && groupName ? resolveGroupEmoji(groupId, groupName, emojiMap ?? {}) : null);
+  const emoji = resolveNoteGroupEmoji(groupId, groupName, emojiMap ?? {}, serverGroupEmoji);
   if (emoji) return `${emoji} ${text}`;
   return text;
 }

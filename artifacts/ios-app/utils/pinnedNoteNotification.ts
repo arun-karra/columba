@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { ensureLocalNotificationPermission } from './notificationPermissions';
 import { formatNoteNotificationText } from './noteNotificationText';
+import { getGroupEmojiMap } from '@/utils/groupEmoji';
 import { MARK_COMPLETE_ACTION, PINNED_NOTE_CATEGORY } from './notifications';
 
 type PinnedNote = {
@@ -26,11 +27,12 @@ export async function presentPinnedNoteNotification(note: PinnedNote): Promise<b
   const granted = await ensureLocalNotificationPermission();
   if (!granted) return false;
 
+  const emojiMap = note.groupId ? await getGroupEmojiMap() : {};
   const title = formatNoteNotificationText(
     note.body,
     note.groupId,
     note.groupName,
-    undefined,
+    emojiMap,
     note.groupEmoji,
   );
 
