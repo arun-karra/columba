@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -270,34 +271,70 @@ export default function GroupsScreen() {
 
       <Modal
         visible={showCreate}
-        transparent
         animationType="slide"
-        onRequestClose={() => setShowCreate(false)}
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+        onRequestClose={() => {
+          setShowCreate(false);
+          setGroupName('');
+        }}
       >
-        <Pressable
-          style={styles.overlay}
-          onPress={() => {
-            setShowCreate(false);
-            setGroupName('');
-          }}
-        >
+        <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
           <View
             style={[
-              styles.sheet,
+              styles.modalHeader,
               {
+                paddingTop: Platform.OS === 'ios' ? 16 : insets.top + 12,
+                paddingHorizontal: gutter,
+                borderBottomColor: colors.border,
                 backgroundColor: colors.card,
-                paddingBottom: insets.bottom + 16,
               },
             ]}
-            onStartShouldSetResponder={() => true}
           >
-            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
+            <Pressable
+              onPress={() => {
+                setShowCreate(false);
+                setGroupName('');
+              }}
+              hitSlop={14}
+            >
+              <Text style={[styles.modalHeaderAction, { color: colors.primary }]}>Cancel</Text>
+            </Pressable>
+            <Text style={[styles.modalHeaderTitle, { color: colors.foreground }]}>
               New Group
             </Text>
-            <EmojiPicker
-              value={selectedEmoji}
-              onChange={setSelectedEmoji}
-            />
+            <Pressable
+              onPress={() => void handleCreateFromModal()}
+              hitSlop={14}
+              disabled={createGroup.isPending || !groupName.trim()}
+            >
+              {createGroup.isPending ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text
+                  style={[
+                    styles.modalHeaderAction,
+                    styles.modalHeaderActionRight,
+                    {
+                      color: groupName.trim() ? colors.primary : colors.mutedForeground,
+                    },
+                  ]}
+                >
+                  Create
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
+          <View
+            style={[
+              styles.modalBody,
+              {
+                paddingHorizontal: gutter,
+                paddingBottom: insets.bottom + 24,
+              },
+            ]}
+          >
+            <EmojiPicker value={selectedEmoji} onChange={setSelectedEmoji} />
             <TextInput
               style={[
                 styles.input,
@@ -316,44 +353,11 @@ export default function GroupsScreen() {
                   setSelectedEmoji(defaultEmojiForGroup(''));
                 }
               }}
-              autoFocus
               returnKeyType="done"
               onSubmitEditing={handleCreateFromModal}
             />
-            <View style={styles.sheetActions}>
-              <Pressable
-                style={[
-                  styles.sheetBtn,
-                  {
-                    backgroundColor: groupName.trim()
-                      ? colors.primary
-                      : colors.secondary,
-                    flex: 1,
-                  },
-                ]}
-                onPress={handleCreateFromModal}
-                disabled={createGroup.isPending || !groupName.trim()}
-              >
-                {createGroup.isPending ? (
-                  <ActivityIndicator color={colors.primaryForeground} size="small" />
-                ) : (
-                  <Text
-                    style={[
-                      styles.sheetBtnText,
-                      {
-                        color: groupName.trim()
-                          ? colors.primaryForeground
-                          : colors.mutedForeground,
-                      },
-                    ]}
-                  >
-                    Create
-                  </Text>
-                )}
-              </Pressable>
-            </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
     </View>
   );
@@ -424,6 +428,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
+  modalRoot: { flex: 1 },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modalHeaderAction: { fontSize: 17, fontFamily: 'Manrope_600SemiBold', width: 72 },
+  modalHeaderActionRight: { textAlign: 'right' },
+  modalHeaderTitle: { fontSize: 17, fontFamily: 'Manrope_700Bold' },
+  modalBody: { flex: 1, paddingTop: 20, gap: 16 },
   sheet: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,

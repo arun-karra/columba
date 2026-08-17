@@ -35,6 +35,9 @@ echo ""
 echo "Press Ctrl+C here to stop both servers."
 echo ""
 
+echo "→ Building API (picks up latest routes like /me)..."
+pnpm --filter @workspace/api-server run build
+
 pnpm --filter @workspace/api-server run start &
 sleep 2
 pnpm --filter @workspace/ios-app run start

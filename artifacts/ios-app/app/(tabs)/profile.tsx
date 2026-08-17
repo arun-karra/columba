@@ -125,6 +125,7 @@ export default function ProfileScreen() {
     mutation: {
       onSuccess: async (updated) => {
         await updateUser(updated);
+        await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       },
     },
@@ -189,8 +190,16 @@ export default function ProfileScreen() {
     try {
       await updateMe.mutateAsync({ data: { displayName: trimmed } });
       setIsEditingName(false);
-    } catch {
-      Alert.alert('Error', 'Could not save your name. Please try again.');
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Could not save your name. Please try again.';
+      const hint =
+        message.includes('404') || message.toLowerCase().includes('not found')
+          ? '\n\nTry restarting dev: stop pnpm mac:dev, then run it again (rebuilds the API).'
+          : '';
+      Alert.alert('Error', `${message}${hint}`);
     }
   };
 
