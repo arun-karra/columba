@@ -21,7 +21,7 @@ export const GROUP_EMOJI_OPTIONS = [
   '🎵',
 ] as const;
 
-/** Six quick picks in the icon row; slot 7 opens the emoji keyboard. */
+/** Legacy quick picks — prefer `EmojiPicker` with the full emoji catalog. */
 export const QUICK_GROUP_EMOJI_OPTIONS = ['🏠', '👥', '💼', '📚', '✈️', '🎉'] as const;
 
 export type GroupEmoji = (typeof GROUP_EMOJI_OPTIONS)[number];

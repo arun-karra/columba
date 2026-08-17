@@ -34,6 +34,8 @@ const FEATHER_FALLBACK: Record<string, FeatherName> = {
   'internaldrive': 'database',
   'magnifyingglass': 'search',
   'plus.magnifyingglass': 'search',
+  'face.smiling': 'smile',
+  'delete.left': 'delete',
 };
 
 export function AppIcon({

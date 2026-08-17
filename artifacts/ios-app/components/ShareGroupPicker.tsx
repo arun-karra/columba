@@ -28,6 +28,12 @@ import {
   resolveGroupEmoji,
   setGroupEmoji,
 } from '@/utils/groupEmoji';
+import { defaultIconStyleForGroup } from '@/utils/emojiCatalog';
+import {
+  getGroupIconColorMap,
+  resolveGroupIconColor,
+  setGroupIconColor,
+} from '@/utils/groupIconStyle';
 
 const QUICK_PICK_LIMIT = 4;
 
@@ -92,25 +98,38 @@ export function ShareGroupPicker({
   const queryClient = useQueryClient();
 
   const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
+  const [iconColorMap, setIconColorMap] = useState<Record<string, string>>({});
   const [showFullList, setShowFullList] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupEmoji, setNewGroupEmoji] = useState<string>(defaultEmojiForGroup(''));
+  const [newGroupIconColor, setNewGroupIconColor] = useState<string>(
+    defaultIconStyleForGroup(''),
+  );
 
   const { data: groups = [], isLoading } = useListGroups();
 
   useEffect(() => {
-    void getGroupEmojiMap().then(setEmojiMap);
+    void Promise.all([getGroupEmojiMap(), getGroupIconColorMap()]).then(
+      ([emojis, colors]) => {
+        setEmojiMap(emojis);
+        setIconColorMap(colors);
+      },
+    );
   }, [groups.length]);
 
   const createGroup = useCreateGroup({
     mutation: {
       onSuccess: async (group) => {
-        await setGroupEmoji(group.id, newGroupEmoji);
+        await Promise.all([
+          setGroupEmoji(group.id, newGroupEmoji),
+          setGroupIconColor(group.id, newGroupIconColor),
+        ]);
         queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
         setShowCreate(false);
         setNewGroupName('');
         setNewGroupEmoji(defaultEmojiForGroup(''));
+        setNewGroupIconColor(defaultIconStyleForGroup(''));
         setShowFullList(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onSelect(group.id, group.name);
@@ -175,6 +194,7 @@ export function ShareGroupPicker({
           style={[styles.createLink, { borderColor: colors.border }]}
           onPress={() => {
             setNewGroupEmoji(defaultEmojiForGroup(''));
+            setNewGroupIconColor(defaultIconStyleForGroup(''));
             setShowCreate(true);
           }}
         >
@@ -256,7 +276,12 @@ export function ShareGroupPicker({
                 ]}
                 onPress={() => pickGroup(group)}
               >
-                <GroupAvatar emoji={emoji} fallbackInitials={initials} size={36} />
+                <GroupAvatar
+                  emoji={emoji}
+                  fallbackInitials={initials}
+                  size={36}
+                  backgroundColor={resolveGroupIconColor(group.id, group.name, iconColorMap)}
+                />
                 <View style={styles.listInfo}>
                   <Text style={[styles.listName, { color: colors.foreground }]}>
                     {group.name}
@@ -283,7 +308,15 @@ export function ShareGroupPicker({
           ]}
         >
           <Text style={[styles.createLabel, { color: colors.foreground }]}>New group</Text>
-          <EmojiPicker value={newGroupEmoji} onChange={setNewGroupEmoji} />
+          <View style={styles.createPickerWrap}>
+            <EmojiPicker
+              variant="compact"
+              value={newGroupEmoji}
+              onChange={setNewGroupEmoji}
+              backgroundColor={newGroupIconColor}
+              onBackgroundColorChange={setNewGroupIconColor}
+            />
+          </View>
           <TextInput
             style={[
               styles.createInput,
@@ -334,6 +367,7 @@ export function ShareGroupPicker({
           style={styles.createLink}
           onPress={() => {
             setNewGroupEmoji(defaultEmojiForGroup(''));
+            setNewGroupIconColor(defaultIconStyleForGroup(''));
             setShowCreate(true);
           }}
         >
@@ -437,6 +471,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   createLabel: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
+  createPickerWrap: { height: 360 },
   createInput: {
     height: 44,
     paddingHorizontal: 14,
