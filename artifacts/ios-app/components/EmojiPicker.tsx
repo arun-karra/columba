@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import {
-  Pressable,
+  Alert,
+  Platform,
   StyleSheet,
   Text,
-  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -21,89 +22,97 @@ const CHIP_SIZE = 44;
 function firstEmoji(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return '';
-  return [...trimmed][0] ?? '';
+  return [...trimmed.normalize('NFC')][0] ?? '';
+}
+
+function normalizeEmoji(emoji: string): string {
+  return emoji.normalize('NFC');
 }
 
 function isQuickEmoji(emoji: string): boolean {
-  return (QUICK_GROUP_EMOJI_OPTIONS as readonly string[]).includes(emoji);
+  const normalized = normalizeEmoji(emoji);
+  return QUICK_GROUP_EMOJI_OPTIONS.some((option) => normalizeEmoji(option) === normalized);
 }
 
 export function EmojiPicker({ value, onChange }: Props) {
   const colors = useColors();
-  const customRef = useRef<TextInput>(null);
+  const normalizedValue = normalizeEmoji(value);
+  const customSelected = normalizedValue.length > 0 && !isQuickEmoji(normalizedValue);
 
-  const openEmojiKeyboard = () => {
+  const pickEmoji = (emoji: string) => {
     Haptics.selectionAsync();
-    customRef.current?.focus();
+    onChange(normalizeEmoji(emoji));
   };
 
-  const customSelected = value.length > 0 && !isQuickEmoji(value);
+  const openCustomEmojiPicker = () => {
+    Haptics.selectionAsync();
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Choose emoji',
+        'Type or paste any emoji',
+        (text) => {
+          const emoji = firstEmoji(text ?? '');
+          if (emoji) onChange(emoji);
+        },
+        'plain-text',
+        customSelected ? normalizedValue : '',
+      );
+      return;
+    }
+    Alert.alert('Choose emoji', 'Paste an emoji into the group name field for now.');
+  };
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} pointerEvents="box-none">
       <Text style={[styles.label, { color: colors.mutedForeground }]}>Icon</Text>
-      <View style={styles.row}>
+      <View style={styles.row} pointerEvents="box-none">
         {QUICK_GROUP_EMOJI_OPTIONS.map((emoji) => {
-          const selected = value === emoji;
+          const selected = normalizedValue === normalizeEmoji(emoji);
           return (
-            <Pressable
+            <TouchableOpacity
               key={emoji}
-              onPress={() => {
-                Haptics.selectionAsync();
-                onChange(emoji);
-              }}
-              hitSlop={4}
-              style={({ pressed }) => [
+              activeOpacity={0.7}
+              onPress={() => pickEmoji(emoji)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`Select ${emoji} icon`}
+              style={[
                 styles.chip,
                 {
                   backgroundColor: selected ? colors.secondary : colors.muted,
                   borderColor: selected ? colors.primary : colors.border,
-                  opacity: pressed ? 0.85 : 1,
                 },
               ]}
             >
-              <Text style={styles.emoji}>{emoji}</Text>
-            </Pressable>
+              <Text style={styles.emoji} pointerEvents="none">
+                {emoji}
+              </Text>
+            </TouchableOpacity>
           );
         })}
-        <Pressable
-          onPress={openEmojiKeyboard}
-          hitSlop={4}
-          style={({ pressed }) => [
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={openCustomEmojiPicker}
+          accessibilityRole="button"
+          accessibilityLabel="Search for any emoji"
+          style={[
             styles.chip,
             styles.moreChip,
             {
               backgroundColor: customSelected ? colors.secondary : colors.muted,
               borderColor: customSelected ? colors.primary : colors.border,
-              opacity: pressed ? 0.85 : 1,
             },
           ]}
-          accessibilityRole="button"
-          accessibilityLabel="Search for any emoji"
         >
           {customSelected ? (
-            <Text style={styles.emoji}>{value}</Text>
+            <Text style={styles.emoji} pointerEvents="none">
+              {normalizedValue}
+            </Text>
           ) : (
             <AppIcon name="plus.magnifyingglass" size={18} color={colors.primary} />
           )}
-        </Pressable>
+        </TouchableOpacity>
       </View>
-      <TextInput
-        ref={customRef}
-        style={styles.hiddenInput}
-        value=""
-        onChangeText={(text) => {
-          const emoji = firstEmoji(text);
-          if (emoji) {
-            onChange(emoji);
-            customRef.current?.blur();
-          }
-        }}
-        autoCorrect={false}
-        autoCapitalize="none"
-        returnKeyType="done"
-        caretHidden
-      />
     </View>
   );
 }
@@ -117,7 +126,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
     paddingVertical: 2,
   },
@@ -130,12 +138,5 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   moreChip: { borderStyle: 'dashed' },
-  emoji: { fontSize: 22 },
-  hiddenInput: {
-    position: 'absolute',
-    left: -9999,
-    width: 1,
-    height: 1,
-    opacity: 0,
-  },
+  emoji: { fontSize: 22, lineHeight: 26 },
 });

@@ -191,15 +191,18 @@ export default function ProfileScreen() {
       await updateMe.mutateAsync({ data: { displayName: trimmed } });
       setIsEditingName(false);
     } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : 'Could not save your name. Please try again.';
+      const status = error && typeof error === 'object' && 'status' in error
+        ? Number((error as { status: number }).status)
+        : 0;
+      const apiMessage =
+        error instanceof Error && error.message ? error.message : 'Could not save your name.';
       const hint =
-        message.includes('404') || message.toLowerCase().includes('not found')
-          ? '\n\nTry restarting dev: stop pnpm mac:dev, then run it again (rebuilds the API).'
-          : '';
-      Alert.alert('Error', `${message}${hint}`);
+        status === 500 || status === 503
+          ? '\n\nYour database may be out of date. Stop the terminal (Ctrl+C), run pnpm mac:dev again — it now syncs the schema automatically.'
+          : status === 404
+            ? '\n\nRestart pnpm mac:dev so the API rebuilds with the latest /me route.'
+            : '';
+      Alert.alert('Error', `${apiMessage}${hint}`);
     }
   };
 

@@ -35,6 +35,9 @@ echo ""
 echo "Press Ctrl+C here to stop both servers."
 echo ""
 
+echo "→ Syncing database schema (adds columns like User.displayName)..."
+pnpm --filter @workspace/api-server run prisma:push
+
 echo "→ Building API (picks up latest routes like /me)..."
 pnpm --filter @workspace/api-server run build
 

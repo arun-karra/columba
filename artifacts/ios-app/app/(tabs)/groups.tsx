@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -278,6 +279,7 @@ export default function GroupsScreen() {
           setGroupName('');
         }}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
           <View
             style={[
@@ -358,6 +360,7 @@ export default function GroupsScreen() {
             />
           </View>
         </View>
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );

@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import {
@@ -317,6 +318,7 @@ export default function GroupDetailScreen() {
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
         onRequestClose={closeEmojiEditor}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={[styles.emojiModalRoot, { backgroundColor: colors.background }]}>
           <View
             style={[
@@ -343,6 +345,7 @@ export default function GroupDetailScreen() {
             <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} />
           </View>
         </View>
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );
