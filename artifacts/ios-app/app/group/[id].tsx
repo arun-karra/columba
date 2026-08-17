@@ -191,6 +191,11 @@ export default function GroupDetailScreen() {
     setShowEmojiEditor(true);
   };
 
+  const closeEmojiEditor = () => {
+    setDraftEmoji(emoji);
+    setShowEmojiEditor(false);
+  };
+
   const saveEmoji = async () => {
     if (!id) return;
     await setGroupEmoji(id, draftEmoji);
@@ -302,10 +307,13 @@ export default function GroupDetailScreen() {
         visible={showEmojiEditor}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowEmojiEditor(false)}
+        onRequestClose={closeEmojiEditor}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+        <Pressable style={styles.modalBackdrop} onPress={closeEmojiEditor}>
+          <Pressable
+            style={[styles.modalCard, { backgroundColor: colors.card }]}
+            onPress={() => undefined}
+          >
             <Text style={[styles.groupName, { color: colors.foreground, fontSize: 18 }]}>
               Group icon
             </Text>
@@ -318,13 +326,8 @@ export default function GroupDetailScreen() {
                 Save
               </Text>
             </Pressable>
-            <Pressable onPress={() => setShowEmojiEditor(false)}>
-              <Text style={[styles.changeEmoji, { color: colors.mutedForeground }]}>
-                Cancel
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );

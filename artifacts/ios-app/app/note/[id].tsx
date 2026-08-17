@@ -40,6 +40,7 @@ import {
   presentPinnedNoteNotification,
 } from '@/utils/pinnedNoteNotification';
 import { dismissNoteNotification } from '@/utils/notifications';
+import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 import { AppIcon } from '@/components/AppIcon';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { useScreenGutter } from '@/constants/layout';
@@ -177,11 +178,17 @@ export default function NoteDetailScreen() {
         }
 
         if (!wasPinned && nextPinned && !nextRemindAt) {
-          await presentPinnedNoteNotification({
+          const shown = await presentPinnedNoteNotification({
             id,
             body: nextBody,
             title: updated.title,
           });
+          if (!shown) {
+            Alert.alert(
+              'Notifications needed',
+              'Allow notifications in Settings to show pinned notes on your lock screen.',
+            );
+          }
         } else if (wasPinned && !nextPinned) {
           await clearPinnedNoteNotification(id);
           await dismissNoteNotification(id);
@@ -444,9 +451,14 @@ export default function NoteDetailScreen() {
             >
               <AppIcon name="exclamationmark.circle" size={14} color={colors.urgent} />
             </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-              Mark as Urgent
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+                Mark as Urgent
+              </Text>
+              <Text style={[styles.optionHint, { color: colors.mutedForeground }]}>
+                Red badge on the list; time-sensitive when a reminder fires
+              </Text>
+            </View>
             <Switch
               value={isUrgent}
               onValueChange={(v) => {
@@ -466,15 +478,27 @@ export default function NoteDetailScreen() {
             >
               <AppIcon name="lock.fill" size={14} color={colors.primary} />
             </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+            <Text style={[styles.optionLabel, { color: colors.foreground, flex: 1 }]}>
               Pin to Lock Screen
             </Text>
             <Switch
               value={isPinned}
               onValueChange={(v) => {
                 Haptics.selectionAsync();
-                setIsPinned(v);
-                void persistNote({ isPinned: v });
+                void (async () => {
+                  if (v) {
+                    const granted = await ensureLocalNotificationPermission();
+                    if (!granted) {
+                      Alert.alert(
+                        'Notifications needed',
+                        'Allow notifications in Settings to pin notes to your lock screen.',
+                      );
+                      return;
+                    }
+                  }
+                  setIsPinned(v);
+                  void persistNote({ isPinned: v });
+                })();
               }}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.card}
@@ -601,7 +625,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  optionLabel: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  optionLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  optionHint: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2, lineHeight: 16 },
   optionSub: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 1 },
   actions: { flexDirection: 'row', gap: 12 },
   doneWrap: { flex: 1, position: 'relative' },

@@ -27,6 +27,8 @@ import { useColors } from '@/hooks/useColors';
 import { ShareGroupPicker } from '@/components/ShareGroupPicker';
 import { AppIcon } from '@/components/AppIcon';
 import { useScreenGutter } from '@/constants/layout';
+import { presentPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
+import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 
 // ─── Quick reminder presets ───────────────────────────────────────────────────
 
@@ -116,8 +118,18 @@ export default function NewNoteScreen() {
   const handleCreate = async () => {
     if (!canSave) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (isPinned && !remindAt) {
+      const granted = await ensureLocalNotificationPermission();
+      if (!granted) {
+        Alert.alert(
+          'Notifications needed',
+          'Allow notifications in Settings to pin notes to your lock screen.',
+        );
+        return;
+      }
+    }
     try {
-      await createNote.mutateAsync({
+      const created = await createNote.mutateAsync({
         data: {
           title: null,
           body: body.trim(),
@@ -127,6 +139,13 @@ export default function NewNoteScreen() {
           remindAt: remindAt ? remindAt.toISOString() : null,
         },
       });
+      if (isPinned && !remindAt) {
+        await presentPinnedNoteNotification({
+          id: created.id,
+          body: body.trim(),
+          title: created.title,
+        });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch {
@@ -369,9 +388,14 @@ export default function NewNoteScreen() {
             >
               <AppIcon name="exclamationmark.circle" size={14} color={colors.urgent} />
             </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-              Mark as Urgent
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+                Mark as Urgent
+              </Text>
+              <Text style={[styles.optionHint, { color: colors.mutedForeground }]}>
+                Red badge on the list; time-sensitive when a reminder fires
+              </Text>
+            </View>
             <Switch
               value={isUrgent}
               onValueChange={(v) => {
@@ -394,14 +418,26 @@ export default function NewNoteScreen() {
             >
               <AppIcon name="lock.fill" size={14} color={colors.primary} />
             </View>
-            <Text style={[styles.optionLabel, { color: colors.foreground }]}>
+            <Text style={[styles.optionLabel, { color: colors.foreground, flex: 1 }]}>
               Pin to Lock Screen
             </Text>
             <Switch
               value={isPinned}
               onValueChange={(v) => {
                 Haptics.selectionAsync();
-                setIsPinned(v);
+                void (async () => {
+                  if (v) {
+                    const granted = await ensureLocalNotificationPermission();
+                    if (!granted) {
+                      Alert.alert(
+                        'Notifications needed',
+                        'Allow notifications in Settings to pin notes to your lock screen.',
+                      );
+                      return;
+                    }
+                  }
+                  setIsPinned(v);
+                })();
               }}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.card}
@@ -485,5 +521,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  optionLabel: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  optionLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
+  optionHint: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2, lineHeight: 16 },
 });

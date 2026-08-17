@@ -239,6 +239,7 @@ export default function GroupsScreen() {
                 paddingBottom: insets.bottom + 16,
               },
             ]}
+            onPress={() => undefined}
           >
             <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
               New Group
@@ -271,23 +272,13 @@ export default function GroupsScreen() {
             />
             <View style={styles.sheetActions}>
               <Pressable
-                style={[styles.sheetBtn, { backgroundColor: colors.secondary }]}
-                onPress={() => {
-                  setShowCreate(false);
-                  setGroupName('');
-                }}
-              >
-                <Text style={[styles.sheetBtnText, { color: colors.mutedForeground }]}>
-                  Cancel
-                </Text>
-              </Pressable>
-              <Pressable
                 style={[
                   styles.sheetBtn,
                   {
                     backgroundColor: groupName.trim()
                       ? colors.primary
                       : colors.secondary,
+                    flex: 1,
                   },
                 ]}
                 onPress={handleCreateFromModal}

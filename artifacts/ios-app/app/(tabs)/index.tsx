@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -14,8 +15,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import {
   useListNotes,
-  useUpdateNote,
   useDeleteNote,
+  useToggleNoteDone,
   getListNotesQueryKey,
   getGetNotesSummaryQueryKey,
   type Note,
@@ -23,7 +24,6 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { AppIcon } from '@/components/AppIcon';
-import { ShareModal } from '@/components/ShareModal';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
 import { getGroupEmojiMap, resolveGroupEmoji } from '@/utils/groupEmoji';
@@ -77,14 +77,13 @@ export default function NotesScreen() {
   const { user } = useAuth();
 
   const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
-  const [shareNoteId, setShareNoteId] = useState<string | null>(null);
   const openSwipeRef = useRef<Swipeable | null>(null);
 
   const { data: notes = [], isLoading, refetch } = useListNotes({
     query: { queryKey: getListNotesQueryKey(), enabled: !!user },
   });
 
-  const updateNote = useUpdateNote();
+  const toggleDone = useToggleNoteDone();
   const deleteNote = useDeleteNote();
 
   useEffect(() => {
@@ -129,33 +128,25 @@ export default function NotesScreen() {
     [deleteNote, invalidate],
   );
 
-  const handleShareSelect = useCallback(
-    async (groupId: string) => {
-      if (!shareNoteId) return;
-      const note = notes.find((n) => n.id === shareNoteId);
-      if (!note) return;
-      setShareNoteId(null);
+  const handleToggleDone = useCallback(
+    (note: Note) => {
+      openSwipeRef.current?.close();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      try {
-        await updateNote.mutateAsync({
-          id: shareNoteId,
-          data: {
-            body: note.body,
-            isUrgent: note.isUrgent,
-            isPinned: note.isPinned,
-            groupId,
-            remindAt: note.remindAt ? new Date(note.remindAt).toISOString() : null,
-          },
-        });
-        await invalidate();
-      } catch {
-        // best-effort
-      }
+      void (async () => {
+        try {
+          await toggleDone.mutateAsync({ id: note.id });
+          if (note.isPinned && !note.isDone) {
+            await clearPinnedNoteNotification(note.id);
+            await dismissNoteNotification(note.id);
+          }
+          await invalidate();
+        } catch {
+          Alert.alert('Error', 'Could not update this note.');
+        }
+      })();
     },
-    [shareNoteId, notes, updateNote, invalidate],
+    [toggleDone, invalidate],
   );
-
-  const shareNote = notes.find((n) => n.id === shareNoteId);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -183,16 +174,26 @@ export default function NotesScreen() {
 
           const renderLeftActions = () => (
             <Pressable
-              style={[styles.swipeAction, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                openSwipeRef.current?.close();
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShareNoteId(item.id);
-              }}
+              style={[
+                styles.swipeAction,
+                {
+                  backgroundColor: item.isDone ? colors.secondary : colors.primary,
+                },
+              ]}
+              onPress={() => handleToggleDone(item)}
             >
-              <AppIcon name="person.2.fill" size={20} color={colors.primaryForeground} />
-              <Text style={[styles.swipeLabel, { color: colors.primaryForeground }]}>
-                Group
+              <AppIcon
+                name={item.isDone ? 'arrow.counterclockwise' : 'checkmark'}
+                size={20}
+                color={item.isDone ? colors.foreground : colors.primaryForeground}
+              />
+              <Text
+                style={[
+                  styles.swipeLabel,
+                  { color: item.isDone ? colors.foreground : colors.primaryForeground },
+                ]}
+              >
+                {item.isDone ? 'Undo' : 'Done'}
               </Text>
             </Pressable>
           );
@@ -282,15 +283,6 @@ export default function NotesScreen() {
       >
         <AppIcon name="plus" size={26} color={colors.primary} />
       </Pressable>
-
-      <ShareModal
-        visible={shareNoteId !== null}
-        selectedGroupId={shareNote?.groupId ?? null}
-        onClose={() => setShareNoteId(null)}
-        onSelect={(groupId) => {
-          void handleShareSelect(groupId);
-        }}
-      />
     </View>
   );
 }
