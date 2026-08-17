@@ -97,6 +97,36 @@ You do **not** need any of that just to use the app in the Simulator with the de
 
 ## If something breaks
 
+### `git pull` blocked by local changes
+
+If you see *“Your local changes would be overwritten”*:
+
+```bash
+cd ~/columba
+git stash push -m "mac local" -- artifacts/ios-app/app.json pnpm-workspace.yaml
+git pull origin main
+git log -1 --oneline   # should show 84a76b7 or newer
+```
+
+### `pnpm mac:dev` fails with `ERR_PNPM_IGNORED_BUILDS`
+
+pnpm 11 on your Mac requires approved install scripts. After `git pull`:
+
+```bash
+cd ~/columba
+pnpm install
+pnpm mac:dev
+```
+
+If install still fails, run once (non-interactive):
+
+```bash
+pnpm approve-builds esbuild prisma @prisma/client @prisma/engines @swc/core msw unrs-resolver
+pnpm install
+```
+
+### General reset
+
 ```bash
 cd ~/columba
 pnpm mac:setup    # fix deps + database
