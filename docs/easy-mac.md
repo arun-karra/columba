@@ -1,0 +1,98 @@
+# Columba on your Mac — the easy way
+
+You only need **two commands** for day-to-day testing in the Simulator. Ignore ngrok, EAS, and Railway until you are ready to ship.
+
+---
+
+## One-time setup (5 minutes)
+
+Open **Terminal** and run:
+
+```bash
+cd ~/columba
+git pull
+pnpm mac:setup
+```
+
+That installs dependencies, creates `artifacts/api-server/.env`, and sets up the database.
+
+If Postgres is missing:
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+createdb columba
+pnpm mac:setup
+```
+
+---
+
+## Every day (one command)
+
+```bash
+cd ~/columba
+pnpm mac:dev
+```
+
+Leave that terminal open. It starts:
+
+- **API** at `http://localhost:8080`
+- **Metro** at `http://localhost:8081`
+
+Then in the **Simulator**:
+
+1. Open the **Columba** app (the dev build you already installed).
+2. Tap **`localhost:8081`** on the dev-client home screen.
+3. **Sign in:** tap the Columba **logo 20 times** → enter **`columba-dev`**.
+
+No email. No ngrok. No EAS build required for daily testing.
+
+Press **Ctrl+C** in the terminal when you are done.
+
+---
+
+## Rules so you do not get confused
+
+| Do this | Not this |
+|--------|----------|
+| Always `cd ~/columba` first | Run commands from `~` (home) |
+| `pnpm mac:dev` for daily work | Four separate terminals |
+| Logo 20× + `columba-dev` to log in | Email codes / ngrok |
+| Keep one terminal on `mac:dev` | Mix `eas build:run` before a build finishes |
+
+**Folder reminder:** everything lives under `~/columba`. There is no `artifacts/ios-app` in your home folder — only inside the repo.
+
+---
+
+## When you need more (later, optional)
+
+| Goal | What to do |
+|------|------------|
+| **Sign in with Apple** (real button) | One EAS simulator build: `pnpm mac:sim` then wait for FINISHED, then `cd artifacts/ios-app && pnpm exec eas build:run --platform ios --latest` |
+| **API on the internet** (real iPhone, no ngrok) | Follow [railway.md](./railway.md) — hosted Postgres + API |
+| **TestFlight** | Apple Developer account ($99/yr) + production EAS build |
+
+You do **not** need any of that just to use the app in the Simulator with the dev bypass.
+
+---
+
+## If something breaks
+
+```bash
+cd ~/columba
+pnpm mac:setup    # fix deps + database
+pnpm mac:dev      # try again
+```
+
+Still stuck? Paste the last 10 lines from the terminal — not a screenshot of four windows at once.
+
+---
+
+## Cheat sheet (copy to Notes)
+
+```
+cd ~/columba
+pnpm mac:dev
+# Simulator → Columba → localhost:8081
+# Login: logo 20 taps → columba-dev
+```
