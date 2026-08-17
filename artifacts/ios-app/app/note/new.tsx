@@ -71,10 +71,11 @@ export default function NewNoteScreen() {
   const [notify, setNotify] = useState<NotifyValue>(defaultNotifyValue);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const { dictationState, isDictationSupported, toggleDictation } = useNoteDictation({
-    body,
-    onBodyChange: setBody,
-  });
+  const { dictationState, isDictationSupported, showMicButton, toggleDictation } =
+    useNoteDictation({
+      body,
+      onBodyChange: setBody,
+    });
 
   const createNote = useCreateNote({
     mutation: {
@@ -178,6 +179,7 @@ export default function NewNoteScreen() {
           onChangeText={setBody}
           autoFocus
           dictationState={dictationState}
+          showMicButton={showMicButton}
           isDictationSupported={isDictationSupported}
           onToggleDictation={() => {
             void toggleDictation();

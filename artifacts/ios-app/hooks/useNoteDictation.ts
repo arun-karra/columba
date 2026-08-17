@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, NativeModules, Platform } from 'react-native';
+import type {
+  ExpoSpeechRecognitionErrorEvent,
+  ExpoSpeechRecognitionResultEvent,
+} from 'expo-speech-recognition/build/ExpoSpeechRecognitionModule.types';
 import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+  getSpeechRecognitionModule,
+  isSpeechRecognitionNativeLinked,
+  showDictationRebuildAlert,
+} from '@/utils/speechRecognition';
 
 export type DictationState = 'idle' | 'listening' | 'denied' | 'error';
 
@@ -31,19 +36,6 @@ function showPermissionHelp() {
   );
 }
 
-async function ensureDictationPermissions(): Promise<boolean> {
-  const mic = await ExpoSpeechRecognitionModule.requestMicrophonePermissionsAsync();
-  if (!mic.granted) return false;
-
-  if (Platform.OS === 'ios') {
-    const speech =
-      await ExpoSpeechRecognitionModule.requestSpeechRecognizerPermissionsAsync();
-    if (!speech.granted) return false;
-  }
-
-  return true;
-}
-
 export function useNoteDictation({
   body,
   onBodyChange,
@@ -55,66 +47,102 @@ export function useNoteDictation({
   const prefixRef = useRef('');
   const listeningRef = useRef(false);
   const bodyRef = useRef(body);
+  const onBodyChangeRef = useRef(onBodyChange);
 
   useEffect(() => {
     bodyRef.current = body;
   }, [body]);
 
-  const isSupported = Platform.OS === 'ios';
+  useEffect(() => {
+    onBodyChangeRef.current = onBodyChange;
+  }, [onBodyChange]);
 
-  useSpeechRecognitionEvent('start', () => {
-    listeningRef.current = true;
-    setState('listening');
-  });
+  const nativeLinked = isSpeechRecognitionNativeLinked();
+  const isSupported = Platform.OS === 'ios' && nativeLinked;
+  const showMicButton = Platform.OS === 'ios';
 
-  useSpeechRecognitionEvent('end', () => {
-    listeningRef.current = false;
-    setState((current) => (current === 'denied' ? 'denied' : 'idle'));
-  });
+  useEffect(() => {
+    const module = getSpeechRecognitionModule();
+    if (!module) return;
 
-  useSpeechRecognitionEvent('result', (event) => {
-    const spoken = event.results[0]?.transcript ?? '';
-    const prefix = prefixRef.current;
-    if (!spoken) {
-      onBodyChange(prefix.trimEnd());
-      return;
-    }
-    const spacer = prefix.length > 0 && !/\s$/.test(prefix) ? ' ' : '';
-    onBodyChange(`${prefix}${spacer}${spoken}`);
-  });
+    const onStart = () => {
+      listeningRef.current = true;
+      setState('listening');
+    };
 
-  useSpeechRecognitionEvent('error', (event) => {
-    listeningRef.current = false;
-    if (event.error === 'not-allowed') {
-      setState('denied');
-      showPermissionHelp();
-      return;
-    }
-    setState('error');
-    Alert.alert(
-      'Dictation unavailable',
-      'Something went wrong while listening. You can keep typing your note.',
-    );
-  });
+    const onEnd = () => {
+      listeningRef.current = false;
+      setState((current) => (current === 'denied' ? 'denied' : 'idle'));
+    };
+
+    const onResult = (event: ExpoSpeechRecognitionResultEvent) => {
+      const spoken = event.results[0]?.transcript ?? '';
+      const prefix = prefixRef.current;
+      if (!spoken) {
+        onBodyChangeRef.current(prefix.trimEnd());
+        return;
+      }
+      const spacer = prefix.length > 0 && !/\s$/.test(prefix) ? ' ' : '';
+      onBodyChangeRef.current(`${prefix}${spacer}${spoken}`);
+    };
+
+    const onError = (event: ExpoSpeechRecognitionErrorEvent) => {
+      listeningRef.current = false;
+      if (event.error === 'not-allowed') {
+        setState('denied');
+        showPermissionHelp();
+        return;
+      }
+      setState('error');
+      Alert.alert(
+        'Dictation unavailable',
+        'Something went wrong while listening. You can keep typing your note.',
+      );
+    };
+
+    const subscriptions = [
+      module.addListener('start', onStart),
+      module.addListener('end', onEnd),
+      module.addListener('result', onResult),
+      module.addListener('error', onError),
+    ];
+
+    return () => {
+      subscriptions.forEach((subscription) => subscription.remove());
+    };
+  }, [nativeLinked]);
 
   useEffect(() => {
     return () => {
-      if (listeningRef.current) {
-        ExpoSpeechRecognitionModule.abort();
+      const module = getSpeechRecognitionModule();
+      if (listeningRef.current && module) {
+        module.abort();
       }
     };
   }, []);
 
   const stopDictation = useCallback(() => {
-    if (!listeningRef.current) return;
-    ExpoSpeechRecognitionModule.stop();
+    const module = getSpeechRecognitionModule();
+    if (!listeningRef.current || !module) return;
+    module.stop();
   }, []);
 
   const startDictation = useCallback(async () => {
-    if (!isSupported) return;
+    const module = getSpeechRecognitionModule();
+    if (!module) {
+      showDictationRebuildAlert();
+      return;
+    }
 
-    const granted = await ensureDictationPermissions();
-    if (!granted) {
+    const mic = await module.requestMicrophonePermissionsAsync();
+    if (!mic.granted) {
+      setState('denied');
+      showPermissionHelp();
+      return;
+    }
+
+    const speech = await module.requestSpeechRecognizerPermissionsAsync();
+    if (!speech.granted) {
       setState('denied');
       showPermissionHelp();
       return;
@@ -123,10 +151,10 @@ export function useNoteDictation({
     const trimmed = bodyRef.current.trimEnd();
     prefixRef.current = trimmed.length > 0 ? `${trimmed} ` : '';
 
-    const prefersOnDevice = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+    const prefersOnDevice = module.supportsOnDeviceRecognition();
 
     try {
-      ExpoSpeechRecognitionModule.start({
+      module.start({
         lang: getSpeechLocale(),
         interimResults: true,
         continuous: true,
@@ -141,14 +169,19 @@ export function useNoteDictation({
         'Could not start listening on this device. You can still type your note.',
       );
     }
-  }, [isSupported]);
+  }, []);
 
   const toggleDictation = useCallback(async () => {
-    if (!isSupported) {
+    if (Platform.OS !== 'ios') {
       Alert.alert(
         'Dictation is iOS only',
         'Voice dictation needs the Columba iPhone app. You can type your note here instead.',
       );
+      return;
+    }
+
+    if (!isSpeechRecognitionNativeLinked()) {
+      showDictationRebuildAlert();
       return;
     }
 
@@ -159,11 +192,12 @@ export function useNoteDictation({
 
     setState('idle');
     await startDictation();
-  }, [isSupported, startDictation, stopDictation]);
+  }, [startDictation, stopDictation]);
 
   return {
     dictationState: state,
     isDictationSupported: isSupported,
+    showMicButton,
     isListening: state === 'listening',
     toggleDictation,
   };
