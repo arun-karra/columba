@@ -113,6 +113,7 @@ export default function ProfileScreen() {
   const queryClient = useQueryClient();
 
   const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
 
@@ -130,9 +131,16 @@ export default function ProfileScreen() {
   });
 
   useEffect(() => {
+    if (isEditingName) return;
     const name = profile?.displayName ?? user?.displayName ?? '';
     setDisplayNameDraft(name);
-  }, [profile?.displayName, user?.displayName]);
+  }, [profile?.displayName, user?.displayName, isEditingName]);
+
+  const savedDisplayName =
+    profile?.displayName?.trim() || user?.displayName?.trim() || '';
+  const defaultName = user?.email?.split('@')[0] ?? 'User';
+  const resolvedName = savedDisplayName || defaultName;
+  const usingDefaultName = !savedDisplayName;
 
   const syncNotificationPermission = useCallback(async () => {
     if (Platform.OS === 'web') return;
@@ -153,21 +161,34 @@ export default function ProfileScreen() {
     }, [syncNotificationPermission]),
   );
 
-  const resolvedName =
-    profile?.displayName?.trim() ||
-    user?.displayName?.trim() ||
-    user?.email?.split('@')[0] ||
-    'User';
   const initials = resolvedName.slice(0, 2).toUpperCase();
   const email = profile?.email ?? user?.email ?? 'Signed in with Apple';
 
+  const startEditingName = () => {
+    Haptics.selectionAsync();
+    setDisplayNameDraft(savedDisplayName || defaultName);
+    setIsEditingName(true);
+  };
+
+  const cancelEditingName = () => {
+    setDisplayNameDraft(savedDisplayName);
+    setIsEditingName(false);
+  };
+
   const handleSaveDisplayName = async () => {
     const trimmed = displayNameDraft.trim();
-    const current = profile?.displayName?.trim() ?? user?.displayName?.trim() ?? '';
-    if (trimmed === current) return;
+    if (!trimmed) {
+      Alert.alert('Name required', 'Please enter a display name.');
+      return;
+    }
+    if (trimmed === savedDisplayName) {
+      setIsEditingName(false);
+      return;
+    }
 
     try {
-      await updateMe.mutateAsync({ data: { displayName: trimmed || null } });
+      await updateMe.mutateAsync({ data: { displayName: trimmed } });
+      setIsEditingName(false);
     } catch {
       Alert.alert('Error', 'Could not save your name. Please try again.');
     }
@@ -274,29 +295,67 @@ export default function ProfileScreen() {
 
         <Section title="Account">
           <View style={styles.fieldBlock}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-              Display name
-            </Text>
-            <TextInput
-              style={[
-                styles.fieldInput,
-                {
-                  backgroundColor: colors.secondary,
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                },
-              ]}
-              value={displayNameDraft}
-              onChangeText={setDisplayNameDraft}
-              placeholder="Your name"
-              placeholderTextColor={colors.mutedForeground}
-              autoCapitalize="words"
-              autoCorrect={false}
-              returnKeyType="done"
-              onSubmitEditing={() => void handleSaveDisplayName()}
-              onBlur={() => void handleSaveDisplayName()}
-              maxLength={100}
-            />
+            <View style={styles.fieldHeader}>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                Display name
+              </Text>
+              {!isEditingName ? (
+                <Pressable onPress={startEditingName} hitSlop={8}>
+                  <Text style={[styles.editLink, { color: colors.primary }]}>Edit</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            {isEditingName ? (
+              <>
+                <TextInput
+                  style={[
+                    styles.fieldInput,
+                    {
+                      backgroundColor: colors.secondary,
+                      color: colors.foreground,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  value={displayNameDraft}
+                  onChangeText={setDisplayNameDraft}
+                  placeholder="Your name"
+                  placeholderTextColor={colors.mutedForeground}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={() => void handleSaveDisplayName()}
+                  maxLength={100}
+                />
+                <View style={styles.editActions}>
+                  <Pressable onPress={cancelEditingName} hitSlop={8}>
+                    <Text style={[styles.editActionText, { color: colors.mutedForeground }]}>
+                      Cancel
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => void handleSaveDisplayName()}
+                    hitSlop={8}
+                    disabled={updateMe.isPending}
+                  >
+                    <Text style={[styles.editActionText, { color: colors.primary }]}>
+                      {updateMe.isPending ? 'Saving…' : 'Save'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.fieldValue, { color: colors.foreground }]}>
+                  {resolvedName}
+                </Text>
+                {usingDefaultName ? (
+                  <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
+                    Using your email name — tap Edit to customize
+                  </Text>
+                ) : null}
+              </>
+            )}
           </View>
           <View style={[styles.fieldBlock, styles.fieldBlockLast]}>
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
@@ -425,6 +484,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   fieldLabel: { fontSize: 12, fontFamily: 'Manrope_600SemiBold' },
+  fieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  editLink: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
+  fieldHint: { fontSize: 13, fontFamily: 'Manrope_400Regular', lineHeight: 18 },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 20,
+    marginTop: 4,
+  },
+  editActionText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
   fieldInput: {
     height: 44,
     paddingHorizontal: 14,

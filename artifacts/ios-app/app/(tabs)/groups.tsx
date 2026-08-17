@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import {
   useListGroups,
   useCreateGroup,
+  useRemoveGroupMember,
   getListGroupsQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
@@ -26,6 +27,8 @@ import type { Group } from '@workspace/api-client-react';
 import { AppIcon } from '@/components/AppIcon';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { GroupAvatar } from '@/components/GroupAvatar';
+import { confirmDestructive } from '@/utils/iosConfirm';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
 import {
   defaultEmojiForGroup,
@@ -114,6 +117,32 @@ export default function GroupsScreen() {
     },
   });
 
+  const removeMember = useRemoveGroupMember({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+    },
+  });
+
+  const handleLeaveGroup = (group: Group) => {
+    if (!user?.id) return;
+    confirmDestructive({
+      title: 'Leave group',
+      message: `Leave "${group.name}"? You will lose access to its shared notes.`,
+      confirmLabel: 'Leave',
+      onConfirm: async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        try {
+          await removeMember.mutateAsync({ id: group.id, userId: user.id });
+        } catch {
+          Alert.alert('Error', 'Could not leave this group. Please try again.');
+        }
+      },
+    });
+  };
+
   const submitName = async (name: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -187,16 +216,37 @@ export default function GroupsScreen() {
               tintColor={colors.primary}
             />
           }
-          renderItem={({ item }) => (
-            <GroupCard
-              group={item}
-              emoji={resolveGroupEmoji(item.id, item.name, emojiMap, item.emoji)}
-              onPress={() => {
-                Haptics.selectionAsync();
-                router.push(`/group/${item.id}`);
-              }}
-            />
-          )}
+          renderItem={({ item }) => {
+            const card = (
+              <GroupCard
+                group={item}
+                emoji={resolveGroupEmoji(item.id, item.name, emojiMap, item.emoji)}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  router.push(`/group/${item.id}`);
+                }}
+              />
+            );
+
+            return (
+              <Swipeable
+                friction={2}
+                overshootRight={false}
+                renderRightActions={() => (
+                  <Pressable
+                    style={[styles.leaveAction, { backgroundColor: colors.destructive }]}
+                    onPress={() => handleLeaveGroup(item)}
+                  >
+                    <AppIcon name="rectangle.portrait.and.arrow.right" size={18} color="#fff" />
+                    <Text style={styles.leaveLabel}>Leave</Text>
+                  </Pressable>
+                )}
+                onSwipeableWillOpen={() => Haptics.selectionAsync()}
+              >
+                {card}
+              </Swipeable>
+            );
+          }}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         />
       )}
@@ -231,7 +281,7 @@ export default function GroupsScreen() {
             setGroupName('');
           }}
         >
-          <Pressable
+          <View
             style={[
               styles.sheet,
               {
@@ -239,7 +289,7 @@ export default function GroupsScreen() {
                 paddingBottom: insets.bottom + 16,
               },
             ]}
-            onPress={() => undefined}
+            onStartShouldSetResponder={() => true}
           >
             <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
               New Group
@@ -302,7 +352,7 @@ export default function GroupsScreen() {
                 )}
               </Pressable>
             </View>
-          </Pressable>
+          </View>
         </Pressable>
       </Modal>
     </View>
@@ -398,4 +448,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sheetBtnText: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
+  leaveAction: {
+    width: 88,
+    marginVertical: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginLeft: 4,
+  },
+  leaveLabel: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: '#fff' },
 });
