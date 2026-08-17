@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './acceptedGroupInvite';
 export * from './appleSignInRequest';
 export * from './authResponse';
 export * from './badRequestResponse';
@@ -15,6 +16,7 @@ export * from './errorResponseError';
 export * from './forbiddenResponse';
 export * from './group';
 export * from './groupInput';
+export * from './groupInvite';
 export * from './groupMember';
 export * from './groupMemberRole';
 export * from './groupUpdate';

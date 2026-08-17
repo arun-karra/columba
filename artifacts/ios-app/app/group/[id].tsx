@@ -140,10 +140,7 @@ export default function GroupDetailScreen() {
         queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
         setInviteEmail('');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          res.status === 'added' ? 'Added!' : 'Invite sent',
-          res.message,
-        );
+        Alert.alert('Invite sent', res.message);
       },
     },
   });

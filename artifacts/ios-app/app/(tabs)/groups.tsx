@@ -22,7 +22,11 @@ import {
   useCreateGroup,
   useRemoveGroupMember,
   useDeleteGroup,
+  useListGroupInvites,
+  useAcceptGroupInvite,
+  useDeclineGroupInvite,
   getListGroupsQueryKey,
+  getListGroupInvitesQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
@@ -30,6 +34,7 @@ import type { Group } from '@workspace/api-client-react';
 import { AppIcon } from '@/components/AppIcon';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { GroupAvatar } from '@/components/GroupAvatar';
+import { GroupInviteCard } from '@/components/GroupInviteCard';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
@@ -113,9 +118,14 @@ export default function GroupsScreen() {
   const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
   const [iconColorMap, setIconColorMap] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [actingInviteId, setActingInviteId] = useState<string | null>(null);
 
-  const { data: groups = [], isLoading } = useListGroups({
+  const { data: groups = [], isLoading: groupsLoading } = useListGroups({
     query: { queryKey: getListGroupsQueryKey(), enabled: !!user },
+  });
+
+  const { data: invites = [], isLoading: invitesLoading } = useListGroupInvites({
+    query: { queryKey: getListGroupInvitesQueryKey(), enabled: !!user },
   });
 
   useEffect(() => {
@@ -160,6 +170,24 @@ export default function GroupsScreen() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+    },
+  });
+
+  const acceptInvite = useAcceptGroupInvite({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGroupInvitesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+      },
+    },
+  });
+
+  const declineInvite = useDeclineGroupInvite({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGroupInvitesQueryKey() });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       },
     },
@@ -226,11 +254,65 @@ export default function GroupsScreen() {
     setRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListGroupInvitesQueryKey() }),
       getGroupEmojiMap().then(setEmojiMap),
       getGroupIconColorMap().then(setIconColorMap),
     ]);
     setRefreshing(false);
   }, [queryClient]);
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    setActingInviteId(inviteId);
+    try {
+      const result = await acceptInvite.mutateAsync({ id: inviteId });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.push(`/group/${result.groupId}`);
+    } catch {
+      Alert.alert('Error', 'Could not accept this invitation. Please try again.');
+    } finally {
+      setActingInviteId(null);
+    }
+  };
+
+  const handleDeclineInvite = (inviteId: string) => {
+    confirmDestructive({
+      title: 'Decline invitation',
+      message: 'Decline this group invitation?',
+      confirmLabel: 'Decline',
+      onConfirm: async () => {
+        setActingInviteId(inviteId);
+        try {
+          await declineInvite.mutateAsync({ id: inviteId });
+        } catch {
+          Alert.alert('Error', 'Could not decline this invitation. Please try again.');
+        } finally {
+          setActingInviteId(null);
+        }
+      },
+    });
+  };
+
+  const isLoading = groupsLoading || invitesLoading;
+  const showInviteSection = invites.length > 0;
+
+  const inviteHeader = showInviteSection ? (
+    <View style={styles.inviteSection}>
+      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+        Group Invitations
+      </Text>
+      <View style={styles.inviteList}>
+        {invites.map((invite) => (
+          <GroupInviteCard
+            key={invite.id}
+            invite={invite}
+            loading={actingInviteId === invite.id}
+            onAccept={() => void handleAcceptInvite(invite.id)}
+            onDecline={() => handleDeclineInvite(invite.id)}
+          />
+        ))}
+      </View>
+    </View>
+  ) : null;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -250,7 +332,7 @@ export default function GroupsScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
-      ) : groups.length === 0 ? (
+      ) : groups.length === 0 && !showInviteSection ? (
         <View style={styles.center}>
           <AppIcon name="person.2" size={44} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
@@ -267,6 +349,7 @@ export default function GroupsScreen() {
           contentContainerStyle={[
             styles.listContent,
             { paddingHorizontal: gutter, paddingBottom: listBottom },
+            groups.length === 0 && styles.listContentEmptyGroups,
           ]}
           contentInsetAdjustmentBehavior="automatic"
           refreshControl={
@@ -275,6 +358,29 @@ export default function GroupsScreen() {
               onRefresh={onRefresh}
               tintColor={colors.primary}
             />
+          }
+          ListHeaderComponent={
+            <>
+              {inviteHeader}
+              {groups.length > 0 && showInviteSection ? (
+                <Text style={[styles.sectionTitle, styles.yourGroupsTitle, { color: colors.mutedForeground }]}>
+                  Your Groups
+                </Text>
+              ) : null}
+            </>
+          }
+          ListEmptyComponent={
+            groups.length === 0 ? (
+              <View style={styles.inlineEmpty}>
+                <AppIcon name="person.2" size={36} color={colors.mutedForeground} />
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                  No groups yet
+                </Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  Create a group to share notes with family or friends
+                </Text>
+              </View>
+            ) : null
           }
           renderItem={({ item }) => {
             const card = (
@@ -455,6 +561,24 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   listContent: { paddingTop: 8 },
+  listContentEmptyGroups: { flexGrow: 1 },
+  inviteSection: { gap: 10, marginBottom: 18 },
+  inviteList: { gap: 10 },
+  sectionTitle: {
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    paddingLeft: 2,
+  },
+  yourGroupsTitle: { marginBottom: 8 },
+  inlineEmpty: {
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 12,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

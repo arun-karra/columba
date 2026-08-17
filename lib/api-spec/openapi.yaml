@@ -423,6 +423,64 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /group-invites:
+    get:
+      operationId: listGroupInvites
+      tags: [groups]
+      summary: List pending group invitations for the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pending invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupInvite"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /group-invites/{id}/accept:
+    post:
+      operationId: acceptGroupInvite
+      tags: [groups]
+      summary: Accept a group invitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Joined group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptedGroupInvite"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /group-invites/{id}/decline:
+    post:
+      operationId: declineGroupInvite
+      tags: [groups]
+      summary: Decline a group invitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Declined
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /push/register:
     post:
       operationId: registerPushToken
@@ -649,13 +707,45 @@ components:
       properties:
         status:
           type: string
-          enum: [added, pending]
+          enum: [pending]
         email:
           type: string
           pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
         message:
           type: string
       required: [status, email, message]
+    GroupInvite:
+      type: object
+      properties:
+        id:
+          type: string
+        groupId:
+          type: string
+        groupName:
+          type: string
+        groupEmoji:
+          type: string
+        invitedByEmail:
+          type: [string, "null"]
+        invitedByName:
+          type: [string, "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - groupId
+        - groupName
+        - groupEmoji
+        - invitedByEmail
+        - invitedByName
+        - createdAt
+    AcceptedGroupInvite:
+      type: object
+      properties:
+        groupId:
+          type: string
+      required: [groupId]
     Note:
       type: object
       properties:

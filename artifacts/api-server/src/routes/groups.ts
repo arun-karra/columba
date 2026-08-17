@@ -144,33 +144,65 @@ router.post(
   "/groups/:id/invite",
   asyncHandler(async (req, res) => {
     const userId = (req as AuthenticatedRequest).userId;
+    const userEmail = (req as AuthenticatedRequest).userEmail.trim().toLowerCase();
     const { id } = parseOrThrow(InviteToGroupParams, { id: requireParam(req.params.id, "id") });
     await getMembership(id, userId);
     const input = parseOrThrow(InviteToGroupBody, req.body);
     const email = input.email.trim().toLowerCase();
+
+    if (userEmail && email === userEmail) {
+      throw new HttpError(400, "CANNOT_INVITE_SELF", "You can't invite yourself.");
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       const existingMembership = await prisma.groupMembership.findUnique({
         where: { groupId_userId: { groupId: id, userId: existingUser.id } },
       });
-      if (existingMembership) throw new HttpError(400, "ALREADY_MEMBER", "That person is already in the group.");
-      await prisma.groupMembership.create({ data: { groupId: id, userId: existingUser.id, role: "member" } });
-      const group = await prisma.group.findUniqueOrThrow({ where: { id }, select: { name: true } });
-      await sendPush(
-        [existingUser.id],
-        "You joined a group",
-        { groupId: id },
-        { body: `You were added to ${group.name}.` },
-      );
-      return res.json({ status: "added", email, message: "They were added to the group." });
+      if (existingMembership) {
+        throw new HttpError(400, "ALREADY_MEMBER", "That person is already in the group.");
+      }
     }
 
-    await prisma.groupInvite.upsert({
+    const inviter = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, displayName: true },
+    });
+    const inviterLabel =
+      inviter?.displayName?.trim() ||
+      inviter?.email?.split("@")[0] ||
+      "Someone";
+
+    const invite = await prisma.groupInvite.upsert({
       where: { groupId_email: { groupId: id, email } },
       update: { status: "pending", invitedByUserId: userId },
       create: { groupId: id, email, invitedByUserId: userId },
     });
-    return res.json({ status: "pending", email, message: "An invitation is waiting for them when they sign in." });
+
+    const group = await prisma.group.findUniqueOrThrow({
+      where: { id },
+      select: { name: true },
+    });
+
+    if (existingUser) {
+      await sendPush(
+        [existingUser.id],
+        `Invite to ${group.name}`,
+        { type: "group_invite", groupId: id, inviteId: invite.id },
+        {
+          body: `${inviterLabel} invited you to join ${group.name}.`,
+          timeSensitive: true,
+        },
+      );
+    }
+
+    return res.json({
+      status: "pending",
+      email,
+      message: existingUser
+        ? "They'll get a notification and can accept in the Groups tab."
+        : "An invitation will appear when they sign in with that email.",
+    });
   }),
 );
 

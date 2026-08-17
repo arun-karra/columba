@@ -113,12 +113,21 @@ describe("POST /api/groups/:id/invite", () => {
     expect(res.status).toBe(403);
   });
 
-  it("adds an existing user directly and notifies them", async () => {
+  it("creates a pending invite and notifies an existing user", async () => {
     mockPrisma.groupMembership.findUnique
       .mockResolvedValueOnce({ groupId: "group-1", userId: admin.id, role: "admin" }) // inviter membership
       .mockResolvedValueOnce(null); // invitee not already a member
-    mockPrisma.user.findUnique.mockResolvedValue({ id: "new-user", email: "new@example.com" });
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({ id: "new-user", email: "new@example.com" }) // invitee lookup
+      .mockResolvedValueOnce({ email: admin.email, displayName: null }); // inviter lookup
+    mockPrisma.groupInvite.upsert.mockResolvedValue({
+      id: "invite-1",
+      groupId: "group-1",
+      email: "new@example.com",
+      status: "pending",
+    });
     mockPrisma.group.findUniqueOrThrow.mockResolvedValue({ name: "Household" });
+    mockPrisma.pushToken.findMany.mockResolvedValue([]);
 
     const res = await request(app)
       .post("/api/groups/group-1/invite")
@@ -126,10 +135,9 @@ describe("POST /api/groups/:id/invite", () => {
       .send({ email: "new@example.com" });
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("added");
-    expect(mockPrisma.groupMembership.create).toHaveBeenCalledWith({
-      data: { groupId: "group-1", userId: "new-user", role: "member" },
-    });
+    expect(res.body.status).toBe("pending");
+    expect(mockPrisma.groupMembership.create).not.toHaveBeenCalled();
+    expect(mockPrisma.groupInvite.upsert).toHaveBeenCalled();
   });
 
   it("rejects inviting someone who is already a member", async () => {

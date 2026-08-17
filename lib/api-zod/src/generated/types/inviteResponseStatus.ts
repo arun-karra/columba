@@ -10,6 +10,5 @@ export type InviteResponseStatus = typeof InviteResponseStatus[keyof typeof Invi
 
 
 export const InviteResponseStatus = {
-  added: 'added',
   pending: 'pending',
 } as const;

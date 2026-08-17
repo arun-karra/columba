@@ -32,6 +32,7 @@ export function createMockPrisma() {
     },
     groupInvite: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
       upsert: vi.fn(),
       update: vi.fn(),
     },

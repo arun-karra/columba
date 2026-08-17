@@ -15,6 +15,7 @@ enum GroupRole {
 enum InviteStatus {
   pending
   accepted
+  declined
 }
 
 model User {

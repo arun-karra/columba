@@ -3,7 +3,6 @@ import { Router } from "express";
 import { DevBypassAuthBody, SignInWithAppleBody } from "@workspace/api-zod";
 import { prisma } from "../lib/prisma";
 import { verifyAppleIdentityToken } from "../lib/appleAuth";
-import { acceptPendingInvitesForUser } from "../lib/acceptPendingInvites";
 import { asyncHandler, HttpError, parseOrThrow } from "../lib/errors";
 import { logger } from "../lib/logger";
 import { signUserToken } from "../middleware/auth";
@@ -65,10 +64,6 @@ async function finalizeAuth(user: {
   displayName: string | null;
   createdAt: Date;
 }) {
-  await prisma.$transaction(async (tx) => {
-    await acceptPendingInvitesForUser(tx, user);
-  });
-
   return {
     token: signUserToken(user),
     user: {

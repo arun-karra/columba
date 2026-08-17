@@ -67,7 +67,7 @@ describe("POST /api/auth/apple", () => {
     expect(res.body.error.code).toBe("INVALID_APPLE_TOKEN");
   });
 
-  it("accepts pending group invites for the user's email", async () => {
+  it("does not auto-accept pending group invites on sign-in", async () => {
     mockVerifyApple.mockResolvedValue({
       sub: "apple-user-456",
       email: "invited@example.com",
@@ -79,21 +79,14 @@ describe("POST /api/auth/apple", () => {
       appleUserId: "apple-user-456",
       createdAt: new Date("2026-01-01T00:00:00Z"),
     });
-    mockPrisma.groupInvite.findMany.mockResolvedValue([
-      { id: "invite-1", groupId: "group-1", email: "invited@example.com", status: "pending" },
-    ]);
 
     const res = await request(app)
       .post("/api/auth/apple")
       .send({ identityToken: "valid.jwt.token" });
 
     expect(res.status).toBe(200);
-    expect(mockPrisma.groupMembership.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { groupId_userId: { groupId: "group-1", userId: "u2" } },
-        create: { groupId: "group-1", userId: "u2", role: "member" },
-      }),
-    );
+    expect(mockPrisma.groupMembership.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.groupInvite.findMany).not.toHaveBeenCalled();
   });
 });
 

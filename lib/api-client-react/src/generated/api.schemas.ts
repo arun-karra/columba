@@ -110,7 +110,6 @@ export type InviteResponseStatus = typeof InviteResponseStatus[keyof typeof Invi
 
 
 export const InviteResponseStatus = {
-  added: 'added',
   pending: 'pending',
 } as const;
 
@@ -119,6 +118,22 @@ export interface InviteResponse {
   /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
   email: string;
   message: string;
+}
+
+export interface GroupInvite {
+  id: string;
+  groupId: string;
+  groupName: string;
+  groupEmoji: string;
+  /** @nullable */
+  invitedByEmail: string | null;
+  /** @nullable */
+  invitedByName: string | null;
+  createdAt: string;
+}
+
+export interface AcceptedGroupInvite {
+  groupId: string;
 }
 
 export interface Note {

@@ -20,6 +20,7 @@ import {
   setAuthTokenGetter,
   getListNotesQueryKey,
   getGetNotesSummaryQueryKey,
+  getListGroupInvitesQueryKey,
 } from '@workspace/api-client-react';
 import { AuthProvider, useAuth, getToken } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
@@ -166,6 +167,9 @@ export default function RootLayout() {
         const data = notification.request.content.data as Record<string, unknown>;
         if (data?.dismiss && typeof data?.noteId === 'string') {
           void dismissNoteNotification(data.noteId);
+        }
+        if (data?.type === 'group_invite') {
+          queryClient.invalidateQueries({ queryKey: getListGroupInvitesQueryKey() });
         }
       },
     );
