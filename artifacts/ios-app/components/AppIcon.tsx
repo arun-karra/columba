@@ -32,6 +32,8 @@ const FEATHER_FALLBACK: Record<string, FeatherName> = {
   'globe': 'globe',
   'iphone': 'smartphone',
   'internaldrive': 'database',
+  'mic': 'mic',
+  'mic.fill': 'mic',
   'magnifyingglass': 'search',
   'plus.magnifyingglass': 'search',
   'face.smiling': 'smile',

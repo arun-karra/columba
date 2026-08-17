@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +19,8 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { ShareGroupPicker } from '@/components/ShareGroupPicker';
+import { NoteBodyInput } from '@/components/NoteBodyInput';
+import { useNoteDictation } from '@/hooks/useNoteDictation';
 import {
   NotifySection,
   defaultNotifyValue,
@@ -69,6 +70,11 @@ export default function NewNoteScreen() {
   const [groupId, setGroupId] = useState<string | null>(null);
   const [notify, setNotify] = useState<NotifyValue>(defaultNotifyValue);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const { dictationState, isDictationSupported, toggleDictation } = useNoteDictation({
+    body,
+    onBodyChange: setBody,
+  });
 
   const createNote = useCreateNote({
     mutation: {
@@ -166,22 +172,16 @@ export default function NewNoteScreen() {
           { paddingHorizontal: gutter, paddingBottom: insets.bottom + 24 },
         ]}
       >
-        <TextInput
-          style={[
-            styles.bodyInput,
-            {
-              color: colors.foreground,
-              backgroundColor: colors.secondary,
-              borderRadius: colors.radius,
-            },
-          ]}
+        <NoteBodyInput
           placeholder="Write a note..."
-          placeholderTextColor={colors.mutedForeground}
           value={body}
           onChangeText={setBody}
-          multiline
           autoFocus
-          textAlignVertical="top"
+          dictationState={dictationState}
+          isDictationSupported={isDictationSupported}
+          onToggleDictation={() => {
+            void toggleDictation();
+          }}
         />
 
         <NotifySection
@@ -212,13 +212,6 @@ export default function NewNoteScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingTop: 16, gap: 24 },
-  bodyInput: {
-    minHeight: 140,
-    padding: 16,
-    fontSize: 22,
-    fontFamily: 'Manrope_600SemiBold',
-    lineHeight: 32,
-  },
   sectionTitle: {
     fontSize: 16,
     fontFamily: 'Manrope_700Bold',

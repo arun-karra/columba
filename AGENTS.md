@@ -38,6 +38,10 @@ non-obvious runtime setup that the update script intentionally does NOT do.
   listens on `PORT`, default 8080). It is not a hot-reload watcher — restart it after edits.
 - iOS app bundler: `pnpm --filter @workspace/ios-app run start` (Metro on port 8081).
   There is no iOS simulator here; validate via typecheck and API tests.
+- **Voice dictation** (`expo-speech-recognition`) adds native iOS permissions via the
+  config plugin in `artifacts/ios-app/app.json`. After pulling dictation changes, rebuild
+  the dev client — a Metro reload is not enough:
+  `pnpm --filter @workspace/ios-app run eas:build:dev` (device) or `eas:build:sim` (simulator).
 - Auth: **Sign in with Apple** via `POST /api/auth/apple`. For API testing without Apple,
   set `DEV_BYPASS_CODE` and call `POST /api/auth/dev-bypass` with `{ "code": "..." }`
   (non-production only). The iOS auth screen exposes the same bypass after 20 logo taps.
