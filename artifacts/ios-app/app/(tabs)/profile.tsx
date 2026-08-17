@@ -20,6 +20,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { AppIcon } from '@/components/AppIcon';
 import { confirmDestructive } from '@/utils/iosConfirm';
+import { getDisplayInitials } from '@/utils/displayInitials';
 import { useScreenGutter } from '@/constants/layout';
 import type { SFSymbol } from 'expo-symbols';
 
@@ -162,7 +163,7 @@ export default function ProfileScreen() {
     }, [syncNotificationPermission]),
   );
 
-  const initials = resolvedName.slice(0, 2).toUpperCase();
+  const initials = getDisplayInitials(resolvedName);
   const email = profile?.email ?? user?.email ?? 'Signed in with Apple';
 
   const startEditingName = () => {
