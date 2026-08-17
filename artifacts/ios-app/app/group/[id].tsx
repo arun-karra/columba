@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,8 +23,10 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import type { GroupMember } from '@workspace/api-client-react';
 import { AppIcon } from '@/components/AppIcon';
+import { GroupAvatar } from '@/components/GroupAvatar';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { useScreenGutter } from '@/constants/layout';
+import { getGroupEmoji, resolveGroupEmoji } from '@/utils/groupEmoji';
 
 function MemberRow({
   member,
@@ -91,8 +93,16 @@ export default function GroupDetailScreen() {
   const { user } = useAuth();
 
   const [inviteEmail, setInviteEmail] = useState('');
+  const [groupEmoji, setGroupEmojiState] = useState<string | null>(null);
 
   const { data: group, isLoading } = useGetGroup(id ?? '');
+
+  useEffect(() => {
+    if (!id) return;
+    void getGroupEmoji(id).then((emoji) => {
+      setGroupEmojiState(emoji);
+    });
+  }, [id]);
 
   const inviteMutation = useInviteToGroup({
     mutation: {
@@ -165,6 +175,8 @@ export default function GroupDetailScreen() {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
 
+  const emoji = groupEmoji ?? resolveGroupEmoji(group.id, group.name, {});
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <FlatList
@@ -176,11 +188,7 @@ export default function GroupDetailScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.hero}>
-              <View style={[styles.groupAvatarWrap, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.groupAvatarText, { color: colors.primaryForeground }]}>
-                  {groupInitials}
-                </Text>
-              </View>
+              <GroupAvatar emoji={emoji} fallbackInitials={groupInitials} size={64} />
               <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
               <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
                 {group.members.length}{' '}

@@ -118,7 +118,6 @@ export default function ProfileScreen() {
   const queryClient = useQueryClient();
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [emailDigests, setEmailDigests] = useState(true);
   const [notifLoading, setNotifLoading] = useState(false);
 
   const displayName = user?.email?.split('@')[0] ?? 'User';
@@ -216,57 +215,16 @@ export default function ProfileScreen() {
             {displayName}
           </Text>
           <Text style={[styles.heroEmail, { color: colors.mutedForeground }]}>
-            {user?.email}
+            {user?.email ?? 'Signed in with Apple'}
           </Text>
-          <View
-            style={[styles.badge, { backgroundColor: colors.secondary }]}
-          >
-            <Text style={[styles.badgeText, { color: colors.primary }]}>
-              PRO MEMBER
-            </Text>
-          </View>
         </View>
-
-        {/* General */}
-        <Section title="General">
-          <SettingRow
-            icon="person"
-            label="Account Details"
-            subtitle="Update your personal information"
-            chevron
-            onPress={() =>
-              Alert.alert('Coming soon', 'Account settings are on their way.')
-            }
-          />
-          <SettingRow
-            icon="globe"
-            label="Language & Region"
-            subtitle="English (US)"
-            chevron
-            last
-          />
-        </Section>
 
         {/* Notifications */}
         <Section title="Notifications">
           <SettingRow
-            icon="envelope"
-            label="Email Digests"
-            subtitle="Weekly summaries of your activity"
-            right={
-              <Switch
-                value={emailDigests}
-                onValueChange={setEmailDigests}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.card}
-                ios_backgroundColor={colors.border}
-              />
-            }
-          />
-          <SettingRow
             icon="iphone"
             label="Push Notifications"
-            subtitle="Immediate alerts for mentions"
+            subtitle="Reminders and pinned note alerts"
             last
             right={
               <Switch
@@ -277,33 +235,6 @@ export default function ProfileScreen() {
                 thumbColor={colors.card}
                 ios_backgroundColor={colors.border}
               />
-            }
-          />
-        </Section>
-
-        {/* Data & Sync */}
-        <Section title="Data & Sync">
-          <SettingRow
-            icon="folder"
-            label="Storage Usage"
-            subtitle="Synced across your devices"
-            last
-            right={
-              <View style={styles.storageWrap}>
-                <View
-                  style={[
-                    styles.storageBar,
-                    { backgroundColor: colors.secondary },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.storageFill,
-                      { backgroundColor: colors.primary, width: '28%' },
-                    ]}
-                  />
-                </View>
-              </View>
             }
           />
         </Section>
@@ -356,13 +287,6 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 28, fontFamily: 'Manrope_700Bold' },
   heroName: { fontSize: 20, fontFamily: 'Manrope_700Bold' },
   heroEmail: { fontSize: 14, fontFamily: 'Manrope_400Regular' },
-  badge: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 20,
-    marginTop: 4,
-  },
-  badgeText: { fontSize: 11, fontFamily: 'Manrope_700Bold', letterSpacing: 0.8 },
 
   sectionHeader: {
     flexDirection: 'row',
@@ -402,14 +326,6 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1 },
   rowTitle: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
   rowSubtitle: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-
-  storageWrap: { width: 80 },
-  storageBar: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  storageFill: { height: '100%', borderRadius: 3 },
 
   signOutBtn: {
     flexDirection: 'row',

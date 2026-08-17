@@ -1,10 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Modal,
-  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -25,10 +24,25 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import type { Group } from '@workspace/api-client-react';
 import { AppIcon } from '@/components/AppIcon';
-import { promptText } from '@/utils/iosConfirm';
+import { EmojiPicker } from '@/components/EmojiPicker';
+import { GroupAvatar } from '@/components/GroupAvatar';
 import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
+import {
+  defaultEmojiForGroup,
+  getGroupEmojiMap,
+  resolveGroupEmoji,
+  setGroupEmoji,
+} from '@/utils/groupEmoji';
 
-function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
+function GroupCard({
+  group,
+  emoji,
+  onPress,
+}: {
+  group: Group;
+  emoji: string;
+  onPress: () => void;
+}) {
   const colors = useColors();
   const initials = group.name
     .split(' ')
@@ -48,11 +62,7 @@ function GroupCard({ group, onPress }: { group: Group; onPress: () => void }) {
       ]}
       onPress={onPress}
     >
-      <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-        <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
-          {initials}
-        </Text>
-      </View>
+      <GroupAvatar emoji={emoji} fallbackInitials={initials} />
       <View style={styles.cardContent}>
         <Text style={[styles.groupName, { color: colors.foreground }]} numberOfLines={1}>
           {group.name}
@@ -77,18 +87,27 @@ export default function GroupsScreen() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [selectedEmoji, setSelectedEmoji] = useState<string>(defaultEmojiForGroup(''));
+  const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: groups = [], isLoading } = useListGroups({
     query: { queryKey: getListGroupsQueryKey(), enabled: !!user },
   });
 
+  useEffect(() => {
+    void getGroupEmojiMap().then(setEmojiMap);
+  }, [groups.length]);
+
   const createGroup = useCreateGroup({
     mutation: {
-      onSuccess: (group) => {
+      onSuccess: async (group) => {
+        await setGroupEmoji(group.id, selectedEmoji);
+        setEmojiMap((prev) => ({ ...prev, [group.id]: selectedEmoji }));
         queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
         setShowCreate(false);
         setGroupName('');
+        setSelectedEmoji(defaultEmojiForGroup(''));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push(`/group/${group.id}`);
       },
@@ -106,15 +125,8 @@ export default function GroupsScreen() {
 
   const handleCreatePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const usedNativePrompt = promptText({
-      title: 'New Group',
-      message: 'Choose a name for this group.',
-      confirmLabel: 'Create',
-      onSubmit: (name) => {
-        void submitName(name);
-      },
-    });
-    if (!usedNativePrompt) setShowCreate(true);
+    setSelectedEmoji(defaultEmojiForGroup(groupName || 'New Group'));
+    setShowCreate(true);
   };
 
   const handleCreateFromModal = async () => {
@@ -124,7 +136,10 @@ export default function GroupsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() }),
+      getGroupEmojiMap().then(setEmojiMap),
+    ]);
     setRefreshing(false);
   }, [queryClient]);
 
@@ -175,6 +190,7 @@ export default function GroupsScreen() {
           renderItem={({ item }) => (
             <GroupCard
               group={item}
+              emoji={resolveGroupEmoji(item.id, item.name, emojiMap)}
               onPress={() => {
                 Haptics.selectionAsync();
                 router.push(`/group/${item.id}`);
@@ -202,95 +218,102 @@ export default function GroupsScreen() {
         <AppIcon name="plus" size={26} color={colors.primaryForeground} />
       </Pressable>
 
-      {Platform.OS !== 'ios' ? (
-        <Modal
-          visible={showCreate}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowCreate(false)}
+      <Modal
+        visible={showCreate}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreate(false)}
+      >
+        <Pressable
+          style={styles.overlay}
+          onPress={() => {
+            setShowCreate(false);
+            setGroupName('');
+          }}
         >
           <Pressable
-            style={styles.overlay}
-            onPress={() => {
-              setShowCreate(false);
-              setGroupName('');
-            }}
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: colors.card,
+                paddingBottom: insets.bottom + 16,
+              },
+            ]}
           >
-            <Pressable
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
+              New Group
+            </Text>
+            <EmojiPicker
+              value={selectedEmoji}
+              onChange={setSelectedEmoji}
+            />
+            <TextInput
               style={[
-                styles.sheet,
+                styles.input,
                 {
-                  backgroundColor: colors.card,
-                  paddingBottom: insets.bottom + 16,
+                  backgroundColor: colors.secondary,
+                  color: colors.foreground,
+                  borderColor: colors.border,
                 },
               ]}
-            >
-              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                New Group
-              </Text>
-              <TextInput
+              placeholder="e.g. Household, Book Club…"
+              placeholderTextColor={colors.mutedForeground}
+              value={groupName}
+              onChangeText={(text) => {
+                setGroupName(text);
+                if (!text.trim()) {
+                  setSelectedEmoji(defaultEmojiForGroup(''));
+                }
+              }}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleCreateFromModal}
+            />
+            <View style={styles.sheetActions}>
+              <Pressable
+                style={[styles.sheetBtn, { backgroundColor: colors.secondary }]}
+                onPress={() => {
+                  setShowCreate(false);
+                  setGroupName('');
+                }}
+              >
+                <Text style={[styles.sheetBtnText, { color: colors.mutedForeground }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+              <Pressable
                 style={[
-                  styles.input,
+                  styles.sheetBtn,
                   {
-                    backgroundColor: colors.secondary,
-                    color: colors.foreground,
-                    borderColor: colors.border,
+                    backgroundColor: groupName.trim()
+                      ? colors.primary
+                      : colors.secondary,
                   },
                 ]}
-                placeholder="e.g. Household, Book Club…"
-                placeholderTextColor={colors.mutedForeground}
-                value={groupName}
-                onChangeText={setGroupName}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleCreateFromModal}
-              />
-              <View style={styles.sheetActions}>
-                <Pressable
-                  style={[styles.sheetBtn, { backgroundColor: colors.secondary }]}
-                  onPress={() => {
-                    setShowCreate(false);
-                    setGroupName('');
-                  }}
-                >
-                  <Text style={[styles.sheetBtnText, { color: colors.mutedForeground }]}>
-                    Cancel
+                onPress={handleCreateFromModal}
+                disabled={createGroup.isPending || !groupName.trim()}
+              >
+                {createGroup.isPending ? (
+                  <ActivityIndicator color={colors.primaryForeground} size="small" />
+                ) : (
+                  <Text
+                    style={[
+                      styles.sheetBtnText,
+                      {
+                        color: groupName.trim()
+                          ? colors.primaryForeground
+                          : colors.mutedForeground,
+                      },
+                    ]}
+                  >
+                    Create
                   </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.sheetBtn,
-                    {
-                      backgroundColor: groupName.trim()
-                        ? colors.primary
-                        : colors.secondary,
-                    },
-                  ]}
-                  onPress={handleCreateFromModal}
-                  disabled={createGroup.isPending || !groupName.trim()}
-                >
-                  {createGroup.isPending ? (
-                    <ActivityIndicator color={colors.primaryForeground} size="small" />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.sheetBtnText,
-                        {
-                          color: groupName.trim()
-                            ? colors.primaryForeground
-                            : colors.mutedForeground,
-                        },
-                      ]}
-                    >
-                      Create
-                    </Text>
-                  )}
-                </Pressable>
-              </View>
-            </Pressable>
+                )}
+              </Pressable>
+            </View>
           </Pressable>
-        </Modal>
-      ) : null}
+        </Pressable>
+      </Modal>
     </View>
   );
 }
