@@ -18,7 +18,9 @@
       "bundleIdentifier": "com.columba.notes",
       "buildNumber": "1",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -50,6 +52,14 @@
       "typedRoutes": true,
       "reactCompiler": true,
       "autolinkingModuleResolution": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://replit.com/"
+      },
+      "eas": {
+        "projectId": "00aa6323-a8d3-4d7d-9329-3f7dc2020c9b"
+      }
     },
     "owner": "arunkarra"
   }
