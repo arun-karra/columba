@@ -41,7 +41,9 @@ non-obvious runtime setup that the update script intentionally does NOT do.
 - **Voice dictation** (`expo-speech-recognition`) adds native iOS permissions via the
   config plugin in `artifacts/ios-app/app.json`. After pulling dictation changes, rebuild
   the dev client — a Metro reload is not enough:
-  `pnpm --filter @workspace/ios-app run eas:build:dev` (device) or `eas:build:sim` (simulator).
+  - **Simulator:** `pnpm --filter @workspace/ios-app run eas:build:sim`
+  - **Physical iPhone:** `pnpm --filter @workspace/ios-app run eas:build:dev`
+  Dictation may be unreliable on the simulator; use a device for the best mic test.
 - Auth: **Sign in with Apple** via `POST /api/auth/apple`. For API testing without Apple,
   set `DEV_BYPASS_CODE` and call `POST /api/auth/dev-bypass` with `{ "code": "..." }`
   (non-production only). The iOS auth screen exposes the same bypass after 20 logo taps.

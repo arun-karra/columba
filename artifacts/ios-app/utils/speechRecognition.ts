@@ -1,4 +1,5 @@
 import { Alert, Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 type SpeechModule = typeof import('expo-speech-recognition').ExpoSpeechRecognitionModule;
 
@@ -29,9 +30,12 @@ export function isSpeechRecognitionNativeLinked(): boolean {
 }
 
 export function showDictationRebuildAlert() {
+  const onSimulator = Platform.OS === 'ios' && !Constants.isDevice;
   Alert.alert(
     'Install the latest Columba build',
-    'Voice dictation needs a fresh development build with microphone support. Run an EAS dev build, install it on your iPhone, then open the app again.\n\nYou can keep typing notes normally until then.',
+    onSimulator
+      ? 'Voice dictation needs a new simulator development build (a Metro reload is not enough).\n\nOn your Mac, from the repo root:\n\npnpm --filter @workspace/ios-app run eas:build:sim\n\nWhen the build finishes, install it on the iOS Simulator, then run:\n\npnpm --filter @workspace/ios-app run start\n\nYou can keep typing notes until then.'
+      : 'Voice dictation needs a fresh iPhone development build (a Metro reload is not enough).\n\nOn your Mac, from the repo root:\n\npnpm --filter @workspace/ios-app run eas:build:dev\n\nInstall the new build on your iPhone, then run:\n\npnpm --filter @workspace/ios-app run start\n\nYou can keep typing notes until then.',
     [{ text: 'OK' }],
   );
 }
