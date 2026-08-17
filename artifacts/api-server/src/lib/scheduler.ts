@@ -34,6 +34,7 @@ export function startReminderScheduler() {
         { noteId: note.id },
         {
           pinned: note.isPinned,
+          timeSensitive: true,
           ...(note.isPinned ? { categoryId: PINNED_NOTE_CATEGORY } : {}),
         },
       );

@@ -6,14 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface User {
-  id: string;
-  /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
-  email?: string | null;
+export interface UserUpdate {
   /**
      * @maxLength 100
      * @nullable
      */
-  displayName: string | null;
-  createdAt: Date;
+  displayName?: string | null;
 }

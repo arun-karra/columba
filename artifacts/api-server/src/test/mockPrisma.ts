@@ -10,6 +10,7 @@ export function createMockPrisma() {
   const prisma = {
     user: {
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       upsert: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),

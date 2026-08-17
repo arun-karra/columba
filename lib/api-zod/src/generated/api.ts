@@ -30,6 +30,8 @@ export const SignInWithAppleBody = zod.object({
 })
 
 export const signInWithAppleResponseUserEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const signInWithAppleResponseUserDisplayNameMax = 100;
+
 
 
 export const SignInWithAppleResponse = zod.object({
@@ -37,6 +39,7 @@ export const SignInWithAppleResponse = zod.object({
   "user": zod.object({
   "id": zod.string(),
   "email": zod.string().regex(signInWithAppleResponseUserEmailRegExp).nullish(),
+  "displayName": zod.string().max(signInWithAppleResponseUserDisplayNameMax).nullable(),
   "createdAt": zod.coerce.date()
 })
 })
@@ -53,6 +56,8 @@ export const DevBypassAuthBody = zod.object({
 })
 
 export const devBypassAuthResponseUserEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const devBypassAuthResponseUserDisplayNameMax = 100;
+
 
 
 export const DevBypassAuthResponse = zod.object({
@@ -60,8 +65,49 @@ export const DevBypassAuthResponse = zod.object({
   "user": zod.object({
   "id": zod.string(),
   "email": zod.string().regex(devBypassAuthResponseUserEmailRegExp).nullish(),
+  "displayName": zod.string().max(devBypassAuthResponseUserDisplayNameMax).nullable(),
   "createdAt": zod.coerce.date()
 })
+})
+
+
+/**
+ * @summary Get the current user's profile
+ */
+export const getMeResponseEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const getMeResponseDisplayNameMax = 100;
+
+
+
+export const GetMeResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string().regex(getMeResponseEmailRegExp).nullish(),
+  "displayName": zod.string().max(getMeResponseDisplayNameMax).nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update the current user's profile
+ */
+export const updateMeBodyDisplayNameMax = 100;
+
+
+
+export const UpdateMeBody = zod.object({
+  "displayName": zod.string().max(updateMeBodyDisplayNameMax).nullish()
+})
+
+export const updateMeResponseEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const updateMeResponseDisplayNameMax = 100;
+
+
+
+export const UpdateMeResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string().regex(updateMeResponseEmailRegExp).nullish(),
+  "displayName": zod.string().max(updateMeResponseDisplayNameMax).nullable(),
+  "createdAt": zod.coerce.date()
 })
 
 

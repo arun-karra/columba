@@ -13,8 +13,10 @@ interface PushOptions {
   body?: string;
   /** iOS notification category identifier (enables lock-screen actions). */
   categoryId?: string;
-  /** Pin / high-priority delivery with time-sensitive interruption. */
+  /** High priority delivery (sound + priority). */
   pinned?: boolean;
+  /** iOS time-sensitive — surfaces at top of Notification Center / lock screen. */
+  timeSensitive?: boolean;
 }
 
 /**
@@ -30,6 +32,7 @@ export async function sendPush(
   if (userIds.length === 0) return;
 
   const highPriority = options.pinned ?? false;
+  const timeSensitive = options.timeSensitive ?? highPriority;
   const body = options.body ?? "";
 
   const tokens = await prisma.pushToken.findMany({
@@ -45,8 +48,8 @@ export async function sendPush(
     title,
     body,
     data,
-    priority: highPriority ? ("high" as const) : ("normal" as const),
-    ...(highPriority ? { interruptionLevel: "time-sensitive" as const } : {}),
+    priority: highPriority || timeSensitive ? ("high" as const) : ("normal" as const),
+    ...(timeSensitive ? { interruptionLevel: "time-sensitive" as const } : {}),
     ...(options.categoryId ? { categoryIdentifier: options.categoryId } : {}),
   }));
 
