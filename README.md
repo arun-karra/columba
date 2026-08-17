@@ -51,6 +51,8 @@ lib/
 
 ## Getting started
 
+**New to this repo?** Use the simple Mac guide: **[docs/easy-mac.md](docs/easy-mac.md)** — two commands (`pnpm mac:setup` once, then `pnpm mac:dev` daily).
+
 ### Prerequisites
 
 - Node 20+
