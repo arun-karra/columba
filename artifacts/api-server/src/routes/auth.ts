@@ -1,114 +1,131 @@
-import { createHash, randomInt, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { Router } from "express";
-import { Resend } from "resend";
-import { RequestAuthCodeBody, VerifyAuthCodeBody } from "@workspace/api-zod";
+import { DevBypassAuthBody, SignInWithAppleBody } from "@workspace/api-zod";
 import { prisma } from "../lib/prisma";
+import { verifyAppleIdentityToken } from "../lib/appleAuth";
+import { acceptPendingInvitesForUser } from "../lib/acceptPendingInvites";
 import { asyncHandler, HttpError, parseOrThrow } from "../lib/errors";
 import { logger } from "../lib/logger";
 import { signUserToken } from "../middleware/auth";
 
 const router = Router();
-const recentRequests = new Map<string, number>();
 
-function getHash(value: string) {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function normalizeEmail(value: string) {
+function normalizeEmail(value: string | null | undefined) {
+  if (!value) return null;
   return value.trim().toLowerCase();
 }
 
+function safeCompare(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+async function findOrCreateAppleUser(input: {
+  appleUserId: string;
+  email: string | null;
+}) {
+  const existingByApple = await prisma.user.findUnique({
+    where: { appleUserId: input.appleUserId },
+  });
+  if (existingByApple) {
+    if (input.email && existingByApple.email !== input.email) {
+      return prisma.user.update({
+        where: { id: existingByApple.id },
+        data: { email: input.email },
+      });
+    }
+    return existingByApple;
+  }
+
+  if (input.email) {
+    const existingByEmail = await prisma.user.findUnique({
+      where: { email: input.email },
+    });
+    if (existingByEmail) {
+      return prisma.user.update({
+        where: { id: existingByEmail.id },
+        data: { appleUserId: input.appleUserId },
+      });
+    }
+  }
+
+  return prisma.user.create({
+    data: {
+      appleUserId: input.appleUserId,
+      email: input.email,
+    },
+  });
+}
+
+async function finalizeAuth(user: { id: string; email: string | null; createdAt: Date }) {
+  await prisma.$transaction(async (tx) => {
+    await acceptPendingInvitesForUser(tx, user);
+  });
+
+  return {
+    token: signUserToken(user),
+    user,
+  };
+}
+
 router.post(
-  "/auth/request-code",
+  "/auth/apple",
   asyncHandler(async (req, res) => {
-    const input = parseOrThrow(RequestAuthCodeBody, req.body);
-    const email = normalizeEmail(input.email);
-    const lastRequest = recentRequests.get(email);
-    if (lastRequest && Date.now() - lastRequest < 45_000) {
-      throw new HttpError(429, "RATE_LIMITED", "Please wait before requesting another code.");
+    const input = parseOrThrow(SignInWithAppleBody, req.body);
+
+    let payload;
+    try {
+      payload = await verifyAppleIdentityToken(input.identityToken);
+    } catch (error) {
+      logger.warn({ err: error }, "Invalid Apple identity token");
+      throw new HttpError(401, "INVALID_APPLE_TOKEN", "Apple sign-in could not be verified.");
     }
 
-    const code = String(randomInt(100000, 1000000));
-    recentRequests.set(email, Date.now());
-    await prisma.loginCode.create({
-      data: {
-        email,
-        codeHash: getHash(code),
-        expiresAt: new Date(Date.now() + 10 * 60_000),
-      },
+    const email =
+      normalizeEmail(input.email) ??
+      normalizeEmail(typeof payload.email === "string" ? payload.email : null);
+
+    const user = await findOrCreateAppleUser({
+      appleUserId: payload.sub,
+      email,
     });
 
-    if (process.env.RESEND_API_KEY && process.env.FROM_EMAIL) {
-      try {
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
-          from: process.env.FROM_EMAIL,
-          to: email,
-          subject: "Your Columba sign-in code",
-          text: `Your Columba sign-in code is ${code}. It expires in 10 minutes.`,
-        });
-      } catch (error) {
-        logger.error({ err: error }, "Unable to send sign-in email");
-      }
-    } else if (process.env.NODE_ENV !== "production") {
-      logger.info({ email, code }, "Development sign-in code");
-    }
-
-    res.json({ message: "If the email can receive messages, a sign-in code has been sent." });
+    res.json(await finalizeAuth(user));
   }),
 );
 
 router.post(
-  "/auth/verify",
+  "/auth/dev-bypass",
   asyncHandler(async (req, res) => {
-    const input = parseOrThrow(VerifyAuthCodeBody, req.body);
-    const email = normalizeEmail(input.email);
-
-    // ── Dev bypass ───────────────────────────────────────────────────────────
-    // Code "000000" works for any email in non-production to skip email setup.
-    const isBypass =
-      process.env.NODE_ENV !== "production" && input.code === "000000";
-
-    let loginCodeId: string | undefined;
-    if (!isBypass) {
-      const loginCode = await prisma.loginCode.findFirst({
-        where: { email, consumedAt: null },
-        orderBy: { createdAt: "desc" },
-      });
-      if (!loginCode || loginCode.expiresAt < new Date()) {
-        throw new HttpError(401, "INVALID_CODE", "That code is invalid or has expired.");
-      }
-      const expected = Buffer.from(loginCode.codeHash);
-      const actual = Buffer.from(getHash(input.code));
-      if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-        throw new HttpError(401, "INVALID_CODE", "That code is invalid or has expired.");
-      }
-      loginCodeId = loginCode.id;
-    } else {
-      logger.info({ email }, "Dev bypass sign-in");
+    if (process.env.NODE_ENV === "production") {
+      throw new HttpError(404, "NOT_FOUND", "Not found.");
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      if (loginCodeId) {
-        await tx.loginCode.update({ where: { id: loginCodeId }, data: { consumedAt: new Date() } });
-      }
-      const user = await tx.user.upsert({ where: { email }, update: {}, create: { email } });
-      const invites = await tx.groupInvite.findMany({ where: { email, status: "pending" } });
-      for (const invite of invites) {
-        await tx.groupMembership.upsert({
-          where: { groupId_userId: { groupId: invite.groupId, userId: user.id } },
-          update: {},
-          create: { groupId: invite.groupId, userId: user.id, role: "member" },
-        });
-        await tx.groupInvite.update({ where: { id: invite.id }, data: { status: "accepted" } });
-      }
-      return user;
+    const secret = process.env.DEV_BYPASS_CODE;
+    if (!secret) {
+      throw new HttpError(
+        404,
+        "NOT_FOUND",
+        "Dev bypass is not configured on the server.",
+      );
+    }
+
+    const input = parseOrThrow(DevBypassAuthBody, req.body);
+    if (!safeCompare(input.code, secret)) {
+      throw new HttpError(401, "INVALID_CODE", "That bypass code is invalid.");
+    }
+
+    logger.info("Dev bypass sign-in");
+
+    const user = await prisma.user.upsert({
+      where: { email: "dev@columba.local" },
+      update: {},
+      create: { email: "dev@columba.local" },
     });
 
-    res.json({
-      token: signUserToken(result),
-      user: result,
-    });
+    res.json(await finalizeAuth(user));
   }),
 );
 

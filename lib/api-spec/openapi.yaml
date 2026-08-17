@@ -26,39 +26,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
-  /auth/request-code:
+  /auth/apple:
     post:
-      operationId: requestAuthCode
+      operationId: signInWithApple
       tags: [auth]
-      summary: Request an email login code
+      summary: Sign in with an Apple identity token
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AuthCodeRequest"
-      responses:
-        "200":
-          description: Code requested
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MessageResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-  /auth/verify:
-    post:
-      operationId: verifyAuthCode
-      tags: [auth]
-      summary: Verify an email login code
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AuthCodeVerify"
+              $ref: "#/components/schemas/AppleSignInRequest"
       responses:
         "200":
           description: Authenticated user
@@ -70,6 +48,30 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /auth/dev-bypass:
+    post:
+      operationId: devBypassAuth
+      tags: [auth]
+      summary: Development-only auth bypass using a shared secret code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DevBypassRequest"
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Bypass disabled in production
   /notes:
     get:
       operationId: listNotes
@@ -447,23 +449,27 @@ components:
         message:
           type: string
       required: [message]
-    AuthCodeRequest:
+    AppleSignInRequest:
       type: object
       properties:
+        identityToken:
+          type: string
+          minLength: 1
         email:
           type: string
+          nullable: true
           pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
-      required: [email]
-    AuthCodeVerify:
+        fullName:
+          type: string
+          nullable: true
+      required: [identityToken]
+    DevBypassRequest:
       type: object
       properties:
-        email:
-          type: string
-          pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
         code:
           type: string
-          pattern: "^[0-9]{6}$"
-      required: [email, code]
+          minLength: 1
+      required: [code]
     User:
       type: object
       properties:
@@ -471,11 +477,12 @@ components:
           type: string
         email:
           type: string
+          nullable: true
           pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
         createdAt:
           type: string
           format: date-time
-      required: [id, email, createdAt]
+      required: [id, createdAt]
     AuthResponse:
       type: object
       properties:

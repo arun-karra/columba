@@ -7,6 +7,7 @@ export default defineConfig({
     env: {
       SESSION_SECRET: "test-session-secret",
       NODE_ENV: "test",
+      DEV_BYPASS_CODE: "test-bypass-secret",
     },
   },
 });

@@ -20,10 +20,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  AuthCodeRequest,
-  AuthCodeVerify,
+  AppleSignInRequest,
   AuthResponse,
   BadRequestResponse,
+  DevBypassRequest,
   ForbiddenResponse,
   Group,
   GroupInput,
@@ -38,7 +38,6 @@ import type {
   NotesSummary,
   PushTokenDelete,
   PushTokenInput,
-  TooManyRequestsResponse,
   UnauthorizedResponse
 } from './api.schemas';
 
@@ -146,25 +145,25 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
-export const getRequestAuthCodeUrl = () => {
+export const getSignInWithAppleUrl = () => {
 
 
 
 
-  return `/api/auth/request-code`
+  return `/api/auth/apple`
 }
 
 /**
- * @summary Request an email login code
+ * @summary Sign in with an Apple identity token
  */
-export const requestAuthCode = async (authCodeRequest: AuthCodeRequest, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+export const signInWithApple = async (appleSignInRequest: AppleSignInRequest, options?: Parameters<typeof customFetch>[1]): Promise<AuthResponse> => {
 
-  return customFetch<MessageResponse>(getRequestAuthCodeUrl(),
+  return customFetch<AuthResponse>(getSignInWithAppleUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(authCodeRequest)
+    body: JSON.stringify(appleSignInRequest)
   }
 );}
 
@@ -172,11 +171,11 @@ export const requestAuthCode = async (authCodeRequest: AuthCodeRequest, options?
 
 
 
-export const getRequestAuthCodeMutationOptions = <TError = ErrorType<BadRequestResponse | TooManyRequestsResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAuthCode>>, TError,{data: BodyType<AuthCodeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof requestAuthCode>>, TError,{data: BodyType<AuthCodeRequest>}, TContext> => {
+export const getSignInWithAppleMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signInWithApple>>, TError,{data: BodyType<AppleSignInRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof signInWithApple>>, TError,{data: BodyType<AppleSignInRequest>}, TContext> => {
 
-const mutationKey = ['requestAuthCode'];
+const mutationKey = ['signInWithApple'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -186,10 +185,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestAuthCode>>, {data: BodyType<AuthCodeRequest>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof signInWithApple>>, {data: BodyType<AppleSignInRequest>}> = (props) => {
           const {data} = props ?? {};
 
-          return  requestAuthCode(data,requestOptions)
+          return  signInWithApple(data,requestOptions)
         }
 
 
@@ -199,43 +198,43 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type RequestAuthCodeMutationResult = NonNullable<Awaited<ReturnType<typeof requestAuthCode>>>
-    export type RequestAuthCodeMutationBody = BodyType<AuthCodeRequest>
-    export type RequestAuthCodeMutationError = ErrorType<BadRequestResponse | TooManyRequestsResponse>
+    export type SignInWithAppleMutationResult = NonNullable<Awaited<ReturnType<typeof signInWithApple>>>
+    export type SignInWithAppleMutationBody = BodyType<AppleSignInRequest>
+    export type SignInWithAppleMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>
 
     /**
- * @summary Request an email login code
+ * @summary Sign in with an Apple identity token
  */
-export const useRequestAuthCode = <TError = ErrorType<BadRequestResponse | TooManyRequestsResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestAuthCode>>, TError,{data: BodyType<AuthCodeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useSignInWithApple = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof signInWithApple>>, TError,{data: BodyType<AppleSignInRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof requestAuthCode>>,
+        Awaited<ReturnType<typeof signInWithApple>>,
         TError,
-        {data: BodyType<AuthCodeRequest>},
+        {data: BodyType<AppleSignInRequest>},
         TContext
       > => {
-      return useMutation(getRequestAuthCodeMutationOptions(options));
+      return useMutation(getSignInWithAppleMutationOptions(options));
     }
 
-export const getVerifyAuthCodeUrl = () => {
+export const getDevBypassAuthUrl = () => {
 
 
 
 
-  return `/api/auth/verify`
+  return `/api/auth/dev-bypass`
 }
 
 /**
- * @summary Verify an email login code
+ * @summary Development-only auth bypass using a shared secret code
  */
-export const verifyAuthCode = async (authCodeVerify: AuthCodeVerify, options?: Parameters<typeof customFetch>[1]): Promise<AuthResponse> => {
+export const devBypassAuth = async (devBypassRequest: DevBypassRequest, options?: Parameters<typeof customFetch>[1]): Promise<AuthResponse> => {
 
-  return customFetch<AuthResponse>(getVerifyAuthCodeUrl(),
+  return customFetch<AuthResponse>(getDevBypassAuthUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(authCodeVerify)
+    body: JSON.stringify(devBypassRequest)
   }
 );}
 
@@ -243,11 +242,11 @@ export const verifyAuthCode = async (authCodeVerify: AuthCodeVerify, options?: P
 
 
 
-export const getVerifyAuthCodeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAuthCode>>, TError,{data: BodyType<AuthCodeVerify>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof verifyAuthCode>>, TError,{data: BodyType<AuthCodeVerify>}, TContext> => {
+export const getDevBypassAuthMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof devBypassAuth>>, TError,{data: BodyType<DevBypassRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof devBypassAuth>>, TError,{data: BodyType<DevBypassRequest>}, TContext> => {
 
-const mutationKey = ['verifyAuthCode'];
+const mutationKey = ['devBypassAuth'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -257,10 +256,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyAuthCode>>, {data: BodyType<AuthCodeVerify>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof devBypassAuth>>, {data: BodyType<DevBypassRequest>}> = (props) => {
           const {data} = props ?? {};
 
-          return  verifyAuthCode(data,requestOptions)
+          return  devBypassAuth(data,requestOptions)
         }
 
 
@@ -270,22 +269,22 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type VerifyAuthCodeMutationResult = NonNullable<Awaited<ReturnType<typeof verifyAuthCode>>>
-    export type VerifyAuthCodeMutationBody = BodyType<AuthCodeVerify>
-    export type VerifyAuthCodeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>
+    export type DevBypassAuthMutationResult = NonNullable<Awaited<ReturnType<typeof devBypassAuth>>>
+    export type DevBypassAuthMutationBody = BodyType<DevBypassRequest>
+    export type DevBypassAuthMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>
 
     /**
- * @summary Verify an email login code
+ * @summary Development-only auth bypass using a shared secret code
  */
-export const useVerifyAuthCode = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAuthCode>>, TError,{data: BodyType<AuthCodeVerify>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useDevBypassAuth = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof devBypassAuth>>, TError,{data: BodyType<DevBypassRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof verifyAuthCode>>,
+        Awaited<ReturnType<typeof devBypassAuth>>,
         TError,
-        {data: BodyType<AuthCodeVerify>},
+        {data: BodyType<DevBypassRequest>},
         TContext
       > => {
-      return useMutation(getVerifyAuthCodeMutationOptions(options));
+      return useMutation(getDevBypassAuthMutationOptions(options));
     }
 
 export const getListNotesUrl = () => {

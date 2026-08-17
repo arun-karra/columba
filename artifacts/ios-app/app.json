@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.columba.notes",
+      "usesAppleSignIn": true,
       "buildNumber": "1",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -31,10 +32,11 @@
     },
     "plugins": [
       "expo-dev-client",
+      "expo-apple-authentication",
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": false
         }
       ],
       "expo-font",
@@ -54,9 +56,7 @@
       "autolinkingModuleResolution": true
     },
     "extra": {
-      "router": {
-        "origin": "https://replit.com/"
-      },
+      "router": {},
       "eas": {
         "projectId": "00aa6323-a8d3-4d7d-9329-3f7dc2020c9b"
       }

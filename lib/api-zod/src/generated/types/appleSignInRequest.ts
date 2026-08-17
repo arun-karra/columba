@@ -6,9 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AuthCodeVerify {
+export interface AppleSignInRequest {
+  /** @minLength 1 */
+  identityToken: string;
   /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
-  email: string;
-  /** @pattern ^[0-9]{6}$ */
-  code: string;
+  email?: string | null;
+  fullName?: string | null;
 }
