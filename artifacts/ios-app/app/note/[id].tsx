@@ -39,6 +39,8 @@ import { dismissNoteNotification } from '@/utils/notifications';
 import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 import { AppIcon } from '@/components/AppIcon';
 import { confirmDestructive } from '@/utils/iosConfirm';
+import { getNoteNotificationStatus } from '@/utils/noteNotificationStatus';
+import { canResendNoteNotification, resendNoteNotification } from '@/utils/resendNoteNotification';
 import { useScreenGutter } from '@/constants/layout';
 
 function SectionCard({
@@ -266,6 +268,15 @@ export default function NoteDetailScreen() {
     setGroupName(name);
   };
 
+  const handleResendNotification = useCallback(async () => {
+    if (!note) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await resendNoteNotification(note);
+  }, [note]);
+
+  const notificationStatus = note ? getNoteNotificationStatus(note) : null;
+  const showResend = note ? canResendNoteNotification(note) && !note.isDone : false;
+
   if (isLoading || !note) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -309,6 +320,34 @@ export default function NoteDetailScreen() {
           showDatePicker={showDatePicker}
           onShowDatePicker={setShowDatePicker}
         />
+
+        {notificationStatus ? (
+          <View style={styles.notifyStatusRow}>
+            <AppIcon name="bell" size={14} color={colors.primary} />
+            <Text style={[styles.notifyStatusText, { color: colors.primary }]}>
+              {notificationStatus}
+            </Text>
+          </View>
+        ) : null}
+
+        {showResend ? (
+          <Pressable
+            style={[
+              styles.resendBtn,
+              { borderColor: colors.border, backgroundColor: colors.card },
+            ]}
+            onPress={() => {
+              void handleResendNotification();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Resend notification"
+          >
+            <AppIcon name="bell" size={18} color={colors.primary} />
+            <Text style={[styles.resendBtnText, { color: colors.primary }]}>
+              Resend notification
+            </Text>
+          </Pressable>
+        ) : null}
 
         <SectionCard title="Select Group">
           <View style={styles.groupPickerWrap}>
@@ -401,6 +440,30 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   groupPickerWrap: { padding: 14 },
+  notifyStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: -12,
+  },
+  notifyStatusText: {
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
+  },
+  resendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: -8,
+  },
+  resendBtnText: {
+    fontSize: 16,
+    fontFamily: 'Manrope_600SemiBold',
+  },
   actions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   slideWrap: { flex: 1, position: 'relative' },
   confettiAnchor: {

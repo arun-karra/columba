@@ -64,6 +64,13 @@ export async function setGroupEmoji(groupId: string, emoji: string): Promise<voi
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 
+export async function clearGroupEmoji(groupId: string): Promise<void> {
+  const map = await readMap();
+  if (!(groupId in map)) return;
+  delete map[groupId];
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+}
+
 export function resolveGroupEmoji(
   groupId: string,
   groupName: string,

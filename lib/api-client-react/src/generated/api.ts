@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AcceptedGroupInvite,
   AppleSignInRequest,
   AuthResponse,
   BadRequestResponse,
@@ -27,6 +28,7 @@ import type {
   ForbiddenResponse,
   Group,
   GroupInput,
+  GroupInvite,
   GroupUpdate,
   HealthStatus,
   InviteInput,
@@ -954,6 +956,77 @@ export const useToggleNoteDone = <TError = ErrorType<UnauthorizedResponse | Forb
       return useMutation(getToggleNoteDoneMutationOptions(options));
     }
 
+export const getResendNoteNotificationUrl = (id: string,) => {
+
+
+
+
+  return `/api/notes/${id}/resend-notification`
+}
+
+/**
+ * @summary Resend the push notification for a pinned or scheduled note
+ */
+export const resendNoteNotification = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getResendNoteNotificationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResendNoteNotificationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendNoteNotification>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendNoteNotification>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['resendNoteNotification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendNoteNotification>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  resendNoteNotification(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendNoteNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof resendNoteNotification>>>
+
+    export type ResendNoteNotificationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Resend the push notification for a pinned or scheduled note
+ */
+export const useResendNoteNotification = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendNoteNotification>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendNoteNotification>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getResendNoteNotificationMutationOptions(options));
+    }
+
 export const getListGroupsUrl = () => {
 
 
@@ -1251,6 +1324,77 @@ export const useUpdateGroup = <TError = ErrorType<BadRequestResponse | Unauthori
       return useMutation(getUpdateGroupMutationOptions(options));
     }
 
+export const getDeleteGroupUrl = (id: string,) => {
+
+
+
+
+  return `/api/groups/${id}`
+}
+
+/**
+ * @summary Delete a group (admin only)
+ */
+export const deleteGroup = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteGroupUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteGroupMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteGroup>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteGroup>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteGroup>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteGroup(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteGroupMutationResult = NonNullable<Awaited<ReturnType<typeof deleteGroup>>>
+
+    export type DeleteGroupMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Delete a group (admin only)
+ */
+export const useDeleteGroup = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteGroup>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteGroup>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteGroupMutationOptions(options));
+    }
+
 export const getInviteToGroupUrl = (id: string,) => {
 
 
@@ -1394,6 +1538,225 @@ export const useRemoveGroupMember = <TError = ErrorType<UnauthorizedResponse | F
         TContext
       > => {
       return useMutation(getRemoveGroupMemberMutationOptions(options));
+    }
+
+export const getListGroupInvitesUrl = () => {
+
+
+
+
+  return `/api/group-invites`
+}
+
+/**
+ * @summary List pending group invitations for the current user
+ */
+export const listGroupInvites = async ( options?: Parameters<typeof customFetch>[1]): Promise<GroupInvite[]> => {
+
+  return customFetch<GroupInvite[]>(getListGroupInvitesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGroupInvitesQueryKey = () => {
+    return [
+    `/api/group-invites`
+    ] as const;
+    }
+
+
+export const getListGroupInvitesQueryOptions = <TData = Awaited<ReturnType<typeof listGroupInvites>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGroupInvites>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGroupInvitesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGroupInvites>>> = ({ signal }) => listGroupInvites({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGroupInvites>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGroupInvitesQueryResult = NonNullable<Awaited<ReturnType<typeof listGroupInvites>>>
+export type ListGroupInvitesQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List pending group invitations for the current user
+ */
+
+export function useListGroupInvites<TData = Awaited<ReturnType<typeof listGroupInvites>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGroupInvites>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGroupInvitesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAcceptGroupInviteUrl = (id: string,) => {
+
+
+
+
+  return `/api/group-invites/${id}/accept`
+}
+
+/**
+ * @summary Accept a group invitation
+ */
+export const acceptGroupInvite = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AcceptedGroupInvite> => {
+
+  return customFetch<AcceptedGroupInvite>(getAcceptGroupInviteUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptGroupInviteMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptGroupInvite>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptGroupInvite>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['acceptGroupInvite'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptGroupInvite>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  acceptGroupInvite(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptGroupInviteMutationResult = NonNullable<Awaited<ReturnType<typeof acceptGroupInvite>>>
+
+    export type AcceptGroupInviteMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Accept a group invitation
+ */
+export const useAcceptGroupInvite = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptGroupInvite>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptGroupInvite>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getAcceptGroupInviteMutationOptions(options));
+    }
+
+export const getDeclineGroupInviteUrl = (id: string,) => {
+
+
+
+
+  return `/api/group-invites/${id}/decline`
+}
+
+/**
+ * @summary Decline a group invitation
+ */
+export const declineGroupInvite = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeclineGroupInviteUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineGroupInviteMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineGroupInvite>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineGroupInvite>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['declineGroupInvite'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineGroupInvite>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  declineGroupInvite(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineGroupInviteMutationResult = NonNullable<Awaited<ReturnType<typeof declineGroupInvite>>>
+
+    export type DeclineGroupInviteMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Decline a group invitation
+ */
+export const useDeclineGroupInvite = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineGroupInvite>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineGroupInvite>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeclineGroupInviteMutationOptions(options));
     }
 
 export const getRegisterPushTokenUrl = () => {

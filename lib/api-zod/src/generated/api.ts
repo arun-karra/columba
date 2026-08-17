@@ -294,6 +294,16 @@ export const ToggleNoteDoneResponse = zod.object({
 
 
 /**
+ * @summary Resend the push notification for a pinned or scheduled note
+ */
+export const ResendNoteNotificationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ResendNoteNotificationResponse = zod.void()
+
+
+/**
  * @summary List groups the current user belongs to
  */
 export const listGroupsResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
@@ -406,6 +416,16 @@ export const UpdateGroupResponse = zod.object({
 
 
 /**
+ * @summary Delete a group (admin only)
+ */
+export const DeleteGroupParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteGroupResponse = zod.void()
+
+
+/**
  * @summary Invite an email address to a group
  */
 export const InviteToGroupParams = zod.object({
@@ -423,7 +443,7 @@ export const inviteToGroupResponseEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\
 
 
 export const InviteToGroupResponse = zod.object({
-  "status": zod.enum(['added', 'pending']),
+  "status": zod.enum(['pending']),
   "email": zod.string().regex(inviteToGroupResponseEmailRegExp),
   "message": zod.string()
 })
@@ -438,6 +458,43 @@ export const RemoveGroupMemberParams = zod.object({
 })
 
 export const RemoveGroupMemberResponse = zod.void()
+
+
+/**
+ * @summary List pending group invitations for the current user
+ */
+export const ListGroupInvitesResponseItem = zod.object({
+  "id": zod.string(),
+  "groupId": zod.string(),
+  "groupName": zod.string(),
+  "groupEmoji": zod.string(),
+  "invitedByEmail": zod.string().nullable(),
+  "invitedByName": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListGroupInvitesResponse = zod.array(ListGroupInvitesResponseItem)
+
+
+/**
+ * @summary Accept a group invitation
+ */
+export const AcceptGroupInviteParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AcceptGroupInviteResponse = zod.object({
+  "groupId": zod.string()
+})
+
+
+/**
+ * @summary Decline a group invitation
+ */
+export const DeclineGroupInviteParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeclineGroupInviteResponse = zod.void()
 
 
 /**

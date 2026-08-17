@@ -25,25 +25,41 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { AppIcon } from '@/components/AppIcon';
-import { confirmDestructive } from '@/utils/iosConfirm';
+import { GroupAvatar } from '@/components/GroupAvatar';
+import { confirmDestructive, showNoteQuickActions } from '@/utils/iosConfirm';
+import { getNoteNotificationStatus } from '@/utils/noteNotificationStatus';
+import { canResendNoteNotification, resendNoteNotification } from '@/utils/resendNoteNotification';
 import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
-import { getGroupEmojiMap, resolveGroupEmoji } from '@/utils/groupEmoji';
+import { getGroupEmojiMap } from '@/utils/groupEmoji';
+import { getGroupIconColorMap, resolveGroupIconColor } from '@/utils/groupIconStyle';
+import { resolveNoteGroupEmoji } from '@/utils/noteNotificationText';
 import { clearPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
 import { dismissNoteNotification } from '@/utils/notifications';
 
 function NoteCardContent({
   note,
   groupEmoji,
+  groupIconColor,
+  groupName,
   selectionMode,
   selected,
 }: {
   note: Note;
   groupEmoji: string | null;
+  groupIconColor: string | null;
+  groupName: string | null;
   selectionMode?: boolean;
   selected?: boolean;
 }) {
   const colors = useColors();
   const isDone = note.isDone;
+  const groupInitials = groupName
+    ? groupName
+        .split(' ')
+        .slice(0, 2)
+        .map((word) => word[0]?.toUpperCase() ?? '')
+        .join('')
+    : '';
 
   return (
     <>
@@ -63,21 +79,44 @@ function NoteCardContent({
         </View>
       ) : null}
       <View style={styles.cardInner}>
-        {groupEmoji ? (
-          <Text style={styles.groupEmoji}>{groupEmoji}</Text>
+        {groupEmoji && groupName ? (
+          <GroupAvatar
+            emoji={groupEmoji}
+            fallbackInitials={groupInitials}
+            size={36}
+            backgroundColor={groupIconColor}
+          />
         ) : null}
-        <Text
-          style={[
-            styles.cardText,
-            {
-              color: colors.foreground,
-              textDecorationLine: isDone ? 'line-through' : 'none',
-            },
-          ]}
-          numberOfLines={2}
-        >
-          {note.body}
-        </Text>
+        <View style={styles.cardTextCol}>
+          {groupName ? (
+            <Text
+              style={[styles.groupNameLabel, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+            >
+              {groupName}
+            </Text>
+          ) : null}
+          <Text
+            style={[
+              styles.cardText,
+              {
+                color: colors.foreground,
+                textDecorationLine: isDone ? 'line-through' : 'none',
+              },
+            ]}
+            numberOfLines={3}
+          >
+            {note.body}
+          </Text>
+          {getNoteNotificationStatus(note) ? (
+            <View style={styles.notifyRow}>
+              <AppIcon name="bell" size={13} color={colors.primary} />
+              <Text style={[styles.notifyStatus, { color: colors.primary }]}>
+                {getNoteNotificationStatus(note)}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
       {!selectionMode ? (
         <AppIcon name="chevron.right" size={16} color={colors.mutedForeground} />
@@ -96,6 +135,7 @@ export default function NotesScreen() {
   const { user } = useAuth();
 
   const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
+  const [iconColorMap, setIconColorMap] = useState<Record<string, string>>({});
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
@@ -109,7 +149,12 @@ export default function NotesScreen() {
   const deleteNote = useDeleteNote();
 
   useEffect(() => {
-    void getGroupEmojiMap().then(setEmojiMap);
+    void Promise.all([getGroupEmojiMap(), getGroupIconColorMap()]).then(
+      ([emojis, colors]) => {
+        setEmojiMap(emojis);
+        setIconColorMap(colors);
+      },
+    );
   }, [notes.length]);
 
   const invalidate = useCallback(async () => {
@@ -119,7 +164,10 @@ export default function NotesScreen() {
 
   const onRefresh = useCallback(async () => {
     await invalidate();
-    await getGroupEmojiMap().then(setEmojiMap);
+    await Promise.all([
+      getGroupEmojiMap().then(setEmojiMap),
+      getGroupIconColorMap().then(setIconColorMap),
+    ]);
   }, [invalidate]);
 
   const exitSelectionMode = useCallback(() => {
@@ -166,6 +214,25 @@ export default function NotesScreen() {
       });
     },
     [deleteNote, invalidate],
+  );
+
+  const handleResendNote = useCallback(async (note: Note) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await resendNoteNotification(note);
+  }, []);
+
+  const openNoteActions = useCallback(
+    (note: Note) => {
+      if (selectionMode) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      showNoteQuickActions({
+        canResend: canResendNoteNotification(note),
+        onResend: () => {
+          void handleResendNote(note);
+        },
+      });
+    },
+    [handleResendNote, selectionMode],
   );
 
   const handleToggleDone = useCallback(
@@ -280,12 +347,17 @@ export default function NotesScreen() {
       <FlatList
         data={notes}
         keyExtractor={(n) => n.id}
-        extraData={{ selectionMode, selectedIds }}
+        extraData={{ selectionMode, selectedIds, emojiMap, iconColorMap }}
         renderItem={({ item }) => {
-          const groupEmoji =
+          const groupEmoji = resolveNoteGroupEmoji(
+            item.groupId,
+            item.groupName,
+            emojiMap,
+            item.groupEmoji,
+          );
+          const groupIconColor =
             item.groupId && item.groupName
-              ? item.groupEmoji ??
-                resolveGroupEmoji(item.groupId, item.groupName, emojiMap)
+              ? resolveGroupIconColor(item.groupId, item.groupName, iconColorMap)
               : null;
 
           const isSelected = selectedIds.has(item.id);
@@ -303,10 +375,14 @@ export default function NotesScreen() {
                 },
               ]}
               onPress={() => handlePress(item)}
+              onLongPress={() => openNoteActions(item)}
+              delayLongPress={400}
             >
               <NoteCardContent
                 note={item}
                 groupEmoji={groupEmoji}
+                groupIconColor={groupIconColor}
+                groupName={item.groupName}
                 selectionMode={selectionMode}
                 selected={isSelected}
               />
@@ -484,9 +560,9 @@ const styles = StyleSheet.create({
   sep: { height: 10 },
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    alignItems: 'flex-start',
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -501,20 +577,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    marginTop: 6,
   },
   cardInner: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    alignItems: 'flex-start',
+    gap: 14,
     marginRight: 8,
   },
-  groupEmoji: { fontSize: 20, lineHeight: 24 },
+  cardTextCol: { flex: 1, gap: 4 },
+  groupNameLabel: {
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    letterSpacing: 0.1,
+  },
   cardText: {
-    flex: 1,
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: 'Manrope_500Medium',
-    lineHeight: 22,
+    lineHeight: 24,
+  },
+  notifyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  notifyStatus: {
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
   },
   swipeAction: {
     width: 88,

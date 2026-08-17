@@ -192,9 +192,12 @@ Base URL: `https://<host>/api`
 | `GET` | `/groups` | List groups |
 | `POST` | `/groups` | Create group |
 | `GET` | `/groups/:id` | Get group + members |
-| `POST` | `/groups/:id/invite` | Invite member by email |
-| `DELETE` | `/groups/:id/members/:userId` | Remove member |
-| `POST` | `/groups/:id/leave` | Leave group |
+| `POST` | `/groups/:id/invite` | Send in-app group invitation (push if user exists) |
+| `GET` | `/group-invites` | List pending invitations for the current user |
+| `POST` | `/group-invites/:id/accept` | Accept an invitation |
+| `POST` | `/group-invites/:id/decline` | Decline an invitation |
+| `DELETE` | `/groups/:id` | Delete group (admin only) |
+| `DELETE` | `/groups/:id/members/:userId` | Remove member / leave |
 | `POST` | `/push/register` | Register Expo push token |
 | `DELETE` | `/push/unregister` | Unregister token |
 | `GET` | `/healthz` | Health check |

@@ -20,6 +20,8 @@ export function createMockPrisma() {
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     },
     groupMembership: {
       findMany: vi.fn(),
@@ -30,6 +32,7 @@ export function createMockPrisma() {
     },
     groupInvite: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
       upsert: vi.fn(),
       update: vi.fn(),
     },

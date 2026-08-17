@@ -6,6 +6,7 @@ import {
   UpdateNoteParams,
   DeleteNoteParams,
   ToggleNoteDoneParams,
+  ResendNoteNotificationParams,
 } from "@workspace/api-zod";
 import { prisma } from "../lib/prisma";
 import { asyncHandler, HttpError, parseOrThrow, requireParam } from "../lib/errors";
@@ -99,6 +100,15 @@ async function ensureGroupMember(groupId: string, userId: string) {
   });
   if (!membership) throw new HttpError(403, "FORBIDDEN", "You must be a member of that group.");
   return membership;
+}
+
+async function notificationRecipients(note: { ownerId: string; groupId: string | null }) {
+  if (!note.groupId) return [note.ownerId];
+  const memberships = await prisma.groupMembership.findMany({
+    where: { groupId: note.groupId },
+    select: { userId: true },
+  });
+  return memberships.map((membership) => membership.userId);
 }
 
 router.get(
@@ -209,6 +219,41 @@ router.patch(
       void sendDismissPush([userId], updated.id);
     }
     res.json(mapNote(updated));
+  }),
+);
+
+router.post(
+  "/notes/:id/resend-notification",
+  asyncHandler(async (req, res) => {
+    const userId = (req as AuthenticatedRequest).userId;
+    const { id } = parseOrThrow(ResendNoteNotificationParams, {
+      id: requireParam(req.params.id, "id"),
+    });
+    const note = await getVisibleNote(id, userId);
+    if (note.isDone) {
+      throw new HttpError(400, "NOTE_DONE", "Done notes can't send notifications.");
+    }
+    if (!note.isPinned && !note.remindAt) {
+      throw new HttpError(400, "NO_NOTIFICATION", "This note has no notification set.");
+    }
+    const canManage = note.groupId !== null || note.ownerId === userId;
+    if (!canManage) {
+      throw new HttpError(403, "FORBIDDEN", "You cannot resend this notification.");
+    }
+
+    const pinnedNow = note.isPinned && !note.remindAt;
+    const recipients = await notificationRecipients(note);
+    void sendPush(
+      recipients,
+      notificationTextForNote(note),
+      { noteId: note.id },
+      {
+        pinned: pinnedNow,
+        timeSensitive: true,
+        ...(pinnedNow ? { categoryId: PINNED_NOTE_CATEGORY } : {}),
+      },
+    );
+    res.status(204).send();
   }),
 );
 

@@ -30,6 +30,13 @@ export async function setGroupIconColor(groupId: string, color: string): Promise
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 
+export async function clearGroupIconColor(groupId: string): Promise<void> {
+  const map = await readColorMap();
+  if (!(groupId in map)) return;
+  delete map[groupId];
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+}
+
 export function resolveGroupIconColor(
   groupId: string,
   groupName: string,

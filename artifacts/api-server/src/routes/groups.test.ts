@@ -113,12 +113,21 @@ describe("POST /api/groups/:id/invite", () => {
     expect(res.status).toBe(403);
   });
 
-  it("adds an existing user directly and notifies them", async () => {
+  it("creates a pending invite and notifies an existing user", async () => {
     mockPrisma.groupMembership.findUnique
       .mockResolvedValueOnce({ groupId: "group-1", userId: admin.id, role: "admin" }) // inviter membership
       .mockResolvedValueOnce(null); // invitee not already a member
-    mockPrisma.user.findUnique.mockResolvedValue({ id: "new-user", email: "new@example.com" });
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({ id: "new-user", email: "new@example.com" }) // invitee lookup
+      .mockResolvedValueOnce({ email: admin.email, displayName: null }); // inviter lookup
+    mockPrisma.groupInvite.upsert.mockResolvedValue({
+      id: "invite-1",
+      groupId: "group-1",
+      email: "new@example.com",
+      status: "pending",
+    });
     mockPrisma.group.findUniqueOrThrow.mockResolvedValue({ name: "Household" });
+    mockPrisma.pushToken.findMany.mockResolvedValue([]);
 
     const res = await request(app)
       .post("/api/groups/group-1/invite")
@@ -126,10 +135,9 @@ describe("POST /api/groups/:id/invite", () => {
       .send({ email: "new@example.com" });
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe("added");
-    expect(mockPrisma.groupMembership.create).toHaveBeenCalledWith({
-      data: { groupId: "group-1", userId: "new-user", role: "member" },
-    });
+    expect(res.body.status).toBe("pending");
+    expect(mockPrisma.groupMembership.create).not.toHaveBeenCalled();
+    expect(mockPrisma.groupInvite.upsert).toHaveBeenCalled();
   });
 
   it("rejects inviting someone who is already a member", async () => {
@@ -163,6 +171,33 @@ describe("POST /api/groups/:id/invite", () => {
         where: { groupId_email: { groupId: "group-1", email: "nobody-yet@example.com" } },
       }),
     );
+  });
+});
+
+describe("DELETE /api/groups/:id", () => {
+  it("lets an admin delete the group", async () => {
+    mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: admin.id, role: "admin" });
+    mockPrisma.group.delete.mockResolvedValue({});
+
+    const res = await request(app).delete("/api/groups/group-1").set(authHeader(admin));
+    expect(res.status).toBe(204);
+    expect(mockPrisma.group.delete).toHaveBeenCalledWith({ where: { id: "group-1" } });
+  });
+
+  it("forbids a non-admin from deleting the group", async () => {
+    mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: member.id, role: "member" });
+
+    const res = await request(app).delete("/api/groups/group-1").set(authHeader(member));
+    expect(res.status).toBe(403);
+    expect(mockPrisma.group.delete).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the group doesn't exist", async () => {
+    mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: admin.id, role: "admin" });
+    mockPrisma.group.delete.mockRejectedValue(new Error("not found"));
+
+    const res = await request(app).delete("/api/groups/group-1").set(authHeader(admin));
+    expect(res.status).toBe(404);
   });
 });
 
