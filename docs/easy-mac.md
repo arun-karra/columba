@@ -49,6 +49,25 @@ No email. No ngrok. No EAS build required for daily testing.
 
 Press **Ctrl+C** in the terminal when you are done.
 
+### See UI changes in the Simulator
+
+The Simulator shows **live JavaScript** from Metro, not what was baked into the old EAS build.
+
+1. After `git pull`, restart: `pnpm mac:dev`
+2. In Columba, tap **`localhost:8081`** again (do not open the app without Metro)
+3. In the Metro terminal, press **`r`** to reload
+4. If it still looks stale: Simulator menu **Device → Erase All Content and Settings** is overkill — try **Cmd+R** in Simulator first
+
+**Check you're on latest code:**
+
+```bash
+cd ~/columba
+git log -1 --oneline
+grep EmojiPicker artifacts/ios-app/app/\(tabs\)/groups.tsx
+```
+
+If `grep` finds `EmojiPicker`, you have group emojis. If not, run `git pull origin main`.
+
 ---
 
 ## Rules so you do not get confused
