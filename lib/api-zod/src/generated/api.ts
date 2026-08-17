@@ -294,6 +294,16 @@ export const ToggleNoteDoneResponse = zod.object({
 
 
 /**
+ * @summary Resend the push notification for a pinned or scheduled note
+ */
+export const ResendNoteNotificationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ResendNoteNotificationResponse = zod.void()
+
+
+/**
  * @summary List groups the current user belongs to
  */
 export const listGroupsResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');

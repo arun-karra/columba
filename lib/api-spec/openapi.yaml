@@ -261,6 +261,26 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /notes/{id}/resend-notification:
+    post:
+      operationId: resendNoteNotification
+      tags: [notes]
+      summary: Resend the push notification for a pinned or scheduled note
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Sent
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /groups:
     get:
       operationId: listGroups

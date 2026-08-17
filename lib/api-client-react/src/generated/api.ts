@@ -956,6 +956,77 @@ export const useToggleNoteDone = <TError = ErrorType<UnauthorizedResponse | Forb
       return useMutation(getToggleNoteDoneMutationOptions(options));
     }
 
+export const getResendNoteNotificationUrl = (id: string,) => {
+
+
+
+
+  return `/api/notes/${id}/resend-notification`
+}
+
+/**
+ * @summary Resend the push notification for a pinned or scheduled note
+ */
+export const resendNoteNotification = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getResendNoteNotificationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResendNoteNotificationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendNoteNotification>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendNoteNotification>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['resendNoteNotification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendNoteNotification>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  resendNoteNotification(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendNoteNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof resendNoteNotification>>>
+
+    export type ResendNoteNotificationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Resend the push notification for a pinned or scheduled note
+ */
+export const useResendNoteNotification = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendNoteNotification>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendNoteNotification>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getResendNoteNotificationMutationOptions(options));
+    }
+
 export const getListGroupsUrl = () => {
 
 

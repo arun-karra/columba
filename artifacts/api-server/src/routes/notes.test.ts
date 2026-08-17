@@ -262,6 +262,74 @@ describe("POST /api/notes/:id/toggle-done", () => {
   });
 });
 
+describe("POST /api/notes/:id/resend-notification", () => {
+  it("returns 204 for a pinned personal note owned by the caller", async () => {
+    mockPrisma.note.findUnique.mockResolvedValue(makeNote({ isPinned: true }));
+
+    const res = await request(app)
+      .post("/api/notes/note-1/resend-notification")
+      .set(authHeader(owner));
+
+    expect(res.status).toBe(204);
+  });
+
+  it("returns 204 for a scheduled note and loads group recipients", async () => {
+    mockPrisma.groupMembership.findMany.mockResolvedValue([
+      { userId: owner.id },
+      { userId: groupMember.id },
+    ]);
+    mockPrisma.note.findUnique.mockResolvedValue(
+      makeNote({
+        groupId: "group-1",
+        group: { name: "Household", emoji: "🏠" },
+        remindAt: new Date("2026-12-01T10:00:00Z"),
+        isPinned: true,
+      }),
+    );
+
+    const res = await request(app)
+      .post("/api/notes/note-1/resend-notification")
+      .set(authHeader(owner));
+
+    expect(res.status).toBe(204);
+    expect(mockPrisma.groupMembership.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { groupId: "group-1" } }),
+    );
+  });
+
+  it("returns 400 when the note has no notification configured", async () => {
+    mockPrisma.note.findUnique.mockResolvedValue(makeNote({ isPinned: false, remindAt: null }));
+
+    const res = await request(app)
+      .post("/api/notes/note-1/resend-notification")
+      .set(authHeader(owner));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("NO_NOTIFICATION");
+  });
+
+  it("returns 400 when the note is already done", async () => {
+    mockPrisma.note.findUnique.mockResolvedValue(makeNote({ isPinned: true, isDone: true }));
+
+    const res = await request(app)
+      .post("/api/notes/note-1/resend-notification")
+      .set(authHeader(owner));
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("NOTE_DONE");
+  });
+
+  it("forbids resending a personal note the caller does not own", async () => {
+    mockPrisma.note.findUnique.mockResolvedValue(makeNote({ isPinned: true }));
+
+    const res = await request(app)
+      .post("/api/notes/note-1/resend-notification")
+      .set(authHeader(otherUser));
+
+    expect(res.status).toBe(403);
+  });
+});
+
 describe("DELETE /api/notes/:id", () => {
   it("lets the owner delete their personal note", async () => {
     mockPrisma.note.findUnique.mockResolvedValue(makeNote());
