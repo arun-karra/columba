@@ -12,6 +12,8 @@ interface PushOptions {
   urgent?: boolean;
   /** iOS notification category identifier (enables lock-screen actions). */
   categoryId?: string;
+  /** Pin to lock screen — highest interruption level allowed without Critical Alerts entitlement. */
+  pinned?: boolean;
 }
 
 /**
@@ -42,12 +44,14 @@ export async function sendPush(
 
   const messages = validTokens.map((token) => ({
     to: token.expoPushToken,
-    sound: options.urgent ? ("default" as const) : null,
+    sound: options.urgent || options.pinned ? ("default" as const) : null,
     title,
     body,
     data,
-    priority: options.urgent ? ("high" as const) : ("normal" as const),
-    ...(options.urgent ? { interruptionLevel: "time-sensitive" as const } : {}),
+    priority: options.urgent || options.pinned ? ("high" as const) : ("normal" as const),
+    ...(options.urgent || options.pinned
+      ? { interruptionLevel: "time-sensitive" as const }
+      : {}),
     ...(options.categoryId ? { categoryIdentifier: options.categoryId } : {}),
   }));
 

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -24,9 +25,15 @@ import { useAuth } from '@/context/AuthContext';
 import type { GroupMember } from '@workspace/api-client-react';
 import { AppIcon } from '@/components/AppIcon';
 import { GroupAvatar } from '@/components/GroupAvatar';
+import { EmojiPicker } from '@/components/EmojiPicker';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { useScreenGutter } from '@/constants/layout';
-import { getGroupEmoji, resolveGroupEmoji } from '@/utils/groupEmoji';
+import {
+  defaultEmojiForGroup,
+  getGroupEmoji,
+  resolveGroupEmoji,
+  setGroupEmoji,
+} from '@/utils/groupEmoji';
 
 function MemberRow({
   member,
@@ -94,6 +101,8 @@ export default function GroupDetailScreen() {
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [groupEmoji, setGroupEmojiState] = useState<string | null>(null);
+  const [showEmojiEditor, setShowEmojiEditor] = useState(false);
+  const [draftEmoji, setDraftEmoji] = useState<string>(defaultEmojiForGroup(''));
 
   const { data: group, isLoading } = useGetGroup(id ?? '');
 
@@ -177,6 +186,19 @@ export default function GroupDetailScreen() {
 
   const emoji = groupEmoji ?? resolveGroupEmoji(group.id, group.name, {});
 
+  const openEmojiEditor = () => {
+    setDraftEmoji(emoji);
+    setShowEmojiEditor(true);
+  };
+
+  const saveEmoji = async () => {
+    if (!id) return;
+    await setGroupEmoji(id, draftEmoji);
+    setGroupEmojiState(draftEmoji);
+    setShowEmojiEditor(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <FlatList
@@ -188,7 +210,12 @@ export default function GroupDetailScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.hero}>
-              <GroupAvatar emoji={emoji} fallbackInitials={groupInitials} size={64} />
+              <Pressable onPress={openEmojiEditor} style={styles.emojiTap}>
+                <GroupAvatar emoji={emoji} fallbackInitials={groupInitials} size={64} />
+                <Text style={[styles.changeEmoji, { color: colors.primary }]}>
+                  Change icon
+                </Text>
+              </Pressable>
               <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
               <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
                 {group.members.length}{' '}
@@ -270,6 +297,35 @@ export default function GroupDetailScreen() {
           />
         )}
       />
+
+      <Modal
+        visible={showEmojiEditor}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEmojiEditor(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.groupName, { color: colors.foreground, fontSize: 18 }]}>
+              Group icon
+            </Text>
+            <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} />
+            <Pressable
+              style={[styles.saveEmojiBtn, { backgroundColor: colors.primary }]}
+              onPress={() => void saveEmoji()}
+            >
+              <Text style={[styles.saveEmojiText, { color: colors.primaryForeground }]}>
+                Save
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => setShowEmojiEditor(false)}>
+              <Text style={[styles.changeEmoji, { color: colors.mutedForeground }]}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -285,6 +341,29 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
   },
+  emojiTap: { alignItems: 'center', gap: 6 },
+  changeEmoji: { fontSize: 13, fontFamily: 'Manrope_600SemiBold' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 20,
+    padding: 24,
+    gap: 16,
+  },
+  saveEmojiBtn: {
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveEmojiText: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
   groupAvatarWrap: {
     width: 72,
     height: 72,

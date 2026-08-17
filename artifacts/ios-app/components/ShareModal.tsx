@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,8 +21,15 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { AppIcon } from '@/components/AppIcon';
-import { promptText } from '@/utils/iosConfirm';
+import { EmojiPicker } from '@/components/EmojiPicker';
+import { GroupAvatar } from '@/components/GroupAvatar';
 import { useScreenGutter } from '@/constants/layout';
+import {
+  defaultEmojiForGroup,
+  getGroupEmojiMap,
+  resolveGroupEmoji,
+  setGroupEmoji,
+} from '@/utils/groupEmoji';
 
 interface ShareModalProps {
   visible: boolean;
@@ -39,21 +46,31 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
 
   const [showCreate, setShowCreate] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupEmoji, setNewGroupEmoji] = useState<string>(defaultEmojiForGroup(''));
+  const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
 
   const { data: groups = [], isLoading } = useListGroups();
+
+  useEffect(() => {
+    if (!visible) return;
+    void getGroupEmojiMap().then(setEmojiMap);
+  }, [visible, groups.length]);
+
   const createGroup = useCreateGroup({
     mutation: {
-      onSuccess: (group) => {
+      onSuccess: async (group) => {
+        await setGroupEmoji(group.id, newGroupEmoji);
         queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
         setShowCreate(false);
         setNewGroupName('');
+        setNewGroupEmoji(defaultEmojiForGroup(''));
         onSelect(group.id, group.name);
       },
     },
   });
 
-  const handleCreateGroup = async (name?: string) => {
-    const value = (name ?? newGroupName).trim();
+  const handleCreateGroup = async () => {
+    const value = newGroupName.trim();
     if (!value) return;
     Keyboard.dismiss();
     try {
@@ -63,21 +80,14 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
     }
   };
 
-  const handleNewGroup = () => {
-    const usedNative = promptText({
-      title: 'New Group',
-      message: 'Choose a name, then this note will be shared with it.',
-      confirmLabel: 'Create',
-      onSubmit: (name) => {
-        void handleCreateGroup(name);
-      },
-    });
-    if (!usedNative) setShowCreate(true);
-  };
-
   const handleReset = () => {
     setShowCreate(false);
     setNewGroupName('');
+    setNewGroupEmoji(defaultEmojiForGroup(''));
+  };
+
+  const pickGroup = (groupId: string, groupName: string) => {
+    onSelect(groupId, groupName);
   };
 
   return (
@@ -127,7 +137,7 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
             ]}
           >
             <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-              Pick a group to share this note with all its members.
+              Tap a group — sharing saves automatically.
             </Text>
 
             {isLoading ? (
@@ -148,6 +158,7 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
               >
                 {groups.map((g, index) => {
                   const isSelected = g.id === selectedGroupId;
+                  const emoji = resolveGroupEmoji(g.id, g.name, emojiMap);
                   const initials = g.name
                     .split(' ')
                     .slice(0, 2)
@@ -164,15 +175,9 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
                         },
                         pressed && { opacity: 0.7 },
                       ]}
-                      onPress={() => onSelect(g.id, g.name)}
+                      onPress={() => pickGroup(g.id, g.name)}
                     >
-                      <View style={[styles.groupAvatar, { backgroundColor: colors.primary }]}>
-                        <Text
-                          style={[styles.groupAvatarText, { color: colors.primaryForeground }]}
-                        >
-                          {initials}
-                        </Text>
-                      </View>
+                      <GroupAvatar emoji={emoji} fallbackInitials={initials} size={40} />
                       <View style={styles.groupInfo}>
                         <Text style={[styles.groupName, { color: colors.foreground }]}>
                           {g.name}
@@ -198,8 +203,9 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
                 ]}
               >
                 <Text style={[styles.createLabel, { color: colors.foreground }]}>
-                  New group name
+                  New group
                 </Text>
+                <EmojiPicker value={newGroupEmoji} onChange={setNewGroupEmoji} />
                 <TextInput
                   style={[
                     styles.createInput,
@@ -260,7 +266,10 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
                   styles.newGroupBtn,
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
-                onPress={handleNewGroup}
+                onPress={() => {
+                  setNewGroupEmoji(defaultEmojiForGroup(''));
+                  setShowCreate(true);
+                }}
               >
                 <AppIcon name="plus" size={18} color={colors.primary} />
                 <Text style={[styles.newGroupBtnText, { color: colors.primary }]}>
@@ -277,7 +286,6 @@ export function ShareModal({ visible, selectedGroupId, onClose, onSelect }: Shar
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -287,14 +295,10 @@ const styles = StyleSheet.create({
   },
   headerAction: { fontSize: 17, width: 64 },
   headerTitle: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
-
   body: { flex: 1, paddingTop: 20, gap: 16 },
-
   hint: { fontSize: 15, fontFamily: 'Manrope_400Regular', lineHeight: 20 },
-
   emptyState: { alignItems: 'center', gap: 10, paddingVertical: 32 },
   emptyText: { fontSize: 15, fontFamily: 'Manrope_400Regular', textAlign: 'center' },
-
   groupList: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -307,19 +311,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  groupAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  groupAvatarText: { fontSize: 14, fontFamily: 'Manrope_700Bold' },
   groupInfo: { flex: 1 },
   groupName: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
   groupMeta: { fontSize: 13, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-
   newGroupBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -330,7 +324,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   newGroupBtnText: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
-
   createCard: {
     padding: 16,
     borderRadius: 16,
