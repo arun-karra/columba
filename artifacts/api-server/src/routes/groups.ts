@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   CreateGroupBody,
+  DeleteGroupParams,
   GetGroupParams,
   InviteToGroupBody,
   InviteToGroupParams,
@@ -120,6 +121,22 @@ router.patch(
       include: { memberships: { select: memberSelect } },
     });
     res.json(mapGroup(group));
+  }),
+);
+
+router.delete(
+  "/groups/:id",
+  asyncHandler(async (req, res) => {
+    const userId = (req as AuthenticatedRequest).userId;
+    const { id } = parseOrThrow(DeleteGroupParams, { id: requireParam(req.params.id, "id") });
+    const membership = await getMembership(id, userId);
+    if (membership.role !== "admin") {
+      throw new HttpError(403, "FORBIDDEN", "Only an admin can delete this group.");
+    }
+    await prisma.group.delete({ where: { id } }).catch(() => {
+      throw new HttpError(404, "NOT_FOUND", "Group not found.");
+    });
+    res.status(204).send();
   }),
 );
 

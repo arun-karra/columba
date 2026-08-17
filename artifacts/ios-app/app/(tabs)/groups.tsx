@@ -21,6 +21,7 @@ import {
   useListGroups,
   useCreateGroup,
   useRemoveGroupMember,
+  useDeleteGroup,
   getListGroupsQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
@@ -44,6 +45,11 @@ import {
   resolveGroupIconColor,
   setGroupIconColor,
 } from '@/utils/groupIconStyle';
+import { clearGroupLocalData } from '@/utils/clearGroupLocalData';
+
+function isGroupAdmin(group: Group, userId?: string | null): boolean {
+  return group.members.some((member) => member.userId === userId && member.role === 'admin');
+}
 
 function GroupCard({
   group,
@@ -150,6 +156,15 @@ export default function GroupsScreen() {
     },
   });
 
+  const deleteGroup = useDeleteGroup({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+    },
+  });
+
   const handleLeaveGroup = (group: Group) => {
     if (!user?.id) return;
     confirmDestructive({
@@ -160,8 +175,26 @@ export default function GroupsScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
           await removeMember.mutateAsync({ id: group.id, userId: user.id });
+          await clearGroupLocalData(group.id);
         } catch {
           Alert.alert('Error', 'Could not leave this group. Please try again.');
+        }
+      },
+    });
+  };
+
+  const handleDeleteGroup = (group: Group) => {
+    confirmDestructive({
+      title: 'Delete group',
+      message: `Delete "${group.name}" for everyone? Members will lose access to shared notes in this group.`,
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        try {
+          await deleteGroup.mutateAsync({ id: group.id });
+          await clearGroupLocalData(group.id);
+        } catch {
+          Alert.alert('Error', 'Could not delete this group. Please try again.');
         }
       },
     });
@@ -260,15 +293,29 @@ export default function GroupsScreen() {
               <Swipeable
                 friction={2}
                 overshootRight={false}
-                renderRightActions={() => (
-                  <Pressable
-                    style={[styles.leaveAction, { backgroundColor: colors.destructive }]}
-                    onPress={() => handleLeaveGroup(item)}
-                  >
-                    <AppIcon name="rectangle.portrait.and.arrow.right" size={18} color="#fff" />
-                    <Text style={styles.leaveLabel}>Leave</Text>
-                  </Pressable>
-                )}
+                renderRightActions={() => {
+                  const admin = isGroupAdmin(item, user?.id);
+                  return (
+                    <View style={styles.swipeActions}>
+                      {admin ? (
+                        <Pressable
+                          style={[styles.deleteAction, { backgroundColor: colors.destructive }]}
+                          onPress={() => handleDeleteGroup(item)}
+                        >
+                          <AppIcon name="trash" size={18} color="#fff" />
+                          <Text style={styles.swipeLabel}>Delete</Text>
+                        </Pressable>
+                      ) : null}
+                      <Pressable
+                        style={[styles.leaveAction, { backgroundColor: colors.destructive }]}
+                        onPress={() => handleLeaveGroup(item)}
+                      >
+                        <AppIcon name="rectangle.portrait.and.arrow.right" size={18} color="#fff" />
+                        <Text style={styles.swipeLabel}>Leave</Text>
+                      </Pressable>
+                    </View>
+                  );
+                }}
                 onSwipeableWillOpen={() => Haptics.selectionAsync()}
               >
                 {card}
@@ -501,5 +548,17 @@ const styles = StyleSheet.create({
     gap: 4,
     marginLeft: 4,
   },
+  deleteAction: {
+    width: 88,
+    marginVertical: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginLeft: 4,
+    opacity: 0.92,
+  },
+  swipeActions: { flexDirection: 'row' },
+  swipeLabel: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: '#fff' },
   leaveLabel: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: '#fff' },
 });

@@ -20,6 +20,8 @@ export function createMockPrisma() {
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     },
     groupMembership: {
       findMany: vi.fn(),

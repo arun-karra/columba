@@ -193,8 +193,8 @@ Base URL: `https://<host>/api`
 | `POST` | `/groups` | Create group |
 | `GET` | `/groups/:id` | Get group + members |
 | `POST` | `/groups/:id/invite` | Invite member by email |
-| `DELETE` | `/groups/:id/members/:userId` | Remove member |
-| `POST` | `/groups/:id/leave` | Leave group |
+| `DELETE` | `/groups/:id` | Delete group (admin only) |
+| `DELETE` | `/groups/:id/members/:userId` | Remove member / leave |
 | `POST` | `/push/register` | Register Expo push token |
 | `DELETE` | `/push/unregister` | Unregister token |
 | `GET` | `/healthz` | Health check |

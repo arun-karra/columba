@@ -20,6 +20,7 @@ import {
   useInviteToGroup,
   useRemoveGroupMember,
   useUpdateGroup,
+  useDeleteGroup,
   getListGroupsQueryKey,
   getGetGroupQueryKey,
 } from '@workspace/api-client-react';
@@ -40,6 +41,7 @@ import {
   getGroupIconColor,
   setGroupIconColor,
 } from '@/utils/groupIconStyle';
+import { clearGroupLocalData } from '@/utils/clearGroupLocalData';
 
 function MemberRow({
   member,
@@ -155,6 +157,14 @@ export default function GroupDetailScreen() {
     },
   });
 
+  const deleteGroupMutation = useDeleteGroup({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+      },
+    },
+  });
+
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !inviteEmail.includes('@')) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -179,8 +189,55 @@ export default function GroupDetailScreen() {
       confirmLabel: isMe ? 'Leave' : 'Remove',
       onConfirm: async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        await removeMutation.mutateAsync({ id: id ?? '', userId: member.userId });
-        if (isMe) router.back();
+        try {
+          await removeMutation.mutateAsync({ id: id ?? '', userId: member.userId });
+          if (isMe) {
+            await clearGroupLocalData(id ?? '');
+            router.back();
+          }
+        } catch {
+          Alert.alert('Error', isMe ? 'Could not leave this group.' : 'Could not remove member.');
+        }
+      },
+    });
+  };
+
+  const handleLeaveGroup = () => {
+    if (!user?.id || !group) return;
+    confirmDestructive({
+      title: 'Leave group',
+      message: `Leave "${group.name}"? You will lose access to its shared notes.`,
+      confirmLabel: 'Leave',
+      onConfirm: async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        try {
+          await removeMutation.mutateAsync({ id: id ?? '', userId: user.id });
+          await clearGroupLocalData(id ?? '');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          router.back();
+        } catch {
+          Alert.alert('Error', 'Could not leave this group. Please try again.');
+        }
+      },
+    });
+  };
+
+  const handleDeleteGroup = () => {
+    if (!group) return;
+    confirmDestructive({
+      title: 'Delete group',
+      message: `Delete "${group.name}" for everyone? Members will lose access to shared notes in this group.`,
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        try {
+          await deleteGroupMutation.mutateAsync({ id: id ?? '' });
+          await clearGroupLocalData(id ?? '');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          router.back();
+        } catch {
+          Alert.alert('Error', 'Could not delete this group. Please try again.');
+        }
       },
     });
   };
@@ -329,6 +386,47 @@ export default function GroupDetailScreen() {
             onRemove={() => handleRemove(item)}
           />
         )}
+        ListFooterComponent={
+          <View style={styles.dangerSection}>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+              Group
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleLeaveGroup}
+              style={({ pressed }) => [
+                styles.dangerRow,
+                {
+                  backgroundColor: colors.card,
+                  opacity: pressed ? 0.82 : 1,
+                },
+              ]}
+            >
+              <AppIcon name="rectangle.portrait.and.arrow.right" size={18} color={colors.destructive} />
+              <Text style={[styles.dangerLabel, { color: colors.destructive }]}>
+                Leave Group
+              </Text>
+            </Pressable>
+            {isAdmin ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleDeleteGroup}
+                style={({ pressed }) => [
+                  styles.dangerRow,
+                  {
+                    backgroundColor: colors.card,
+                    opacity: pressed ? 0.82 : 1,
+                  },
+                ]}
+              >
+                <AppIcon name="trash" size={18} color={colors.destructive} />
+                <Text style={[styles.dangerLabel, { color: colors.destructive }]}>
+                  Delete Group
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        }
       />
 
       <Modal
@@ -489,4 +587,14 @@ const styles = StyleSheet.create({
   memberEmail: { fontSize: 16, fontFamily: 'Manrope_500Medium' },
   roleBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' },
   roleText: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', textTransform: 'capitalize' },
+  dangerSection: { marginTop: 28, gap: 8, paddingBottom: 24 },
+  dangerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+  dangerLabel: { fontSize: 17, fontFamily: 'Manrope_600SemiBold' },
 });

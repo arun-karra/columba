@@ -406,6 +406,16 @@ export const UpdateGroupResponse = zod.object({
 
 
 /**
+ * @summary Delete a group (admin only)
+ */
+export const DeleteGroupParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteGroupResponse = zod.void()
+
+
+/**
  * @summary Invite an email address to a group
  */
 export const InviteToGroupParams = zod.object({
