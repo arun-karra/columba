@@ -32,6 +32,8 @@ const FEATHER_FALLBACK: Record<string, FeatherName> = {
   'globe': 'globe',
   'iphone': 'smartphone',
   'internaldrive': 'database',
+  'magnifyingglass': 'search',
+  'plus.magnifyingglass': 'search',
 };
 
 export function AppIcon({

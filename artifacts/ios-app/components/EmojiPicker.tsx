@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -10,7 +9,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { AppIcon } from '@/components/AppIcon';
-import { GROUP_EMOJI_OPTIONS } from '@/utils/groupEmoji';
+import { QUICK_GROUP_EMOJI_OPTIONS } from '@/utils/groupEmoji';
 
 type Props = {
   value: string;
@@ -23,6 +22,10 @@ function firstEmoji(text: string): string {
   return [...trimmed][0] ?? '';
 }
 
+function isQuickEmoji(emoji: string): boolean {
+  return (QUICK_GROUP_EMOJI_OPTIONS as readonly string[]).includes(emoji);
+}
+
 export function EmojiPicker({ value, onChange }: Props) {
   const colors = useColors();
   const customRef = useRef<TextInput>(null);
@@ -32,16 +35,13 @@ export function EmojiPicker({ value, onChange }: Props) {
     customRef.current?.focus();
   };
 
+  const customSelected = value.length > 0 && !isQuickEmoji(value);
+
   return (
     <View style={styles.wrap}>
       <Text style={[styles.label, { color: colors.mutedForeground }]}>Icon</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}
-        keyboardShouldPersistTaps="handled"
-      >
-        {GROUP_EMOJI_OPTIONS.map((emoji) => {
+      <View style={styles.row}>
+        {QUICK_GROUP_EMOJI_OPTIONS.map((emoji) => {
           const selected = value === emoji;
           return (
             <Pressable
@@ -66,18 +66,22 @@ export function EmojiPicker({ value, onChange }: Props) {
           onPress={openEmojiKeyboard}
           style={[
             styles.chip,
-            styles.plusChip,
+            styles.moreChip,
             {
-              backgroundColor: colors.muted,
-              borderColor: colors.border,
+              backgroundColor: customSelected ? colors.secondary : colors.muted,
+              borderColor: customSelected ? colors.primary : colors.border,
             },
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Choose any emoji"
+          accessibilityLabel="Search for any emoji"
         >
-          <AppIcon name="plus" size={18} color={colors.primary} />
+          {customSelected ? (
+            <Text style={styles.emoji}>{value}</Text>
+          ) : (
+            <AppIcon name="plus.magnifyingglass" size={18} color={colors.primary} />
+          )}
         </Pressable>
-      </ScrollView>
+      </View>
       <TextInput
         ref={customRef}
         style={styles.hiddenInput}
@@ -105,16 +109,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope_600SemiBold',
     paddingLeft: 2,
   },
-  row: { gap: 8, paddingVertical: 2 },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
   chip: {
-    width: 44,
-    height: 44,
+    flex: 1,
+    aspectRatio: 1,
+    maxWidth: 44,
+    maxHeight: 44,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
-  plusChip: { borderStyle: 'dashed' },
+  moreChip: { borderStyle: 'dashed' },
   emoji: { fontSize: 22 },
   hiddenInput: {
     position: 'absolute',
