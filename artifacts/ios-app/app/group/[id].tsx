@@ -17,6 +17,7 @@ import {
   useGetGroup,
   useInviteToGroup,
   useRemoveGroupMember,
+  useUpdateGroup,
   getListGroupsQueryKey,
   getGetGroupQueryKey,
 } from '@workspace/api-client-react';
@@ -30,8 +31,6 @@ import { confirmDestructive } from '@/utils/iosConfirm';
 import { useScreenGutter } from '@/constants/layout';
 import {
   defaultEmojiForGroup,
-  getGroupEmoji,
-  resolveGroupEmoji,
   setGroupEmoji,
 } from '@/utils/groupEmoji';
 
@@ -106,12 +105,19 @@ export default function GroupDetailScreen() {
 
   const { data: group, isLoading } = useGetGroup(id ?? '');
 
+  const updateGroup = useUpdateGroup({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetGroupQueryKey(id ?? '') });
+        queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
+      },
+    },
+  });
+
   useEffect(() => {
-    if (!id) return;
-    void getGroupEmoji(id).then((emoji) => {
-      setGroupEmojiState(emoji);
-    });
-  }, [id]);
+    if (!group) return;
+    setGroupEmojiState(group.emoji);
+  }, [group?.id, group?.emoji]);
 
   const inviteMutation = useInviteToGroup({
     mutation: {
@@ -184,7 +190,7 @@ export default function GroupDetailScreen() {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
 
-  const emoji = groupEmoji ?? resolveGroupEmoji(group.id, group.name, {});
+  const emoji = groupEmoji ?? group.emoji ?? defaultEmojiForGroup(group.name);
 
   const openEmojiEditor = () => {
     setDraftEmoji(emoji);
@@ -198,6 +204,7 @@ export default function GroupDetailScreen() {
 
   const saveEmoji = async () => {
     if (!id) return;
+    await updateGroup.mutateAsync({ id, data: { emoji: draftEmoji } });
     await setGroupEmoji(id, draftEmoji);
     setGroupEmojiState(draftEmoji);
     setShowEmojiEditor(false);

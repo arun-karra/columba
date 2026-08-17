@@ -5,8 +5,11 @@ import {
   InviteToGroupBody,
   InviteToGroupParams,
   RemoveGroupMemberParams,
+  UpdateGroupBody,
+  UpdateGroupParams,
 } from "@workspace/api-zod";
 import { prisma } from "../lib/prisma";
+import { defaultEmojiForGroup } from "../lib/groupEmoji";
 import { asyncHandler, HttpError, parseOrThrow, requireParam } from "../lib/errors";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
 import { sendPush } from "../lib/push";
@@ -24,6 +27,7 @@ const memberSelect = {
 function mapGroup(group: {
   id: string;
   name: string;
+  emoji: string | null;
   createdByUserId: string;
   createdAt: Date;
   memberships: Array<{ userId: string; role: "admin" | "member"; createdAt: Date; user: { email: string | null } }>;
@@ -31,6 +35,7 @@ function mapGroup(group: {
   return {
     id: group.id,
     name: group.name,
+    emoji: group.emoji ?? defaultEmojiForGroup(group.name),
     createdByUserId: group.createdByUserId,
     createdAt: group.createdAt,
     members: group.memberships.map((membership) => ({
@@ -81,6 +86,7 @@ router.post(
     const group = await prisma.group.create({
       data: {
         name: input.name.trim(),
+        emoji: input.emoji ?? defaultEmojiForGroup(input.name.trim()),
         createdByUserId: userId,
         memberships: { create: { userId, role: "admin" } },
       },
@@ -96,6 +102,24 @@ router.get(
     const userId = (req as AuthenticatedRequest).userId;
     const { id } = parseOrThrow(GetGroupParams, { id: requireParam(req.params.id, "id") });
     res.json(mapGroup(await getGroup(id, userId)));
+  }),
+);
+
+router.patch(
+  "/groups/:id",
+  asyncHandler(async (req, res) => {
+    const userId = (req as AuthenticatedRequest).userId;
+    const { id } = parseOrThrow(UpdateGroupParams, { id: requireParam(req.params.id, "id") });
+    await getMembership(id, userId);
+    const input = parseOrThrow(UpdateGroupBody, req.body);
+    const group = await prisma.group.update({
+      where: { id },
+      data: {
+        ...(input.emoji !== undefined ? { emoji: input.emoji } : {}),
+      },
+      include: { memberships: { select: memberSelect } },
+    });
+    res.json(mapGroup(group));
   }),
 );
 
@@ -115,7 +139,12 @@ router.post(
       if (existingMembership) throw new HttpError(400, "ALREADY_MEMBER", "That person is already in the group.");
       await prisma.groupMembership.create({ data: { groupId: id, userId: existingUser.id, role: "member" } });
       const group = await prisma.group.findUniqueOrThrow({ where: { id }, select: { name: true } });
-      await sendPush([existingUser.id], "You joined a group", `You were added to ${group.name}.`, { groupId: id });
+      await sendPush(
+        [existingUser.id],
+        "You joined a group",
+        { groupId: id },
+        { body: `You were added to ${group.name}.` },
+      );
       return res.json({ status: "added", email, message: "They were added to the group." });
     }
 

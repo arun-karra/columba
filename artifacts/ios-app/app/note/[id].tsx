@@ -93,10 +93,10 @@ export default function NoteDetailScreen() {
   const toggleDone = useToggleNoteDone();
 
   const [body, setBody] = useState('');
-  const [isUrgent, setIsUrgent] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
+  const [groupEmoji, setGroupEmoji] = useState<string | null>(null);
   const [remindAt, setRemindAt] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -113,10 +113,10 @@ export default function NoteDetailScreen() {
     if (!note) return;
     hydratedRef.current = false;
     setBody(note.body);
-    setIsUrgent(note.isUrgent);
     setIsPinned(note.isPinned);
     setGroupId(note.groupId ?? null);
     setGroupName(note.groupName ?? null);
+    setGroupEmoji(note.groupEmoji ?? null);
     setRemindAt(note.remindAt ? new Date(note.remindAt) : null);
     hydratedRef.current = true;
   }, [note?.id]);
@@ -133,7 +133,6 @@ export default function NoteDetailScreen() {
   const persistNote = useCallback(
     async (patch: {
       body?: string;
-      isUrgent?: boolean;
       isPinned?: boolean;
       groupId?: string | null;
       remindAt?: string | null;
@@ -141,7 +140,6 @@ export default function NoteDetailScreen() {
       if (!id || !note || !hydratedRef.current) return;
 
       const nextBody = (patch.body ?? body.trim()) || note.body;
-      const nextUrgent = patch.isUrgent ?? isUrgent;
       const nextPinned = patch.isPinned ?? isPinned;
       const nextGroupId =
         patch.groupId !== undefined ? patch.groupId : groupId;
@@ -159,7 +157,6 @@ export default function NoteDetailScreen() {
           id,
           data: {
             body: nextBody,
-            isUrgent: nextUrgent,
             isPinned: nextPinned,
             groupId: nextGroupId,
             remindAt: nextRemindAt,
@@ -167,11 +164,11 @@ export default function NoteDetailScreen() {
         });
 
         if (patch.body !== undefined) setBody(nextBody);
-        if (patch.isUrgent !== undefined) setIsUrgent(nextUrgent);
         if (patch.isPinned !== undefined) setIsPinned(nextPinned);
         if (patch.groupId !== undefined) {
           setGroupId(nextGroupId);
           setGroupName(updated.groupName ?? null);
+          setGroupEmoji(updated.groupEmoji ?? null);
         }
         if (patch.remindAt !== undefined) {
           setRemindAt(nextRemindAt ? new Date(nextRemindAt) : null);
@@ -181,7 +178,9 @@ export default function NoteDetailScreen() {
           const shown = await presentPinnedNoteNotification({
             id,
             body: nextBody,
-            title: updated.title,
+            groupId: updated.groupId,
+            groupName: updated.groupName,
+            groupEmoji: updated.groupEmoji,
           });
           if (!shown) {
             Alert.alert(
@@ -203,7 +202,6 @@ export default function NoteDetailScreen() {
       id,
       note,
       body,
-      isUrgent,
       isPinned,
       groupId,
       remindAt,
@@ -437,41 +435,6 @@ export default function NoteDetailScreen() {
         </SectionCard>
 
         <SectionCard title="Options">
-          <View
-            style={[
-              styles.optionRow,
-              {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
-            >
-              <AppIcon name="exclamationmark.circle" size={14} color={colors.urgent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-                Mark as Urgent
-              </Text>
-              <Text style={[styles.optionHint, { color: colors.mutedForeground }]}>
-                Red badge on the list; time-sensitive when a reminder fires
-              </Text>
-            </View>
-            <Switch
-              value={isUrgent}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                setIsUrgent(v);
-                void persistNote({ isUrgent: v });
-              }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.card}
-              ios_backgroundColor={colors.border}
-            />
-          </View>
-
           <View style={styles.optionRow}>
             <View
               style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
@@ -626,8 +589,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   optionLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
-  optionHint: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2, lineHeight: 16 },
-  optionSub: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 1 },
   actions: { flexDirection: 'row', gap: 12 },
   doneWrap: { flex: 1, position: 'relative' },
   doneBtnOuter: { flex: 1 },

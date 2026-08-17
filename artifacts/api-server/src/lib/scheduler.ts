@@ -1,7 +1,10 @@
 import cron from "node-cron";
 import { prisma } from "./prisma";
+import { formatNoteNotificationText, resolveGroupEmoji } from "./groupEmoji";
 import { sendPush } from "./push";
 import { logger } from "./logger";
+
+const PINNED_NOTE_CATEGORY = "PINNED_NOTE";
 
 export function startReminderScheduler() {
   cron.schedule("* * * * *", async () => {
@@ -20,18 +23,18 @@ export function startReminderScheduler() {
       const userIds = note.group
         ? note.group.memberships.map((membership) => membership.userId)
         : [note.ownerId];
-      // Pinned notes get the PINNED_NOTE category so the lock-screen
-      // notification shows the "Mark as Complete" action button.
+      const groupEmoji = note.group
+        ? resolveGroupEmoji(note.group.emoji, note.group.name)
+        : null;
+      const text = formatNoteNotificationText(note.body, groupEmoji);
+
       await sendPush(
         userIds,
-        note.isPinned
-          ? (note.title ?? "Action required")
-          : (note.isUrgent ? "Urgent note reminder" : "Note reminder"),
-        note.title ? note.body.slice(0, 120) : note.body.slice(0, 120),
+        text,
         { noteId: note.id },
         {
-          urgent: note.isUrgent || note.isPinned,
-          ...(note.isPinned ? { categoryId: "PINNED_NOTE" } : {}),
+          pinned: note.isPinned,
+          ...(note.isPinned ? { categoryId: PINNED_NOTE_CATEGORY } : {}),
         },
       );
       await prisma.note.updateMany({

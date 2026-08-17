@@ -73,10 +73,10 @@ export const ListNotesResponseItem = zod.object({
   "ownerId": zod.string(),
   "groupId": zod.string().nullable(),
   "groupName": zod.string().nullable(),
+  "groupEmoji": zod.string().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "audioUrl": zod.string().nullable(),
-  "isUrgent": zod.boolean(),
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
@@ -102,7 +102,6 @@ export const CreateNoteBody = zod.object({
   "title": zod.string().max(createNoteBodyTitleMax).nullish(),
   "body": zod.string().min(1),
   "audioUrl": zod.string().nullish(),
-  "isUrgent": zod.boolean().optional(),
   "isPinned": zod.boolean().optional(),
   "remindAt": zod.coerce.date().nullish(),
   "groupId": zod.string().nullish()
@@ -113,10 +112,10 @@ export const CreateNoteResponse = zod.object({
   "ownerId": zod.string(),
   "groupId": zod.string().nullable(),
   "groupName": zod.string().nullable(),
+  "groupEmoji": zod.string().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "audioUrl": zod.string().nullable(),
-  "isUrgent": zod.boolean(),
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
@@ -136,7 +135,6 @@ export const GetNotesSummaryResponse = zod.object({
   "total": zod.number(),
   "open": zod.number(),
   "completed": zod.number(),
-  "urgent": zod.number(),
   "upcomingReminders": zod.number()
 })
 
@@ -153,10 +151,10 @@ export const GetNoteResponse = zod.object({
   "ownerId": zod.string(),
   "groupId": zod.string().nullable(),
   "groupName": zod.string().nullable(),
+  "groupEmoji": zod.string().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "audioUrl": zod.string().nullable(),
-  "isUrgent": zod.boolean(),
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
@@ -185,7 +183,6 @@ export const UpdateNoteBody = zod.object({
   "title": zod.string().max(updateNoteBodyTitleMax).nullish(),
   "body": zod.string().min(1).optional(),
   "audioUrl": zod.string().nullish(),
-  "isUrgent": zod.boolean().optional(),
   "isPinned": zod.boolean().optional(),
   "remindAt": zod.string().nullish(),
   "groupId": zod.string().nullish()
@@ -196,10 +193,10 @@ export const UpdateNoteResponse = zod.object({
   "ownerId": zod.string(),
   "groupId": zod.string().nullable(),
   "groupName": zod.string().nullable(),
+  "groupEmoji": zod.string().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "audioUrl": zod.string().nullable(),
-  "isUrgent": zod.boolean(),
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
@@ -234,10 +231,10 @@ export const ToggleNoteDoneResponse = zod.object({
   "ownerId": zod.string(),
   "groupId": zod.string().nullable(),
   "groupName": zod.string().nullable(),
+  "groupEmoji": zod.string().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "audioUrl": zod.string().nullable(),
-  "isUrgent": zod.boolean(),
   "remindAt": zod.coerce.date().nullable(),
   "reminderSentAt": zod.coerce.date().nullable(),
   "isDone": zod.boolean(),
@@ -259,6 +256,7 @@ export const listGroupsResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^
 export const ListGroupsResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "emoji": zod.string().nullable(),
   "createdByUserId": zod.string(),
   "createdAt": zod.coerce.date(),
   "members": zod.array(zod.object({
@@ -276,10 +274,13 @@ export const ListGroupsResponse = zod.array(ListGroupsResponseItem)
  */
 export const createGroupBodyNameMax = 100;
 
+export const createGroupBodyEmojiMax = 8;
+
 
 
 export const CreateGroupBody = zod.object({
-  "name": zod.string().min(1).max(createGroupBodyNameMax)
+  "name": zod.string().min(1).max(createGroupBodyNameMax),
+  "emoji": zod.string().max(createGroupBodyEmojiMax).optional()
 })
 
 export const createGroupResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
@@ -288,6 +289,7 @@ export const createGroupResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[
 export const CreateGroupResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "emoji": zod.string().nullable(),
   "createdByUserId": zod.string(),
   "createdAt": zod.coerce.date(),
   "members": zod.array(zod.object({
@@ -312,11 +314,45 @@ export const getGroupResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\
 export const GetGroupResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "emoji": zod.string().nullable(),
   "createdByUserId": zod.string(),
   "createdAt": zod.coerce.date(),
   "members": zod.array(zod.object({
   "userId": zod.string(),
   "email": zod.string().regex(getGroupResponseMembersItemEmailRegExp),
+  "role": zod.enum(['admin', 'member']),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Update a group (emoji, etc.)
+ */
+export const UpdateGroupParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateGroupBodyEmojiMax = 8;
+
+
+
+export const UpdateGroupBody = zod.object({
+  "emoji": zod.string().max(updateGroupBodyEmojiMax).optional()
+})
+
+export const updateGroupResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+
+
+export const UpdateGroupResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "emoji": zod.string().nullable(),
+  "createdByUserId": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "userId": zod.string(),
+  "email": zod.string().regex(updateGroupResponseMembersItemEmailRegExp),
   "role": zod.enum(['admin', 'member']),
   "createdAt": zod.coerce.date()
 }))

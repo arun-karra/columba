@@ -66,6 +66,8 @@ export interface GroupMember {
 export interface Group {
   id: string;
   name: string;
+  /** @nullable */
+  emoji: string | null;
   createdByUserId: string;
   createdAt: string;
   members: GroupMember[];
@@ -77,6 +79,13 @@ export interface GroupInput {
      * @maxLength 100
      */
   name: string;
+  /** @maxLength 8 */
+  emoji?: string;
+}
+
+export interface GroupUpdate {
+  /** @maxLength 8 */
+  emoji?: string;
 }
 
 export interface InviteInput {
@@ -107,11 +116,12 @@ export interface Note {
   /** @nullable */
   groupName: string | null;
   /** @nullable */
+  groupEmoji: string | null;
+  /** @nullable */
   title: string | null;
   body: string;
   /** @nullable */
   audioUrl: string | null;
-  isUrgent: boolean;
   /** @nullable */
   remindAt: string | null;
   /** @nullable */
@@ -138,7 +148,6 @@ export interface NoteInput {
   body: string;
   /** @nullable */
   audioUrl?: string | null;
-  isUrgent?: boolean;
   isPinned?: boolean;
   /** @nullable */
   remindAt?: string | null;
@@ -156,7 +165,6 @@ export interface NoteUpdate {
   body?: string;
   /** @nullable */
   audioUrl?: string | null;
-  isUrgent?: boolean;
   isPinned?: boolean;
   /** @nullable */
   remindAt?: string | null;
@@ -168,7 +176,6 @@ export interface NotesSummary {
   total: number;
   open: number;
   completed: number;
-  urgent: number;
   upcomingReminders: number;
 }
 

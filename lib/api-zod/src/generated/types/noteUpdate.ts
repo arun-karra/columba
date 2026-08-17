@@ -16,7 +16,6 @@ export interface NoteUpdate {
   body?: string;
   /** @nullable */
   audioUrl?: string | null;
-  isUrgent?: boolean;
   isPinned?: boolean;
   /** @nullable */
   remindAt?: string | null;

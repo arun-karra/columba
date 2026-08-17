@@ -124,7 +124,7 @@ export function ShareGroupPicker({
     if (!value) return;
     Keyboard.dismiss();
     try {
-      await createGroup.mutateAsync({ data: { name: value } });
+      await createGroup.mutateAsync({ data: { name: value, emoji: newGroupEmoji } });
     } catch {
       Alert.alert('Error', 'Could not create group. Try again.');
     }
@@ -170,7 +170,7 @@ export function ShareGroupPicker({
         <>
           <View style={styles.grid}>
             {quickGroups.map((group) => {
-              const emoji = resolveGroupEmoji(group.id, group.name, emojiMap);
+              const emoji = resolveGroupEmoji(group.id, group.name, emojiMap, group.emoji);
               return (
                 <GroupPill
                   key={group.id}
@@ -206,7 +206,7 @@ export function ShareGroupPicker({
             <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
           </Pressable>
           {groups.map((group, index) => {
-            const emoji = resolveGroupEmoji(group.id, group.name, emojiMap);
+            const emoji = resolveGroupEmoji(group.id, group.name, emojiMap, group.emoji);
             const initials = group.name
               .split(' ')
               .slice(0, 2)

@@ -117,7 +117,7 @@ export default function GroupsScreen() {
   const submitName = async (name: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await createGroup.mutateAsync({ data: { name } });
+      await createGroup.mutateAsync({ data: { name, emoji: selectedEmoji } });
     } catch {
       Alert.alert('Error', 'Could not create group. Please try again.');
     }
@@ -190,7 +190,7 @@ export default function GroupsScreen() {
           renderItem={({ item }) => (
             <GroupCard
               group={item}
-              emoji={resolveGroupEmoji(item.id, item.name, emojiMap)}
+              emoji={resolveGroupEmoji(item.id, item.name, emojiMap, item.emoji)}
               onPress={() => {
                 Haptics.selectionAsync();
                 router.push(`/group/${item.id}`);

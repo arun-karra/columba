@@ -27,6 +27,7 @@ import type {
   ForbiddenResponse,
   Group,
   GroupInput,
+  GroupUpdate,
   HealthStatus,
   InviteInput,
   InviteResponse,
@@ -1027,6 +1028,78 @@ export function useGetGroup<TData = Awaited<ReturnType<typeof getGroup>>, TError
 
 
 
+
+export const getUpdateGroupUrl = (id: string,) => {
+
+
+
+
+  return `/api/groups/${id}`
+}
+
+/**
+ * @summary Update a group (emoji, etc.)
+ */
+export const updateGroup = async (id: string,
+    groupUpdate: GroupUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Group> => {
+
+  return customFetch<Group>(getUpdateGroupUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateGroupMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGroup>>, TError,{id: string;data: BodyType<GroupUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateGroup>>, TError,{id: string;data: BodyType<GroupUpdate>}, TContext> => {
+
+const mutationKey = ['updateGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateGroup>>, {id: string;data: BodyType<GroupUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateGroup(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateGroupMutationResult = NonNullable<Awaited<ReturnType<typeof updateGroup>>>
+    export type UpdateGroupMutationBody = BodyType<GroupUpdate>
+    export type UpdateGroupMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Update a group (emoji, etc.)
+ */
+export const useUpdateGroup = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGroup>>, TError,{id: string;data: BodyType<GroupUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateGroup>>,
+        TError,
+        {id: string;data: BodyType<GroupUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateGroupMutationOptions(options));
+    }
 
 export const getInviteToGroupUrl = (id: string,) => {
 

@@ -39,15 +39,12 @@ function NoteCardContent({
 }) {
   const colors = useColors();
   const isDone = note.isDone;
-  const isUrgent = note.isUrgent;
 
   return (
     <>
       <View style={styles.cardInner}>
         {groupEmoji ? (
           <Text style={styles.groupEmoji}>{groupEmoji}</Text>
-        ) : isUrgent && !isDone ? (
-          <View style={[styles.urgentDot, { backgroundColor: colors.urgent }]} />
         ) : null}
         <Text
           style={[
@@ -169,7 +166,8 @@ export default function NotesScreen() {
         renderItem={({ item }) => {
           const groupEmoji =
             item.groupId && item.groupName
-              ? resolveGroupEmoji(item.groupId, item.groupName, emojiMap)
+              ? item.groupEmoji ??
+                resolveGroupEmoji(item.groupId, item.groupName, emojiMap)
               : null;
 
           const renderLeftActions = () => (
@@ -317,12 +315,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   groupEmoji: { fontSize: 20, lineHeight: 24 },
-  urgentDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    flexShrink: 0,
-  },
   cardText: {
     flex: 1,
     fontSize: 17,

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
+import { AppIcon } from '@/components/AppIcon';
 import { GROUP_EMOJI_OPTIONS } from '@/utils/groupEmoji';
 
 type Props = {
@@ -25,6 +26,11 @@ function firstEmoji(text: string): string {
 export function EmojiPicker({ value, onChange }: Props) {
   const colors = useColors();
   const customRef = useRef<TextInput>(null);
+
+  const openEmojiKeyboard = () => {
+    Haptics.selectionAsync();
+    customRef.current?.focus();
+  };
 
   return (
     <View style={styles.wrap}>
@@ -57,52 +63,43 @@ export function EmojiPicker({ value, onChange }: Props) {
           );
         })}
         <Pressable
-          onPress={() => customRef.current?.focus()}
+          onPress={openEmojiKeyboard}
           style={[
             styles.chip,
-            styles.customChip,
+            styles.plusChip,
             {
               backgroundColor: colors.muted,
               borderColor: colors.border,
             },
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Choose any emoji"
         >
-          <Text style={[styles.customChipText, { color: colors.primary }]}>⌨️</Text>
+          <AppIcon name="plus" size={18} color={colors.primary} />
         </Pressable>
       </ScrollView>
-      <Pressable
-        onPress={() => customRef.current?.focus()}
-        style={[
-          styles.customField,
-          {
-            backgroundColor: colors.secondary,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <Text style={styles.customPreview}>{value || '🙂'}</Text>
-        <TextInput
-          ref={customRef}
-          style={[styles.customInput, { color: colors.foreground }]}
-          value={value}
-          onChangeText={(text) => {
-            const emoji = firstEmoji(text);
-            if (emoji) onChange(emoji);
-          }}
-          placeholder="Type any emoji"
-          placeholderTextColor={colors.mutedForeground}
-          maxLength={8}
-          autoCorrect={false}
-          autoCapitalize="none"
-          returnKeyType="done"
-        />
-      </Pressable>
+      <TextInput
+        ref={customRef}
+        style={styles.hiddenInput}
+        value=""
+        onChangeText={(text) => {
+          const emoji = firstEmoji(text);
+          if (emoji) {
+            onChange(emoji);
+            customRef.current?.blur();
+          }
+        }}
+        autoCorrect={false}
+        autoCapitalize="none"
+        returnKeyType="done"
+        caretHidden
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 10 },
+  wrap: { gap: 8 },
   label: {
     fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
@@ -117,23 +114,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
-  customChip: { borderStyle: 'dashed' },
-  customChipText: { fontSize: 18 },
+  plusChip: { borderStyle: 'dashed' },
   emoji: { fontSize: 22 },
-  customField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  customPreview: { fontSize: 24, lineHeight: 28 },
-  customInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'Manrope_400Regular',
-    paddingVertical: 0,
+  hiddenInput: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
 });

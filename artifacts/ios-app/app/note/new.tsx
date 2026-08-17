@@ -96,7 +96,6 @@ export default function NewNoteScreen() {
   const queryClient = useQueryClient();
 
   const [body, setBody] = useState('');
-  const [isUrgent, setIsUrgent] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [remindAt, setRemindAt] = useState<Date | null>(null);
@@ -133,7 +132,6 @@ export default function NewNoteScreen() {
         data: {
           title: null,
           body: body.trim(),
-          isUrgent,
           isPinned,
           groupId: groupId || null,
           remindAt: remindAt ? remindAt.toISOString() : null,
@@ -143,7 +141,9 @@ export default function NewNoteScreen() {
         await presentPinnedNoteNotification({
           id: created.id,
           body: body.trim(),
-          title: created.title,
+          groupId: created.groupId,
+          groupName: created.groupName,
+          groupEmoji: created.groupEmoji,
         });
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -182,7 +182,7 @@ export default function NewNoteScreen() {
         </Pressable>
       ),
     });
-  }, [canSave, createNote.isPending, body, isUrgent, isPinned, groupId, remindAt]);
+  }, [canSave, createNote.isPending, body, isPinned, groupId, remindAt]);
 
   const handleDateChange = (_: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS !== 'ios') setShowDatePicker(false);
@@ -370,45 +370,6 @@ export default function NewNoteScreen() {
 
         {/* Options */}
         <SectionCard title="Options">
-          {/* Mark as Urgent */}
-          <View
-            style={[
-              styles.optionRow,
-              {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.optionIconWrap,
-                { backgroundColor: colors.secondary },
-              ]}
-            >
-              <AppIcon name="exclamationmark.circle" size={14} color={colors.urgent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-                Mark as Urgent
-              </Text>
-              <Text style={[styles.optionHint, { color: colors.mutedForeground }]}>
-                Red badge on the list; time-sensitive when a reminder fires
-              </Text>
-            </View>
-            <Switch
-              value={isUrgent}
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                setIsUrgent(v);
-              }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.card}
-              ios_backgroundColor={colors.border}
-            />
-          </View>
-
-          {/* Pin to Lock Screen */}
           <View style={styles.optionRow}>
             <View
               style={[
@@ -522,5 +483,4 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   optionLabel: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
-  optionHint: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2, lineHeight: 16 },
 });

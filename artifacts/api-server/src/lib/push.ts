@@ -9,31 +9,28 @@ const expo = new Expo(
 );
 
 interface PushOptions {
-  urgent?: boolean;
+  /** Secondary line — omit for note-style single-line notifications. */
+  body?: string;
   /** iOS notification category identifier (enables lock-screen actions). */
   categoryId?: string;
-  /** Pin to lock screen — highest interruption level allowed without Critical Alerts entitlement. */
+  /** Pin / high-priority delivery with time-sensitive interruption. */
   pinned?: boolean;
 }
 
 /**
  * Send a push notification to one or more users.
- * The 5th argument accepts either a plain boolean (urgent) for backward
- * compatibility, or an options object.
+ * Pass the main visible text as `title` (e.g. "🏡 buy toilet paper").
  */
 export async function sendPush(
   userIds: string[],
   title: string,
-  body: string,
   data: Record<string, unknown> = {},
-  urgentOrOptions: boolean | PushOptions = {},
+  options: PushOptions = {},
 ) {
   if (userIds.length === 0) return;
 
-  const options: PushOptions =
-    typeof urgentOrOptions === "boolean"
-      ? { urgent: urgentOrOptions }
-      : urgentOrOptions;
+  const highPriority = options.pinned ?? false;
+  const body = options.body ?? "";
 
   const tokens = await prisma.pushToken.findMany({
     where: { userId: { in: userIds } },
@@ -44,14 +41,12 @@ export async function sendPush(
 
   const messages = validTokens.map((token) => ({
     to: token.expoPushToken,
-    sound: options.urgent || options.pinned ? ("default" as const) : null,
+    sound: highPriority ? ("default" as const) : null,
     title,
     body,
     data,
-    priority: options.urgent || options.pinned ? ("high" as const) : ("normal" as const),
-    ...(options.urgent || options.pinned
-      ? { interruptionLevel: "time-sensitive" as const }
-      : {}),
+    priority: highPriority ? ("high" as const) : ("normal" as const),
+    ...(highPriority ? { interruptionLevel: "time-sensitive" as const } : {}),
     ...(options.categoryId ? { categoryIdentifier: options.categoryId } : {}),
   }));
 
