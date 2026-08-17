@@ -13,9 +13,6 @@
     "eas:build:prod": "pnpm --filter @workspace/ios-app run eas:build:prod"
   },
   "private": true,
-  "dependencies": {
-    "@replit/connectors-sdk": "^0.4.1"
-  },
   "devDependencies": {
     "prettier": "^3.9.6",
     "typescript": "~5.9.3"

@@ -9,6 +9,6 @@
 export interface User {
   id: string;
   /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
-  email: string;
+  email?: string | null;
   createdAt: Date;
 }

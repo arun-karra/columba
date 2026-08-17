@@ -6,7 +6,7 @@ A shared-notes iOS app with a REST API backend. Create personal and group notes,
 
 ## Features
 
-- **Email sign-in** — passwordless, code-based auth (6-digit OTP). Dev bypass: any email + code `000000`.
+- **Sign in with Apple** — no email provider or OTP codes. Dev bypass: tap the logo 20 times and enter `DEV_BYPASS_CODE`.
 - **Notes** — title, body, urgent flag, reminders, mark done/reopen, delete.
 - **Pin to Home** — pinning a note fires a Time-Sensitive push notification that lives on the lock screen. Long-press → *Mark as Complete* dismisses it and marks the note done in the background.
 - **Share with groups** — share any note with a group; all members see and can complete it.
@@ -25,7 +25,7 @@ A shared-notes iOS app with a REST API backend. Create personal and group notes,
 | Data fetching | React Query + Orval-generated hooks |
 | Backend | Node.js, Express 5, TypeScript |
 | ORM | Prisma |
-| Database | PostgreSQL (Replit built-in) |
+| Database | PostgreSQL (local, Railway, or any host) |
 | Push | expo-server-sdk (APNs via Expo) |
 | Validation | Zod |
 | API spec | OpenAPI 3.0 (`lib/api-spec/openapi.yaml`) |
@@ -55,7 +55,7 @@ lib/
 
 - Node 20+
 - pnpm 9+
-- A PostgreSQL database (or use Replit's built-in)
+- A PostgreSQL database ([Railway guide](docs/railway.md) or local Postgres)
 
 ### Install
 
@@ -65,16 +65,18 @@ pnpm install
 
 ### Environment variables
 
-Create `artifacts/api-server/.env` (or set these as Replit secrets):
+Create `artifacts/api-server/.env`:
 
 | Variable | Required | Description |
 |---|---|---|
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
 | `SESSION_SECRET` | ✅ | JWT signing secret |
 | `JWT_SECRET` | | Falls back to `SESSION_SECRET` |
-| `RESEND_API_KEY` | | Email delivery (console.log fallback in dev) |
-| `FROM_EMAIL` | | Sender address for auth codes |
+| `APPLE_BUNDLE_ID` | | iOS bundle ID for Apple token verification (default `com.columba.notes`) |
+| `DEV_BYPASS_CODE` | | Secret for logo-tap dev bypass (non-production only) |
 | `EXPO_ACCESS_TOKEN` | | Expo push notifications (optional in dev) |
+
+See [docs/railway.md](docs/railway.md) for hosted Postgres + API on Railway.
 
 ### Database
 
@@ -89,8 +91,8 @@ pnpm exec prisma db push
 # API server (port 8080)
 pnpm --filter @workspace/api-server run dev
 
-# iOS app (Expo)
-pnpm --filter @workspace/ios-app run dev
+# iOS app (Expo dev client)
+pnpm --filter @workspace/ios-app run start
 ```
 
 Then scan the QR code with Expo Go (iOS) or open in a simulator.

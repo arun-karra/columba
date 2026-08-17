@@ -11,10 +11,7 @@ export function createMockPrisma() {
     user: {
       findUnique: vi.fn(),
       upsert: vi.fn(),
-    },
-    loginCode: {
       create: vi.fn(),
-      findFirst: vi.fn(),
       update: vi.fn(),
     },
     group: {

@@ -39,7 +39,7 @@ function mapNote(note: {
   createdAt: Date;
   updatedAt: Date;
   group: { name: string } | null;
-  completedBy: { id: string; email: string } | null;
+  completedBy: { id: string; email: string | null } | null;
 }) {
   return {
     id: note.id,

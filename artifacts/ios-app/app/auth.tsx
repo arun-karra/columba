@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -12,14 +13,18 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Haptics from 'expo-haptics';
-import { useRequestAuthCode, useVerifyAuthCode } from '@workspace/api-client-react';
+import { useDevBypassAuth, useSignInWithApple } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { AppIcon } from '@/components/AppIcon';
 import { useScreenGutter } from '@/constants/layout';
 
-type Step = 'email' | 'code';
+const LOGO_TAP_TARGET = 20;
+const TAP_RESET_MS = 2_000;
+const devBypassEnabled =
+  __DEV__ || process.env.EXPO_PUBLIC_ENABLE_DEV_BYPASS === 'true';
 
 export default function AuthScreen() {
   const colors = useColors();
@@ -27,43 +32,98 @@ export default function AuthScreen() {
   const gutter = useScreenGutter();
   const { signIn } = useAuth();
 
-  const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
+  const signInWithApple = useSignInWithApple();
+  const devBypass = useDevBypassAuth();
 
-  const requestCode = useRequestAuthCode();
-  const verifyCode = useVerifyAuthCode();
+  const [showBypassModal, setShowBypassModal] = useState(false);
+  const [bypassCode, setBypassCode] = useState('');
+  const logoTapCount = useRef(0);
+  const lastLogoTapAt = useRef(0);
 
-  const handleSendCode = async () => {
-    if (!email.trim() || !email.includes('@')) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      await requestCode.mutateAsync({ data: { email: email.trim().toLowerCase() } });
-      setStep('code');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to send code. Please try again.';
-      Alert.alert('Error', msg);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (code.length !== 6) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      const res = await verifyCode.mutateAsync({
-        data: { email: email.trim().toLowerCase(), code },
-      });
-      await signIn(res.token, res.user);
+  const completeSignIn = useCallback(
+    async (token: string, user: Parameters<typeof signIn>[1]) => {
+      await signIn(token, user);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)');
-    } catch {
-      Alert.alert('Wrong code', "That code didn't match. Try again.");
-      setCode('');
+    },
+    [signIn],
+  );
+
+  const handleAppleSignIn = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        Alert.alert('Sign in failed', 'Apple did not return an identity token.');
+        return;
+      }
+
+      const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+      const res = await signInWithApple.mutateAsync({
+        data: {
+          identityToken: credential.identityToken,
+          email: credential.email ?? undefined,
+          fullName: fullName || undefined,
+        },
+      });
+      await completeSignIn(res.token, res.user);
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        err.code === 'ERR_REQUEST_CANCELED'
+      ) {
+        return;
+      }
+      const msg =
+        err instanceof Error ? err.message : 'Apple sign-in failed. Please try again.';
+      Alert.alert('Sign in failed', msg);
     }
   };
 
-  const emailValid = email.trim().length > 0 && email.includes('@');
+  const handleLogoPress = () => {
+    if (!devBypassEnabled) return;
+
+    const now = Date.now();
+    if (now - lastLogoTapAt.current > TAP_RESET_MS) {
+      logoTapCount.current = 0;
+    }
+    lastLogoTapAt.current = now;
+    logoTapCount.current += 1;
+
+    if (logoTapCount.current >= LOGO_TAP_TARGET) {
+      logoTapCount.current = 0;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setShowBypassModal(true);
+    }
+  };
+
+  const handleDevBypass = async () => {
+    if (!bypassCode.trim()) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const res = await devBypass.mutateAsync({ data: { code: bypassCode.trim() } });
+      setShowBypassModal(false);
+      setBypassCode('');
+      await completeSignIn(res.token, res.user);
+    } catch {
+      Alert.alert('Wrong code', 'That bypass code did not work.');
+      setBypassCode('');
+    }
+  };
+
+  const appleBusy = signInWithApple.isPending || devBypass.isPending;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -81,181 +141,48 @@ export default function AuthScreen() {
             },
           ]}
         >
-          {/* Card */}
           <View style={[styles.card, { backgroundColor: colors.card }]}>
-            {/* Logo */}
-            <View style={styles.logoWrap}>
+            <Pressable onPress={handleLogoPress} style={styles.logoWrap}>
               <View style={[styles.logoBox, { backgroundColor: colors.secondary }]}>
                 <AppIcon name="paperplane.fill" size={30} color={colors.primary} />
               </View>
               <Text style={[styles.logoLabel, { color: colors.primary }]}>COLUMBA</Text>
-            </View>
+            </Pressable>
 
             <Text style={[styles.appName, { color: colors.foreground }]}>Columba</Text>
 
-            {step === 'email' ? (
-              <>
-                <Text style={[styles.heading, { color: colors.foreground }]}>
-                  Welcome to Columba
-                </Text>
-                <Text style={[styles.subtext, { color: colors.mutedForeground }]}>
-                  Enter your email to receive a magic link and step into a clearer workspace.
-                </Text>
+            <Text style={[styles.heading, { color: colors.foreground }]}>
+              Welcome to Columba
+            </Text>
+            <Text style={[styles.subtext, { color: colors.mutedForeground }]}>
+              Sign in with Apple to sync your notes across devices. No passwords, no email codes.
+            </Text>
 
-                {/* Email input */}
-                <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
-                  <AppIcon name="envelope" size={16} color={colors.mutedForeground} />
-                  <TextInput
-                    style={[styles.input, { color: colors.foreground }]}
-                    placeholder="name@example.com"
-                    placeholderTextColor={colors.mutedForeground}
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="email"
-                    textContentType="emailAddress"
-                    keyboardType="email-address"
-                    returnKeyType="send"
-                    onSubmitEditing={handleSendCode}
-                  />
-                </View>
-
-                <Pressable
-                  style={[
-                    styles.btn,
-                    {
-                      backgroundColor: emailValid ? colors.primary : colors.secondary,
-                    },
-                  ]}
-                  onPress={handleSendCode}
-                  disabled={!emailValid || requestCode.isPending}
-                >
-                  {requestCode.isPending ? (
-                    <ActivityIndicator
-                      color={emailValid ? colors.primaryForeground : colors.mutedForeground}
-                    />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.btnText,
-                        {
-                          color: emailValid
-                            ? colors.primaryForeground
-                            : colors.mutedForeground,
-                        },
-                      ]}
-                    >
-                      Send Magic Link  →
-                    </Text>
-                  )}
-                </Pressable>
-              </>
+            {Platform.OS === 'ios' ? (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={26}
+                style={styles.appleBtn}
+                onPress={handleAppleSignIn}
+              />
             ) : (
-              <>
-                <Text style={[styles.heading, { color: colors.foreground }]}>
-                  Check your email
-                </Text>
-                <Text style={[styles.subtext, { color: colors.mutedForeground }]}>
-                  We sent a 6-digit code to{'\n'}
-                  <Text
-                    style={{
-                      color: colors.foreground,
-                      fontFamily: 'Manrope_600SemiBold',
-                    }}
-                  >
-                    {email}
-                  </Text>
-                </Text>
-
-                <TextInput
-                  style={[
-                    styles.codeInput,
-                    {
-                      color: colors.foreground,
-                      borderColor: colors.border,
-                      backgroundColor: colors.muted,
-                    },
-                  ]}
-                  placeholder="000000"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={code}
-                  onChangeText={setCode}
-                  keyboardType="number-pad"
-                  textContentType="oneTimeCode"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  returnKeyType="done"
-                  onSubmitEditing={handleVerify}
-                />
-
-                <Pressable
-                  style={[
-                    styles.btn,
-                    {
-                      backgroundColor:
-                        code.length === 6 ? colors.primary : colors.secondary,
-                    },
-                  ]}
-                  onPress={handleVerify}
-                  disabled={code.length !== 6 || verifyCode.isPending}
-                >
-                  {verifyCode.isPending ? (
-                    <ActivityIndicator
-                      color={
-                        code.length === 6
-                          ? colors.primaryForeground
-                          : colors.mutedForeground
-                      }
-                    />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.btnText,
-                        {
-                          color:
-                            code.length === 6
-                              ? colors.primaryForeground
-                              : colors.mutedForeground,
-                        },
-                      ]}
-                    >
-                      Verify  →
-                    </Text>
-                  )}
-                </Pressable>
-
-                <Pressable
-                  onPress={() => {
-                    setStep('email');
-                    setCode('');
-                  }}
-                >
-                  <Text style={[styles.backLink, { color: colors.mutedForeground }]}>
-                    ← Change email
-                  </Text>
-                </Pressable>
-              </>
+              <Text style={[styles.subtext, { color: colors.mutedForeground }]}>
+                Apple Sign In is available on iOS only.
+              </Text>
             )}
 
-            {/* Footer */}
+            {appleBusy ? (
+              <ActivityIndicator color={colors.primary} style={styles.loader} />
+            ) : null}
+
             <Text style={[styles.footer, { color: colors.mutedForeground }]}>
               By continuing, you agree to our{' '}
-              <Text
-                style={{
-                  color: colors.foreground,
-                  fontFamily: 'Manrope_600SemiBold',
-                }}
-              >
+              <Text style={{ color: colors.foreground, fontFamily: 'Manrope_600SemiBold' }}>
                 Terms of Service
               </Text>{' '}
               and{' '}
-              <Text
-                style={{
-                  color: colors.foreground,
-                  fontFamily: 'Manrope_600SemiBold',
-                }}
-              >
+              <Text style={{ color: colors.foreground, fontFamily: 'Manrope_600SemiBold' }}>
                 Privacy Policy
               </Text>
               .
@@ -263,6 +190,57 @@ export default function AuthScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showBypassModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBypassModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.heading, { color: colors.foreground }]}>Dev bypass</Text>
+            <Text style={[styles.subtext, { color: colors.mutedForeground }]}>
+              Enter the server dev bypass code (DEV_BYPASS_CODE).
+            </Text>
+            <TextInput
+              style={[
+                styles.bypassInput,
+                {
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                  backgroundColor: colors.muted,
+                },
+              ]}
+              placeholder="Bypass code"
+              placeholderTextColor={colors.mutedForeground}
+              value={bypassCode}
+              onChangeText={setBypassCode}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={handleDevBypass}
+            />
+            <Pressable
+              style={[styles.btn, { backgroundColor: colors.primary }]}
+              onPress={handleDevBypass}
+              disabled={!bypassCode.trim() || devBypass.isPending}
+            >
+              {devBypass.isPending ? (
+                <ActivityIndicator color={colors.primaryForeground} />
+              ) : (
+                <Text style={[styles.btnText, { color: colors.primaryForeground }]}>
+                  Continue
+                </Text>
+              )}
+            </Pressable>
+            <Pressable onPress={() => setShowBypassModal(false)}>
+              <Text style={[styles.backLink, { color: colors.mutedForeground }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -277,7 +255,6 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     alignSelf: 'center',
   },
-
   card: {
     borderRadius: 24,
     padding: 28,
@@ -288,7 +265,6 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
-
   logoWrap: { alignItems: 'center', gap: 6 },
   logoBox: {
     width: 76,
@@ -302,14 +278,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope_700Bold',
     letterSpacing: 2.5,
   },
-
   appName: {
     fontSize: 30,
     fontFamily: 'Manrope_700Bold',
     textAlign: 'center',
     marginTop: -4,
   },
-
   heading: {
     fontSize: 19,
     fontFamily: 'Manrope_700Bold',
@@ -321,32 +295,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderBottomWidth: 1,
-    paddingVertical: 12,
-    marginVertical: 2,
+  appleBtn: {
+    width: '100%',
+    height: 52,
   },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'Manrope_400Regular',
-  },
-
-  codeInput: {
-    height: 60,
-    borderRadius: 14,
-    borderWidth: 1,
-    textAlign: 'center',
-    fontSize: 28,
-    fontFamily: 'Manrope_700Bold',
-    letterSpacing: 10,
-    marginVertical: 2,
-  },
-
+  loader: { marginTop: -8 },
   btn: {
     height: 52,
     borderRadius: 26,
@@ -357,18 +310,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Manrope_700Bold',
   },
-
   backLink: {
     fontSize: 14,
     fontFamily: 'Manrope_500Medium',
     textAlign: 'center',
   },
-
   footer: {
     fontSize: 12,
     fontFamily: 'Manrope_400Regular',
     textAlign: 'center',
     lineHeight: 18,
     marginTop: 4,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 20,
+    padding: 24,
+    gap: 14,
+  },
+  bypassInput: {
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    fontFamily: 'Manrope_500Medium',
   },
 });

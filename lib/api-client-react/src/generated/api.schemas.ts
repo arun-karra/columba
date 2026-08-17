@@ -22,22 +22,23 @@ export interface MessageResponse {
   message: string;
 }
 
-export interface AuthCodeRequest {
+export interface AppleSignInRequest {
+  /** @minLength 1 */
+  identityToken: string;
   /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
-  email: string;
+  email?: string | null;
+  fullName?: string | null;
 }
 
-export interface AuthCodeVerify {
-  /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
-  email: string;
-  /** @pattern ^[0-9]{6}$ */
+export interface DevBypassRequest {
+  /** @minLength 1 */
   code: string;
 }
 
 export interface User {
   id: string;
   /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
-  email: string;
+  email?: string | null;
   createdAt: string;
 }
 

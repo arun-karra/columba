@@ -13,8 +13,8 @@ function getJwtSecret() {
   return secret;
 }
 
-export function signUserToken(user: { id: string; email: string }) {
-  return jwt.sign({ userId: user.id, email: user.email }, getJwtSecret(), {
+export function signUserToken(user: { id: string; email: string | null }) {
+  return jwt.sign({ userId: user.id, email: user.email ?? "" }, getJwtSecret(), {
     expiresIn: "30d",
   });
 }

@@ -26,7 +26,7 @@ function mapGroup(group: {
   name: string;
   createdByUserId: string;
   createdAt: Date;
-  memberships: Array<{ userId: string; role: "admin" | "member"; createdAt: Date; user: { email: string } }>;
+  memberships: Array<{ userId: string; role: "admin" | "member"; createdAt: Date; user: { email: string | null } }>;
 }) {
   return {
     id: group.id,
@@ -35,7 +35,7 @@ function mapGroup(group: {
     createdAt: group.createdAt,
     members: group.memberships.map((membership) => ({
       userId: membership.userId,
-      email: membership.user.email,
+      email: membership.user.email ?? `user-${membership.userId.slice(0, 8)}`,
       role: membership.role,
       createdAt: membership.createdAt,
     })),

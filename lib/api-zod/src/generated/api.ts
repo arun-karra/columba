@@ -17,40 +17,49 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary Request an email login code
+ * @summary Sign in with an Apple identity token
  */
-export const requestAuthCodeBodyEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+
+export const signInWithAppleBodyEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
 
 
-export const RequestAuthCodeBody = zod.object({
-  "email": zod.string().regex(requestAuthCodeBodyEmailRegExp)
+export const SignInWithAppleBody = zod.object({
+  "identityToken": zod.string().min(1),
+  "email": zod.string().regex(signInWithAppleBodyEmailRegExp).nullish(),
+  "fullName": zod.string().nullish()
 })
 
-export const RequestAuthCodeResponse = zod.object({
-  "message": zod.string()
+export const signInWithAppleResponseUserEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+
+
+export const SignInWithAppleResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "email": zod.string().regex(signInWithAppleResponseUserEmailRegExp).nullish(),
+  "createdAt": zod.coerce.date()
+})
 })
 
 
 /**
- * @summary Verify an email login code
+ * @summary Development-only auth bypass using a shared secret code
  */
-export const verifyAuthCodeBodyEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
-export const verifyAuthCodeBodyCodeRegExp = new RegExp('^[0-9]{6}$');
 
 
-export const VerifyAuthCodeBody = zod.object({
-  "email": zod.string().regex(verifyAuthCodeBodyEmailRegExp),
-  "code": zod.string().regex(verifyAuthCodeBodyCodeRegExp)
+
+export const DevBypassAuthBody = zod.object({
+  "code": zod.string().min(1)
 })
 
-export const verifyAuthCodeResponseUserEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const devBypassAuthResponseUserEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
 
 
-export const VerifyAuthCodeResponse = zod.object({
+export const DevBypassAuthResponse = zod.object({
   "token": zod.string(),
   "user": zod.object({
   "id": zod.string(),
-  "email": zod.string().regex(verifyAuthCodeResponseUserEmailRegExp),
+  "email": zod.string().regex(devBypassAuthResponseUserEmailRegExp).nullish(),
   "createdAt": zod.coerce.date()
 })
 })

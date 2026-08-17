@@ -19,7 +19,8 @@ enum InviteStatus {
 
 model User {
   id                 String            @id @default(uuid()) @db.Uuid
-  email              String            @unique
+  email              String?           @unique
+  appleUserId        String?           @unique
   createdAt          DateTime          @default(now())
   createdGroups      Group[]           @relation("GroupCreator")
   memberships        GroupMembership[]
@@ -27,17 +28,6 @@ model User {
   ownedNotes         Note[]            @relation("NoteOwner")
   completedNotes     Note[]            @relation("NoteCompleter")
   pushTokens         PushToken[]
-}
-
-model LoginCode {
-  id         String    @id @default(uuid()) @db.Uuid
-  email      String
-  codeHash   String
-  expiresAt  DateTime
-  consumedAt DateTime?
-  createdAt  DateTime  @default(now())
-
-  @@index([email, expiresAt])
 }
 
 model Group {

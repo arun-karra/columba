@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AuthCodeRequest {
-  /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
-  email: string;
+export interface DevBypassRequest {
+  /** @minLength 1 */
+  code: string;
 }

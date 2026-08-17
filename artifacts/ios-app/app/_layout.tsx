@@ -28,9 +28,10 @@ import {
   MARK_COMPLETE_ACTION,
   dismissNoteNotification,
 } from '@/utils/notifications';
+import { getApiBaseUrl } from '@/utils/api';
 
 // ── Module-level API + notification configuration ───────────────────────────
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+setBaseUrl(getApiBaseUrl());
 setAuthTokenGetter(() => getToken());
 
 // Show alert + sound for notifications received while the app is foregrounded.
@@ -185,7 +186,7 @@ export default function RootLayout() {
       try {
         const token = await getToken();
         const res = await fetch(
-          `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/notes/${noteId}/mark-done`,
+          `${getApiBaseUrl()}/api/notes/${noteId}/mark-done`,
           {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
