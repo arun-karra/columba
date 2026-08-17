@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useQueryClient } from '@tanstack/react-query';
+import { useGetMe, useUpdateMe, getGetMeQueryKey } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { AppIcon } from '@/components/AppIcon';
@@ -19,7 +23,12 @@ import { confirmDestructive } from '@/utils/iosConfirm';
 import { useScreenGutter } from '@/constants/layout';
 import type { SFSymbol } from 'expo-symbols';
 
-// ─── Section ─────────────────────────────────────────────────────────────────
+function sectionIcon(title: string): SFSymbol {
+  if (title === 'Account') return 'person.circle';
+  if (title === 'Notifications') return 'bell';
+  if (title === 'General') return 'gearshape';
+  return 'arrow.clockwise';
+}
 
 function Section({
   title,
@@ -32,17 +41,7 @@ function Section({
   return (
     <View>
       <View style={styles.sectionHeader}>
-        <AppIcon
-          name={
-            title === 'General'
-              ? 'gearshape'
-              : title === 'Notifications'
-              ? 'bell'
-              : 'arrow.clockwise'
-          }
-          size={15}
-          color={colors.primary}
-        />
+        <AppIcon name={sectionIcon(title)} size={15} color={colors.primary} />
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
           {title}
         </Text>
@@ -58,8 +57,6 @@ function Section({
     </View>
   );
 }
-
-// ─── Setting Row ─────────────────────────────────────────────────────────────
 
 function SettingRow({
   icon,
@@ -108,20 +105,73 @@ function SettingRow({
   );
 }
 
-// ─── Screen ──────────────────────────────────────────────────────────────────
-
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const gutter = useScreenGutter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateUser } = useAuth();
   const queryClient = useQueryClient();
 
+  const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
 
-  const displayName = user?.email?.split('@')[0] ?? 'User';
-  const initials = displayName.slice(0, 2).toUpperCase();
+  const { data: profile } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), enabled: !!user },
+  });
+
+  const updateMe = useUpdateMe({
+    mutation: {
+      onSuccess: async (updated) => {
+        await updateUser(updated);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+    },
+  });
+
+  useEffect(() => {
+    const name = profile?.displayName ?? user?.displayName ?? '';
+    setDisplayNameDraft(name);
+  }, [profile?.displayName, user?.displayName]);
+
+  const syncNotificationPermission = useCallback(async () => {
+    if (Platform.OS === 'web') return;
+    try {
+      const Notifications = await import('expo-notifications').then(
+        (m) => m.default ?? m,
+      );
+      const { status } = await (Notifications as typeof import('expo-notifications')).getPermissionsAsync();
+      setNotificationsEnabled(status === 'granted');
+    } catch {
+      setNotificationsEnabled(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void syncNotificationPermission();
+    }, [syncNotificationPermission]),
+  );
+
+  const resolvedName =
+    profile?.displayName?.trim() ||
+    user?.displayName?.trim() ||
+    user?.email?.split('@')[0] ||
+    'User';
+  const initials = resolvedName.slice(0, 2).toUpperCase();
+  const email = profile?.email ?? user?.email ?? 'Signed in with Apple';
+
+  const handleSaveDisplayName = async () => {
+    const trimmed = displayNameDraft.trim();
+    const current = profile?.displayName?.trim() ?? user?.displayName?.trim() ?? '';
+    if (trimmed === current) return;
+
+    try {
+      await updateMe.mutateAsync({ data: { displayName: trimmed || null } });
+    } catch {
+      Alert.alert('Error', 'Could not save your name. Please try again.');
+    }
+  };
 
   const handleSignOut = () => {
     confirmDestructive({
@@ -150,16 +200,17 @@ export default function ProfileScreen() {
       const Notifications = await import('expo-notifications').then(
         (m) => m.default ?? m,
       );
-      const { status } = await (Notifications as any).requestPermissionsAsync();
+      const { status } = await (Notifications as typeof import('expo-notifications')).requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
           'Permission needed',
           'Enable notifications in Settings to get reminders.',
         );
+        setNotificationsEnabled(false);
         setNotifLoading(false);
         return;
       }
-      const tokenData = await (Notifications as any).getExpoPushTokenAsync();
+      const tokenData = await (Notifications as typeof import('expo-notifications')).getExpoPushTokenAsync();
       const { registerPushToken } = await import('@workspace/api-client-react');
       await registerPushToken({
         expoPushToken: tokenData.data as string,
@@ -174,9 +225,13 @@ export default function ProfileScreen() {
     }
   };
 
+  const openSystemSettings = () => {
+    Haptics.selectionAsync();
+    void Linking.openSettings();
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Top bar */}
       <View
         style={[
           styles.topBar,
@@ -201,31 +256,68 @@ export default function ProfileScreen() {
           },
         ]}
         contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Avatar & info */}
         <View style={styles.hero}>
-          <View
-            style={[styles.avatar, { backgroundColor: colors.secondary }]}
-          >
+          <View style={[styles.avatar, { backgroundColor: colors.secondary }]}>
             <Text style={[styles.avatarText, { color: colors.primary }]}>
               {initials}
             </Text>
           </View>
           <Text style={[styles.heroName, { color: colors.foreground }]}>
-            {displayName}
+            {resolvedName}
           </Text>
           <Text style={[styles.heroEmail, { color: colors.mutedForeground }]}>
-            {user?.email ?? 'Signed in with Apple'}
+            {email}
           </Text>
         </View>
 
-        {/* Notifications */}
+        <Section title="Account">
+          <View style={styles.fieldBlock}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+              Display name
+            </Text>
+            <TextInput
+              style={[
+                styles.fieldInput,
+                {
+                  backgroundColor: colors.secondary,
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                },
+              ]}
+              value={displayNameDraft}
+              onChangeText={setDisplayNameDraft}
+              placeholder="Your name"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={() => void handleSaveDisplayName()}
+              onBlur={() => void handleSaveDisplayName()}
+              maxLength={100}
+            />
+          </View>
+          <View style={[styles.fieldBlock, styles.fieldBlockLast]}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+              Email
+            </Text>
+            <Text style={[styles.fieldValue, { color: colors.foreground }]}>
+              {email}
+            </Text>
+          </View>
+        </Section>
+
         <Section title="Notifications">
           <SettingRow
             icon="iphone"
             label="Push Notifications"
-            subtitle="Reminders and pinned note alerts"
-            last
+            subtitle={
+              notificationsEnabled
+                ? 'Reminders and pinned note alerts'
+                : 'Off — manage in iPhone Settings'
+            }
+            last={notificationsEnabled}
             right={
               <Switch
                 value={notificationsEnabled}
@@ -237,9 +329,23 @@ export default function ProfileScreen() {
               />
             }
           />
+          {!notificationsEnabled && Platform.OS !== 'web' ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.settingsLinkRow,
+                { borderTopColor: colors.border, opacity: pressed ? 0.7 : 1 },
+              ]}
+              onPress={openSystemSettings}
+            >
+              <AppIcon name="gearshape" size={16} color={colors.primary} />
+              <Text style={[styles.settingsLinkText, { color: colors.primary }]}>
+                Open iPhone Settings
+              </Text>
+              <AppIcon name="arrow.up.forward" size={14} color={colors.primary} />
+            </Pressable>
+          ) : null}
         </Section>
 
-        {/* Sign out */}
         <Pressable
           style={[
             styles.signOutBtn,
@@ -308,6 +414,27 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
 
+  fieldBlock: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+    gap: 8,
+  },
+  fieldBlockLast: {
+    borderBottomWidth: 0,
+  },
+  fieldLabel: { fontSize: 12, fontFamily: 'Manrope_600SemiBold' },
+  fieldInput: {
+    height: 44,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    fontFamily: 'Manrope_500Medium',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+  },
+  fieldValue: { fontSize: 16, fontFamily: 'Manrope_500Medium' },
+
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -326,6 +453,16 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1 },
   rowTitle: { fontSize: 15, fontFamily: 'Manrope_500Medium' },
   rowSubtitle: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
+
+  settingsLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  settingsLinkText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
 
   signOutBtn: {
     flexDirection: 'row',

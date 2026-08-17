@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useListGroups,
@@ -35,6 +36,8 @@ type ShareGroupPickerProps = {
   onSelect: (groupId: string, groupName: string) => void;
   /** Hide the built-in "Select Group" heading when nested in a section card. */
   showTitle?: boolean;
+  /** When false, hide inline group creation (use Groups tab instead). */
+  allowCreate?: boolean;
 };
 
 function GroupPill({
@@ -83,6 +86,7 @@ export function ShareGroupPicker({
   selectedGroupId,
   onSelect,
   showTitle = true,
+  allowCreate = true,
 }: ShareGroupPickerProps) {
   const colors = useColors();
   const queryClient = useQueryClient();
@@ -135,6 +139,32 @@ export function ShareGroupPicker({
   }
 
   if (groups.length === 0 && !showCreate) {
+    if (!allowCreate) {
+      return (
+        <View style={styles.emptyBlock}>
+          <AppIcon name="person.2" size={36} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+            No groups yet
+          </Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+            Create a group in the Groups tab to share notes with family or friends.
+          </Text>
+          <Pressable
+            style={[styles.groupsTabBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+            onPress={() => {
+              Haptics.selectionAsync();
+              router.push('/(tabs)/groups');
+            }}
+          >
+            <AppIcon name="person.2.fill" size={16} color={colors.primary} />
+            <Text style={[styles.groupsTabBtnText, { color: colors.primary }]}>
+              Go to Groups
+            </Text>
+          </Pressable>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.emptyBlock}>
         <AppIcon name="person.2" size={32} color={colors.mutedForeground} />
@@ -245,7 +275,7 @@ export function ShareGroupPicker({
         </View>
       )}
 
-      {showCreate ? (
+      {allowCreate && showCreate ? (
         <View
           style={[
             styles.createCard,
@@ -299,7 +329,7 @@ export function ShareGroupPicker({
             </Pressable>
           </View>
         </View>
-      ) : (
+      ) : allowCreate ? (
         <Pressable
           style={styles.createLink}
           onPress={() => {
@@ -312,7 +342,7 @@ export function ShareGroupPicker({
             New group
           </Text>
         </Pressable>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -373,13 +403,25 @@ const styles = StyleSheet.create({
   listInfo: { flex: 1 },
   listName: { fontSize: 16, fontFamily: 'Manrope_600SemiBold' },
   listMeta: { fontSize: 12, fontFamily: 'Manrope_400Regular', marginTop: 2 },
-  emptyBlock: { alignItems: 'center', gap: 10, paddingVertical: 12 },
+  emptyBlock: { alignItems: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 8 },
+  emptyTitle: { fontSize: 17, fontFamily: 'Manrope_700Bold' },
   emptyText: {
     fontSize: 14,
     fontFamily: 'Manrope_400Regular',
     textAlign: 'center',
     lineHeight: 20,
   },
+  groupsTabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  groupsTabBtnText: { fontSize: 15, fontFamily: 'Manrope_600SemiBold' },
   createLink: {
     flexDirection: 'row',
     alignItems: 'center',

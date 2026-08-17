@@ -195,6 +195,7 @@ export default function NewNoteScreen() {
           <View style={styles.groupPickerWrap}>
             <ShareGroupPicker
               showTitle={false}
+              allowCreate={false}
               selectedGroupId={groupId}
               onSelect={(id) => {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
