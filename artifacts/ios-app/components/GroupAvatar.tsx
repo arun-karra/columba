@@ -7,14 +7,21 @@ type Props = {
   fallbackInitials: string;
   size?: number;
   backgroundColor?: string | null;
+  initialsColor?: string;
 };
 
-export function GroupAvatar({ emoji, fallbackInitials, size = 44, backgroundColor }: Props) {
+export function GroupAvatar({
+  emoji,
+  fallbackInitials,
+  size = 44,
+  backgroundColor,
+  initialsColor,
+}: Props) {
   const colors = useColors();
   const fontSize = size >= 56 ? 28 : size >= 44 ? 22 : 16;
   const fill = emoji
     ? (backgroundColor ?? colors.secondary)
-    : colors.primary;
+    : (backgroundColor ?? colors.primary);
 
   return (
     <View
@@ -34,7 +41,7 @@ export function GroupAvatar({ emoji, fallbackInitials, size = 44, backgroundColo
         <Text
           style={[
             styles.initials,
-            { color: colors.primaryForeground, fontSize },
+            { color: initialsColor ?? colors.primaryForeground, fontSize },
           ]}
         >
           {fallbackInitials}

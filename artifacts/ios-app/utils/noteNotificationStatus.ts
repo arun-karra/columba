@@ -13,18 +13,12 @@ export function noteHasActiveNotification(
   return note.isPinned || !!note.remindAt;
 }
 
-/** Short label shown on home note cards for pinned/scheduled notifications. */
+/** Short label on note cards when a scheduled reminder is set. */
 export function getNoteNotificationStatus(note: NoteNotificationFields): string | null {
-  if (note.isDone) return null;
-  if (!note.isPinned && !note.remindAt) return null;
+  if (note.isDone || !note.remindAt) return null;
 
-  if (note.remindAt) {
-    const remindAt = new Date(note.remindAt);
-    if (note.reminderSentAt) return 'Reminder sent';
-    if (remindAt.getTime() <= Date.now()) return 'Sending soon';
-    return `Reminds ${formatReminderStatus(remindAt)}`;
-  }
-
-  if (note.isPinned) return 'On lock screen now';
-  return null;
+  const remindAt = new Date(note.remindAt);
+  if (note.reminderSentAt) return 'Reminder sent';
+  if (remindAt.getTime() <= Date.now()) return 'Sending soon';
+  return `Reminds ${formatReminderStatus(remindAt)}`;
 }

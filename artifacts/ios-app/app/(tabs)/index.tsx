@@ -33,6 +33,7 @@ import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@
 import { getGroupEmojiMap } from '@/utils/groupEmoji';
 import { getGroupIconColorMap, resolveGroupIconColor } from '@/utils/groupIconStyle';
 import { resolveNoteGroupEmoji } from '@/utils/noteNotificationText';
+import { getDisplayInitials, getUserDisplayInitials } from '@/utils/displayInitials';
 import { clearPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
 import { dismissNoteNotification } from '@/utils/notifications';
 
@@ -41,6 +42,7 @@ function NoteCardContent({
   groupEmoji,
   groupIconColor,
   groupName,
+  personalInitials,
   selectionMode,
   selected,
 }: {
@@ -48,19 +50,16 @@ function NoteCardContent({
   groupEmoji: string | null;
   groupIconColor: string | null;
   groupName: string | null;
+  personalInitials: string;
   selectionMode?: boolean;
   selected?: boolean;
 }) {
   const colors = useColors();
   const isDone = note.isDone;
   const isGroupNote = !!groupName;
-  const groupInitials = groupName
-    ? groupName
-        .split(' ')
-        .slice(0, 2)
-        .map((word) => word[0]?.toUpperCase() ?? '')
-        .join('')
-    : 'Me';
+  const avatarInitials = isGroupNote
+    ? getDisplayInitials(groupName)
+    : personalInitials;
   const notificationStatus = getNoteNotificationStatus(note);
 
   return (
@@ -83,9 +82,10 @@ function NoteCardContent({
       <View style={styles.cardInner}>
         <GroupAvatar
           emoji={isGroupNote ? groupEmoji : null}
-          fallbackInitials={groupInitials}
-          size={36}
+          fallbackInitials={avatarInitials}
+          size={32}
           backgroundColor={isGroupNote ? groupIconColor : colors.secondary}
+          initialsColor={isGroupNote ? undefined : colors.primary}
         />
         <View style={styles.cardTextCol}>
           <Text
@@ -102,7 +102,7 @@ function NoteCardContent({
                 textDecorationLine: isDone ? 'line-through' : 'none',
               },
             ]}
-            numberOfLines={3}
+            numberOfLines={2}
           >
             {note.body}
           </Text>
@@ -131,6 +131,7 @@ export default function NotesScreen() {
   const listBottom = useListBottomPadding(true);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const personalInitials = getUserDisplayInitials(user);
 
   const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
   const [iconColorMap, setIconColorMap] = useState<Record<string, string>>({});
@@ -381,6 +382,7 @@ export default function NotesScreen() {
                 groupEmoji={groupEmoji}
                 groupIconColor={groupIconColor}
                 groupName={item.groupName}
+                personalInitials={personalInitials}
                 selectionMode={selectionMode}
                 selected={isSelected}
               />
@@ -559,9 +561,8 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    minHeight: 112,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -582,22 +583,21 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 14,
+    gap: 12,
     marginRight: 8,
   },
-  cardTextCol: { flex: 1, gap: 4 },
+  cardTextCol: { flex: 1, gap: 3 },
   groupNameLabel: {
-    fontSize: 13,
-    lineHeight: 18,
-    minHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
+    minHeight: 16,
     fontFamily: 'Manrope_600SemiBold',
     letterSpacing: 0.1,
   },
   cardText: {
-    fontSize: 18,
+    fontSize: 17,
     fontFamily: 'Manrope_500Medium',
-    lineHeight: 24,
-    minHeight: 72,
+    lineHeight: 22,
   },
   notifyRow: {
     flexDirection: 'row',
