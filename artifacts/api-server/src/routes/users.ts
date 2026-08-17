@@ -39,7 +39,12 @@ router.patch(
       where: { id: userId },
       data: {
         ...(input.displayName !== undefined
-          ? { displayName: input.displayName.trim() || null }
+          ? {
+              displayName:
+                typeof input.displayName === "string"
+                  ? input.displayName.trim() || null
+                  : null,
+            }
           : {}),
       },
     });

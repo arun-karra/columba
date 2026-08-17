@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -312,29 +313,36 @@ export default function GroupDetailScreen() {
 
       <Modal
         visible={showEmojiEditor}
-        transparent
-        animationType="fade"
+        animationType="slide"
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
         onRequestClose={closeEmojiEditor}
       >
-        <Pressable style={styles.modalBackdrop} onPress={closeEmojiEditor}>
+        <View style={[styles.emojiModalRoot, { backgroundColor: colors.background }]}>
           <View
-            style={[styles.modalCard, { backgroundColor: colors.card }]}
-            onStartShouldSetResponder={() => true}
+            style={[
+              styles.emojiModalHeader,
+              {
+                borderBottomColor: colors.border,
+                backgroundColor: colors.card,
+              },
+            ]}
           >
-            <Text style={[styles.groupName, { color: colors.foreground, fontSize: 18 }]}>
+            <Pressable onPress={closeEmojiEditor} hitSlop={14}>
+              <Text style={[styles.emojiModalAction, { color: colors.primary }]}>Cancel</Text>
+            </Pressable>
+            <Text style={[styles.groupName, { color: colors.foreground, fontSize: 17 }]}>
               Group icon
             </Text>
-            <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} />
-            <Pressable
-              style={[styles.saveEmojiBtn, { backgroundColor: colors.primary }]}
-              onPress={() => void saveEmoji()}
-            >
-              <Text style={[styles.saveEmojiText, { color: colors.primaryForeground }]}>
+            <Pressable onPress={() => void saveEmoji()} hitSlop={14}>
+              <Text style={[styles.emojiModalAction, styles.emojiModalActionRight, { color: colors.primary }]}>
                 Save
               </Text>
             </Pressable>
           </View>
-        </Pressable>
+          <View style={styles.emojiModalBody}>
+            <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} />
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -353,6 +361,19 @@ const styles = StyleSheet.create({
   },
   emojiTap: { alignItems: 'center', gap: 6 },
   changeEmoji: { fontSize: 13, fontFamily: 'Manrope_600SemiBold' },
+  emojiModalRoot: { flex: 1 },
+  emojiModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  emojiModalAction: { fontSize: 17, fontFamily: 'Manrope_600SemiBold', width: 72 },
+  emojiModalActionRight: { textAlign: 'right' },
+  emojiModalBody: { padding: 20 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
