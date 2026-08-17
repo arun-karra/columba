@@ -53,13 +53,15 @@ function NoteCardContent({
 }) {
   const colors = useColors();
   const isDone = note.isDone;
+  const isGroupNote = !!groupName;
   const groupInitials = groupName
     ? groupName
         .split(' ')
         .slice(0, 2)
         .map((word) => word[0]?.toUpperCase() ?? '')
         .join('')
-    : '';
+    : 'Me';
+  const notificationStatus = getNoteNotificationStatus(note);
 
   return (
     <>
@@ -79,23 +81,19 @@ function NoteCardContent({
         </View>
       ) : null}
       <View style={styles.cardInner}>
-        {groupEmoji && groupName ? (
-          <GroupAvatar
-            emoji={groupEmoji}
-            fallbackInitials={groupInitials}
-            size={36}
-            backgroundColor={groupIconColor}
-          />
-        ) : null}
+        <GroupAvatar
+          emoji={isGroupNote ? groupEmoji : null}
+          fallbackInitials={groupInitials}
+          size={36}
+          backgroundColor={isGroupNote ? groupIconColor : colors.secondary}
+        />
         <View style={styles.cardTextCol}>
-          {groupName ? (
-            <Text
-              style={[styles.groupNameLabel, { color: colors.mutedForeground }]}
-              numberOfLines={1}
-            >
-              {groupName}
-            </Text>
-          ) : null}
+          <Text
+            style={[styles.groupNameLabel, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {groupName ?? 'Personal'}
+          </Text>
           <Text
             style={[
               styles.cardText,
@@ -108,11 +106,11 @@ function NoteCardContent({
           >
             {note.body}
           </Text>
-          {getNoteNotificationStatus(note) ? (
+          {notificationStatus ? (
             <View style={styles.notifyRow}>
               <AppIcon name="bell" size={13} color={colors.primary} />
               <Text style={[styles.notifyStatus, { color: colors.primary }]}>
-                {getNoteNotificationStatus(note)}
+                {notificationStatus}
               </Text>
             </View>
           ) : null}
@@ -561,6 +559,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    minHeight: 112,
     paddingHorizontal: 18,
     paddingVertical: 18,
     shadowColor: '#000',
@@ -589,6 +588,8 @@ const styles = StyleSheet.create({
   cardTextCol: { flex: 1, gap: 4 },
   groupNameLabel: {
     fontSize: 13,
+    lineHeight: 18,
+    minHeight: 18,
     fontFamily: 'Manrope_600SemiBold',
     letterSpacing: 0.1,
   },
@@ -596,6 +597,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Manrope_500Medium',
     lineHeight: 24,
+    minHeight: 72,
   },
   notifyRow: {
     flexDirection: 'row',
