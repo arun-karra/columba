@@ -175,22 +175,19 @@ export default function NotesScreen() {
               style={[
                 styles.swipeAction,
                 {
-                  backgroundColor: item.isDone ? colors.secondary : colors.primary,
+                  backgroundColor: colors.secondary,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: colors.border,
                 },
               ]}
               onPress={() => handleToggleDone(item)}
             >
               <AppIcon
                 name={item.isDone ? 'arrow.counterclockwise' : 'checkmark'}
-                size={20}
-                color={item.isDone ? colors.foreground : colors.primaryForeground}
+                size={18}
+                color={colors.primary}
               />
-              <Text
-                style={[
-                  styles.swipeLabel,
-                  { color: item.isDone ? colors.foreground : colors.primaryForeground },
-                ]}
-              >
+              <Text style={[styles.swipeLabel, { color: colors.primary }]}>
                 {item.isDone ? 'Undo' : 'Done'}
               </Text>
             </Pressable>
