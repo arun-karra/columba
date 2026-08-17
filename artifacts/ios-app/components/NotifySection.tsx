@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   Platform,
   Pressable,
@@ -12,6 +12,12 @@ import DateTimePicker, {
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { AppIcon } from '@/components/AppIcon';
+import {
+  getQuickReminders,
+  getInOneHourFrom,
+  getTomorrowAtNineAmFrom,
+  isTomorrowNineAm,
+} from '@/utils/reminderSchedule';
 
 export type NotifyMode = 'now' | 'hour' | 'tomorrow' | 'custom' | 'off';
 
@@ -20,16 +26,6 @@ export type NotifyValue = {
   remindAt: Date | null;
   isPinned: boolean;
 };
-
-function getQuickReminders() {
-  const now = new Date();
-  const inOneHour = new Date(now);
-  inOneHour.setHours(inOneHour.getHours() + 1, 0, 0, 0);
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(9, 0, 0, 0);
-  return { inOneHour, tomorrow };
-}
 
 export function defaultNotifyValue(): NotifyValue {
   return { mode: 'now', remindAt: null, isPinned: true };
@@ -52,14 +48,15 @@ export function notifyValueFromNote(note: {
   }
 
   const remindAt = new Date(note.remindAt);
-  const { inOneHour, tomorrow } = getQuickReminders();
-  const key = remindAt.toISOString().slice(0, 16);
+  const now = new Date();
 
-  if (key === inOneHour.toISOString().slice(0, 16)) {
-    return { mode: 'hour', remindAt, isPinned: true };
-  }
-  if (key === tomorrow.toISOString().slice(0, 16)) {
+  if (isTomorrowNineAm(remindAt, now)) {
     return { mode: 'tomorrow', remindAt, isPinned: true };
+  }
+
+  const msUntil = remindAt.getTime() - now.getTime();
+  if (msUntil > 0 && msUntil <= 60 * 60 * 1000 + 60_000) {
+    return { mode: 'hour', remindAt, isPinned: true };
   }
 
   return { mode: 'custom', remindAt, isPinned: true };
@@ -95,7 +92,7 @@ export function NotifySection({
   onShowDatePicker,
 }: Props) {
   const colors = useColors();
-  const { inOneHour, tomorrow } = useMemo(() => getQuickReminders(), []);
+  const { inOneHour, tomorrow } = getQuickReminders();
 
   const chips: Array<{
     mode: NotifyMode;
@@ -130,7 +127,14 @@ export function NotifySection({
 
     onChange({
       mode,
-      remindAt: mode === 'now' ? null : (date ?? null),
+      remindAt:
+        mode === 'now'
+          ? null
+          : mode === 'hour'
+            ? getInOneHourFrom()
+            : mode === 'tomorrow'
+              ? getTomorrowAtNineAmFrom()
+              : (date ?? null),
       isPinned: true,
     });
   };
