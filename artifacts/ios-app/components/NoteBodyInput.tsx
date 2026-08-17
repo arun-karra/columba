@@ -14,6 +14,7 @@ type Props = Omit<TextInputProps, 'value' | 'onChangeText'> & {
   value: string;
   onChangeText: (text: string) => void;
   dictationState: DictationState;
+  showMicButton: boolean;
   isDictationSupported: boolean;
   onToggleDictation: () => void;
 };
@@ -22,6 +23,7 @@ export function NoteBodyInput({
   value,
   onChangeText,
   dictationState,
+  showMicButton,
   isDictationSupported,
   onToggleDictation,
   style,
@@ -34,7 +36,7 @@ export function NoteBodyInput({
 
   const micColor = isListening
     ? colors.destructive
-    : isDenied || isError
+    : !isDictationSupported || isDenied || isError
       ? colors.mutedForeground
       : colors.primary;
 
@@ -60,7 +62,7 @@ export function NoteBodyInput({
         textAlignVertical="top"
       />
 
-      {isDictationSupported ? (
+      {showMicButton ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
