@@ -38,14 +38,22 @@ import {
   resolveGroupEmoji,
   setGroupEmoji,
 } from '@/utils/groupEmoji';
+import { defaultIconStyleForGroup } from '@/utils/emojiCatalog';
+import {
+  getGroupIconColorMap,
+  resolveGroupIconColor,
+  setGroupIconColor,
+} from '@/utils/groupIconStyle';
 
 function GroupCard({
   group,
   emoji,
+  iconColor,
   onPress,
 }: {
   group: Group;
   emoji: string;
+  iconColor: string;
   onPress: () => void;
 }) {
   const colors = useColors();
@@ -67,7 +75,7 @@ function GroupCard({
       ]}
       onPress={onPress}
     >
-      <GroupAvatar emoji={emoji} fallbackInitials={initials} />
+      <GroupAvatar emoji={emoji} fallbackInitials={initials} backgroundColor={iconColor} />
       <View style={styles.cardContent}>
         <Text style={[styles.groupName, { color: colors.foreground }]} numberOfLines={1}>
           {group.name}
@@ -93,7 +101,11 @@ export default function GroupsScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState<string>(defaultEmojiForGroup(''));
+  const [selectedIconColor, setSelectedIconColor] = useState<string>(
+    defaultIconStyleForGroup(''),
+  );
   const [emojiMap, setEmojiMap] = useState<Record<string, string>>({});
+  const [iconColorMap, setIconColorMap] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: groups = [], isLoading } = useListGroups({
@@ -101,18 +113,28 @@ export default function GroupsScreen() {
   });
 
   useEffect(() => {
-    void getGroupEmojiMap().then(setEmojiMap);
+    void Promise.all([getGroupEmojiMap(), getGroupIconColorMap()]).then(
+      ([emojis, colors]) => {
+        setEmojiMap(emojis);
+        setIconColorMap(colors);
+      },
+    );
   }, [groups.length]);
 
   const createGroup = useCreateGroup({
     mutation: {
       onSuccess: async (group) => {
-        await setGroupEmoji(group.id, selectedEmoji);
+        await Promise.all([
+          setGroupEmoji(group.id, selectedEmoji),
+          setGroupIconColor(group.id, selectedIconColor),
+        ]);
         setEmojiMap((prev) => ({ ...prev, [group.id]: selectedEmoji }));
+        setIconColorMap((prev) => ({ ...prev, [group.id]: selectedIconColor }));
         queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() });
         setShowCreate(false);
         setGroupName('');
         setSelectedEmoji(defaultEmojiForGroup(''));
+        setSelectedIconColor(defaultIconStyleForGroup(''));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push(`/group/${group.id}`);
       },
@@ -156,7 +178,9 @@ export default function GroupsScreen() {
 
   const handleCreatePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedEmoji(defaultEmojiForGroup(groupName || 'New Group'));
+    const seed = groupName.trim() || 'New Group';
+    setSelectedEmoji(defaultEmojiForGroup(seed));
+    setSelectedIconColor(defaultIconStyleForGroup(seed));
     setShowCreate(true);
   };
 
@@ -170,6 +194,7 @@ export default function GroupsScreen() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: getListGroupsQueryKey() }),
       getGroupEmojiMap().then(setEmojiMap),
+      getGroupIconColorMap().then(setIconColorMap),
     ]);
     setRefreshing(false);
   }, [queryClient]);
@@ -223,6 +248,7 @@ export default function GroupsScreen() {
               <GroupCard
                 group={item}
                 emoji={resolveGroupEmoji(item.id, item.name, emojiMap, item.emoji)}
+                iconColor={resolveGroupIconColor(item.id, item.name, iconColorMap)}
                 onPress={() => {
                   Haptics.selectionAsync();
                   router.push(`/group/${item.id}`);
@@ -277,6 +303,7 @@ export default function GroupsScreen() {
         onRequestClose={() => {
           setShowCreate(false);
           setGroupName('');
+          setSelectedIconColor(defaultIconStyleForGroup(''));
         }}
       >
         <GestureHandlerRootView style={{ flex: 1 }}>
@@ -296,10 +323,12 @@ export default function GroupsScreen() {
               onPress={() => {
                 setShowCreate(false);
                 setGroupName('');
+                setSelectedIconColor(defaultIconStyleForGroup(''));
               }}
               hitSlop={14}
+              accessibilityLabel="Cancel"
             >
-              <Text style={[styles.modalHeaderAction, { color: colors.primary }]}>Cancel</Text>
+              <AppIcon name="xmark" size={20} color={colors.primary} />
             </Pressable>
             <Text style={[styles.modalHeaderTitle, { color: colors.foreground }]}>
               New Group
@@ -308,55 +337,44 @@ export default function GroupsScreen() {
               onPress={() => void handleCreateFromModal()}
               hitSlop={14}
               disabled={createGroup.isPending || !groupName.trim()}
+              accessibilityLabel="Create group"
             >
               {createGroup.isPending ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Text
-                  style={[
-                    styles.modalHeaderAction,
-                    styles.modalHeaderActionRight,
-                    {
-                      color: groupName.trim() ? colors.primary : colors.mutedForeground,
-                    },
-                  ]}
-                >
-                  Create
-                </Text>
+                <AppIcon
+                  name="checkmark"
+                  size={22}
+                  color={groupName.trim() ? colors.primary : colors.mutedForeground}
+                />
               )}
             </Pressable>
           </View>
 
-          <View
-            style={[
-              styles.modalBody,
-              {
-                paddingHorizontal: gutter,
-                paddingBottom: insets.bottom + 24,
-              },
-            ]}
-          >
-            <EmojiPicker value={selectedEmoji} onChange={setSelectedEmoji} />
+          <View style={[styles.modalBody, { paddingHorizontal: gutter }]}>
             <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.secondary,
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="e.g. Household, Book Club…"
+              style={[styles.groupNameInput, { color: colors.foreground }]}
+              placeholder="Group name"
               placeholderTextColor={colors.mutedForeground}
               value={groupName}
               onChangeText={(text) => {
                 setGroupName(text);
                 if (!text.trim()) {
                   setSelectedEmoji(defaultEmojiForGroup(''));
+                  setSelectedIconColor(defaultIconStyleForGroup(''));
                 }
               }}
+              autoFocus
               returnKeyType="done"
               onSubmitEditing={handleCreateFromModal}
+              maxLength={48}
+            />
+            <EmojiPicker
+              variant="sheet"
+              value={selectedEmoji}
+              onChange={setSelectedEmoji}
+              backgroundColor={selectedIconColor}
+              onBackgroundColorChange={setSelectedIconColor}
             />
           </View>
         </View>
@@ -442,7 +460,14 @@ const styles = StyleSheet.create({
   modalHeaderAction: { fontSize: 17, fontFamily: 'Manrope_600SemiBold', width: 72 },
   modalHeaderActionRight: { textAlign: 'right' },
   modalHeaderTitle: { fontSize: 17, fontFamily: 'Manrope_700Bold' },
-  modalBody: { flex: 1, paddingTop: 20, gap: 16 },
+  modalBody: { flex: 1, paddingTop: 12, paddingBottom: 8, gap: 8 },
+  groupNameInput: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontFamily: 'Manrope_700Bold',
+    textAlign: 'center',
+    paddingVertical: 8,
+  },
   sheet: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,

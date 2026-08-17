@@ -35,6 +35,11 @@ import {
   defaultEmojiForGroup,
   setGroupEmoji,
 } from '@/utils/groupEmoji';
+import { defaultIconStyleForGroup } from '@/utils/emojiCatalog';
+import {
+  getGroupIconColor,
+  setGroupIconColor,
+} from '@/utils/groupIconStyle';
 
 function MemberRow({
   member,
@@ -102,8 +107,10 @@ export default function GroupDetailScreen() {
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [groupEmoji, setGroupEmojiState] = useState<string | null>(null);
+  const [groupIconColor, setGroupIconColorState] = useState<string | null>(null);
   const [showEmojiEditor, setShowEmojiEditor] = useState(false);
   const [draftEmoji, setDraftEmoji] = useState<string>(defaultEmojiForGroup(''));
+  const [draftIconColor, setDraftIconColor] = useState<string>(defaultIconStyleForGroup(''));
 
   const { data: group, isLoading } = useGetGroup(id ?? '');
 
@@ -119,7 +126,10 @@ export default function GroupDetailScreen() {
   useEffect(() => {
     if (!group) return;
     setGroupEmojiState(group.emoji);
-  }, [group?.id, group?.emoji]);
+    void getGroupIconColor(group.id).then((color) => {
+      setGroupIconColorState(color ?? defaultIconStyleForGroup(group.name));
+    });
+  }, [group?.id, group?.emoji, group?.name]);
 
   const inviteMutation = useInviteToGroup({
     mutation: {
@@ -193,22 +203,26 @@ export default function GroupDetailScreen() {
     .join('');
 
   const emoji = groupEmoji ?? group.emoji ?? defaultEmojiForGroup(group.name);
+  const iconColor = groupIconColor ?? defaultIconStyleForGroup(group.name);
 
   const openEmojiEditor = () => {
     setDraftEmoji(emoji);
+    setDraftIconColor(iconColor);
     setShowEmojiEditor(true);
   };
 
   const closeEmojiEditor = () => {
     setDraftEmoji(emoji);
+    setDraftIconColor(iconColor);
     setShowEmojiEditor(false);
   };
 
   const saveEmoji = async () => {
     if (!id) return;
     await updateGroup.mutateAsync({ id, data: { emoji: draftEmoji } });
-    await setGroupEmoji(id, draftEmoji);
+    await Promise.all([setGroupEmoji(id, draftEmoji), setGroupIconColor(id, draftIconColor)]);
     setGroupEmojiState(draftEmoji);
+    setGroupIconColorState(draftIconColor);
     setShowEmojiEditor(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
@@ -225,7 +239,12 @@ export default function GroupDetailScreen() {
           <View>
             <View style={styles.hero}>
               <Pressable onPress={openEmojiEditor} style={styles.emojiTap}>
-                <GroupAvatar emoji={emoji} fallbackInitials={groupInitials} size={64} />
+                <GroupAvatar
+                  emoji={emoji}
+                  fallbackInitials={groupInitials}
+                  size={64}
+                  backgroundColor={iconColor}
+                />
                 <Text style={[styles.changeEmoji, { color: colors.primary }]}>
                   Change icon
                 </Text>
@@ -342,7 +361,13 @@ export default function GroupDetailScreen() {
             </Pressable>
           </View>
           <View style={styles.emojiModalBody}>
-            <EmojiPicker value={draftEmoji} onChange={setDraftEmoji} />
+            <EmojiPicker
+              variant="sheet"
+              value={draftEmoji}
+              onChange={setDraftEmoji}
+              backgroundColor={draftIconColor}
+              onBackgroundColorChange={setDraftIconColor}
+            />
           </View>
         </View>
         </GestureHandlerRootView>
@@ -376,7 +401,7 @@ const styles = StyleSheet.create({
   },
   emojiModalAction: { fontSize: 17, fontFamily: 'Manrope_600SemiBold', width: 72 },
   emojiModalActionRight: { textAlign: 'right' },
-  emojiModalBody: { padding: 20 },
+  emojiModalBody: { flex: 1, paddingHorizontal: 16, paddingBottom: 8 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
