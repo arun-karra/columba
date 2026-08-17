@@ -317,9 +317,9 @@ export default function GroupDetailScreen() {
         onRequestClose={closeEmojiEditor}
       >
         <Pressable style={styles.modalBackdrop} onPress={closeEmojiEditor}>
-          <Pressable
+          <View
             style={[styles.modalCard, { backgroundColor: colors.card }]}
-            onPress={() => undefined}
+            onStartShouldSetResponder={() => true}
           >
             <Text style={[styles.groupName, { color: colors.foreground, fontSize: 18 }]}>
               Group icon
@@ -333,7 +333,7 @@ export default function GroupDetailScreen() {
                 Save
               </Text>
             </Pressable>
-          </Pressable>
+          </View>
         </Pressable>
       </Modal>
     </View>

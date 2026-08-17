@@ -16,6 +16,8 @@ type Props = {
   onChange: (emoji: string) => void;
 };
 
+const CHIP_SIZE = 44;
+
 function firstEmoji(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return '';
@@ -50,11 +52,13 @@ export function EmojiPicker({ value, onChange }: Props) {
                 Haptics.selectionAsync();
                 onChange(emoji);
               }}
-              style={[
+              hitSlop={4}
+              style={({ pressed }) => [
                 styles.chip,
                 {
                   backgroundColor: selected ? colors.secondary : colors.muted,
                   borderColor: selected ? colors.primary : colors.border,
+                  opacity: pressed ? 0.85 : 1,
                 },
               ]}
             >
@@ -64,12 +68,14 @@ export function EmojiPicker({ value, onChange }: Props) {
         })}
         <Pressable
           onPress={openEmojiKeyboard}
-          style={[
+          hitSlop={4}
+          style={({ pressed }) => [
             styles.chip,
             styles.moreChip,
             {
               backgroundColor: customSelected ? colors.secondary : colors.muted,
               borderColor: customSelected ? colors.primary : colors.border,
+              opacity: pressed ? 0.85 : 1,
             },
           ]}
           accessibilityRole="button"
@@ -111,14 +117,13 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     paddingVertical: 2,
   },
   chip: {
-    flex: 1,
-    aspectRatio: 1,
-    maxWidth: 44,
-    maxHeight: 44,
+    width: CHIP_SIZE,
+    height: CHIP_SIZE,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -128,6 +133,7 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 22 },
   hiddenInput: {
     position: 'absolute',
+    left: -9999,
     width: 1,
     height: 1,
     opacity: 0,
