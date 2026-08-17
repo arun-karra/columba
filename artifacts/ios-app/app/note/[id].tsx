@@ -34,7 +34,7 @@ import {
   getGetNoteQueryKey,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
-import { ShareModal } from '@/components/ShareModal';
+import { ShareGroupPicker } from '@/components/ShareGroupPicker';
 import {
   clearPinnedNoteNotification,
   presentPinnedNoteNotification,
@@ -98,7 +98,6 @@ export default function NoteDetailScreen() {
   const [groupName, setGroupName] = useState<string | null>(null);
   const [remindAt, setRemindAt] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
 
   const hydratedRef = useRef(false);
   const bodyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -277,11 +276,10 @@ export default function NoteDetailScreen() {
     }
   };
 
-  const handleShareSelect = async (selectedGroupId: string, name?: string) => {
-    setShowShareModal(false);
+  const handleShareSelect = async (selectedGroupId: string, name: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await persistNote({ groupId: selectedGroupId });
-    if (name) setGroupName(name);
+    setGroupName(name);
   };
 
   const quickReminders = getQuickReminders();
@@ -419,6 +417,18 @@ export default function NoteDetailScreen() {
           ) : null}
         </SectionCard>
 
+        <SectionCard title="Select Group">
+          <View style={styles.groupPickerWrap}>
+            <ShareGroupPicker
+              showTitle={false}
+              selectedGroupId={groupId}
+              onSelect={(id, name) => {
+                void handleShareSelect(id, name);
+              }}
+            />
+          </View>
+        </SectionCard>
+
         <SectionCard title="Options">
           <View
             style={[
@@ -450,15 +460,7 @@ export default function NoteDetailScreen() {
             />
           </View>
 
-          <View
-            style={[
-              styles.optionRow,
-              {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: colors.border,
-              },
-            ]}
-          >
+          <View style={styles.optionRow}>
             <View
               style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
             >
@@ -479,25 +481,6 @@ export default function NoteDetailScreen() {
               ios_backgroundColor={colors.border}
             />
           </View>
-
-          <Pressable style={styles.optionRow} onPress={() => setShowShareModal(true)}>
-            <View
-              style={[styles.optionIconWrap, { backgroundColor: colors.secondary }]}
-            >
-              <AppIcon name="person.2" size={14} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: colors.foreground }]}>
-                Share to Group
-              </Text>
-              {groupName ? (
-                <Text style={[styles.optionSub, { color: colors.mutedForeground }]}>
-                  {groupName}
-                </Text>
-              ) : null}
-            </View>
-            <AppIcon name="chevron.right" size={16} color={colors.mutedForeground} />
-          </Pressable>
         </SectionCard>
 
         <View style={styles.actions}>
@@ -548,15 +531,6 @@ export default function NoteDetailScreen() {
           </Pressable>
         </View>
       </ScrollView>
-
-      <ShareModal
-        visible={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        onSelect={(groupId, name) => {
-          void handleShareSelect(groupId, name);
-        }}
-        selectedGroupId={groupId}
-      />
     </View>
   );
 }
@@ -602,6 +576,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   remindChipText: { fontSize: 13, fontFamily: 'Manrope_500Medium' },
+  groupPickerWrap: { padding: 14 },
   pickerWrap: { paddingHorizontal: 14, paddingBottom: 12 },
   pickerDone: {
     height: 40,
