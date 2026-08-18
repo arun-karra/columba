@@ -34,7 +34,7 @@ import type { Group } from '@workspace/api-client-react';
 import { AppIcon } from '@/components/AppIcon';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { GroupAvatar } from '@/components/GroupAvatar';
-import { GroupInviteCard } from '@/components/GroupInviteCard';
+import { GroupInvitesSection } from '@/components/GroupInvitesSection';
 import { ScreenGradient } from '@/components/ScreenGradient';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
@@ -291,26 +291,6 @@ export default function GroupsScreen() {
   };
 
   const isLoading = groupsLoading || invitesLoading;
-  const showInviteSection = invites.length > 0;
-
-  const inviteHeader = showInviteSection ? (
-    <View style={styles.inviteSection}>
-      <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
-        Group Invitations
-      </Text>
-      <View style={styles.inviteList}>
-        {invites.map((invite) => (
-          <GroupInviteCard
-            key={invite.id}
-            invite={invite}
-            loading={actingInviteId === invite.id}
-            onAccept={() => void handleAcceptInvite(invite.id)}
-            onDecline={() => handleDeclineInvite(invite.id)}
-          />
-        ))}
-      </View>
-    </View>
-  ) : null;
 
   return (
     <ScreenGradient>
@@ -330,56 +310,48 @@ export default function GroupsScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
-      ) : groups.length === 0 && !showInviteSection ? (
-        <View style={styles.center}>
-          <AppIcon name="person.2" size={44} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            No groups yet
-          </Text>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Create a group to share notes with family or friends
-          </Text>
-        </View>
       ) : (
-        <FlatList
-          data={groups}
-          keyExtractor={(g) => g.id}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingHorizontal: gutter, paddingBottom: listBottom },
-            groups.length === 0 && styles.listContentEmptyGroups,
-          ]}
-          contentInsetAdjustmentBehavior="automatic"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
+        <>
+          <View style={{ paddingHorizontal: gutter }}>
+            <GroupInvitesSection
+              invites={invites}
+              actingInviteId={actingInviteId}
+              onAccept={(inviteId) => void handleAcceptInvite(inviteId)}
+              onDecline={handleDeclineInvite}
             />
-          }
-          ListHeaderComponent={
-            <>
-              {inviteHeader}
-              {groups.length > 0 && showInviteSection ? (
+          </View>
+
+          {groups.length === 0 ? (
+            <View style={styles.center}>
+              <AppIcon name="person.2" size={44} color={colors.mutedForeground} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                No groups yet
+              </Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                Create a group to share notes with family or friends
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={groups}
+              keyExtractor={(g) => g.id}
+              contentContainerStyle={[
+                styles.listContent,
+                { paddingHorizontal: gutter, paddingBottom: listBottom },
+              ]}
+              contentInsetAdjustmentBehavior="automatic"
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.primary}
+                />
+              }
+              ListHeaderComponent={
                 <Text style={[styles.sectionTitle, styles.yourGroupsTitle, { color: colors.mutedForeground }]}>
                   Your Groups
                 </Text>
-              ) : null}
-            </>
-          }
-          ListEmptyComponent={
-            groups.length === 0 ? (
-              <View style={styles.inlineEmpty}>
-                <AppIcon name="person.2" size={36} color={colors.mutedForeground} />
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                  No groups yet
-                </Text>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                  Create a group to share notes with family or friends
-                </Text>
-              </View>
-            ) : null
-          }
+              }
           renderItem={({ item }) => {
             const card = (
               <GroupCard
@@ -427,7 +399,9 @@ export default function GroupsScreen() {
             );
           }}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        />
+            />
+          )}
+        </>
       )}
 
       <Pressable
