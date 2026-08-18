@@ -18,7 +18,7 @@ export function getNoteNotificationStatus(note: NoteNotificationFields): string 
   if (note.isDone || !note.remindAt) return null;
 
   const remindAt = new Date(note.remindAt);
-  if (note.reminderSentAt) return 'Reminder sent';
+  if (note.reminderSentAt) return null;
   if (remindAt.getTime() <= Date.now()) return 'Sending soon';
   return `Reminds ${formatReminderStatus(remindAt)}`;
 }
