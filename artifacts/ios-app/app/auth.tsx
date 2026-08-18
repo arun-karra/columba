@@ -13,13 +13,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Haptics from 'expo-haptics';
 import { useDevBypassAuth, useSignInWithApple } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { AppIcon } from '@/components/AppIcon';
+import { ScreenGradient } from '@/components/ScreenGradient';
 import { useScreenGutter } from '@/constants/layout';
+
+const appIcon = require('@/assets/images/icon.png');
 
 const LOGO_TAP_TARGET = 20;
 const TAP_RESET_MS = 2_000;
@@ -126,7 +129,7 @@ export default function AuthScreen() {
   const appleBusy = signInWithApple.isPending || devBypass.isPending;
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScreenGradient>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.kav}
@@ -143,9 +146,7 @@ export default function AuthScreen() {
         >
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <Pressable onPress={handleLogoPress} style={styles.logoWrap}>
-              <View style={[styles.logoBox, { backgroundColor: colors.secondary }]}>
-                <AppIcon name="paperplane.fill" size={30} color={colors.primary} />
-              </View>
+              <Image source={appIcon} style={styles.logoImage} contentFit="contain" />
               <Text style={[styles.logoLabel, { color: colors.primary }]}>COLUMBA</Text>
             </Pressable>
 
@@ -241,12 +242,11 @@ export default function AuthScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScreenGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   kav: { flex: 1 },
   inner: {
     flex: 1,
@@ -266,12 +266,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   logoWrap: { alignItems: 'center', gap: 6 },
-  logoBox: {
-    width: 76,
-    height: 76,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 20,
   },
   logoLabel: {
     fontSize: 11,

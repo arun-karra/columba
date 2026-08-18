@@ -1,65 +1,71 @@
 /**
- * Columba design system — Forest Green
- * Clean, minimal, nature-inspired palette.
- * White cards on pale sage backgrounds, deep forest-green typography.
+ * Columba design system — Sky Blue
+ * Brand color #A0C2E5 with softer tints for surfaces and deeper blues for buttons.
  */
 const colors = {
   light: {
-    text: '#1C3828',
-    tint: '#2C4A35',
+    text: '#2D4A66',
+    tint: '#5B8DBF',
 
-    background: '#EEF2EE',
-    foreground: '#1C3828',
+    /** Flat fallback when a gradient is not used */
+    background: '#E8F3FB',
+    gradientStart: '#A0C2E5',
+    gradientEnd: '#EDF6FC',
+
+    foreground: '#2D4A66',
 
     card: '#FFFFFF',
-    cardForeground: '#1C3828',
+    cardForeground: '#2D4A66',
 
-    primary: '#2C4A35',
+    /** Buttons, links, active controls */
+    primary: '#5B8DBF',
     primaryForeground: '#FFFFFF',
 
-    secondary: '#E4EEE4',
-    secondaryForeground: '#2C4A35',
+    secondary: '#C8DFF2',
+    secondaryForeground: '#3D6A94',
 
-    muted: '#F5F7F5',
-    mutedForeground: '#7A9080',
+    muted: '#F2F8FD',
+    mutedForeground: '#6B8499',
 
-    accent: '#4A7A5A',
+    accent: '#7EB0DC',
     accentForeground: '#FFFFFF',
 
     destructive: '#DC2626',
     destructiveForeground: '#FFFFFF',
 
-    border: 'rgba(44,74,53,0.12)',
-    input: 'rgba(44,74,53,0.08)',
+    border: 'rgba(91, 141, 191, 0.18)',
+    input: 'rgba(91, 141, 191, 0.1)',
 
-    // Status colours (used on note cards / badges)
     urgent: '#DC2626',
-    done: '#4A7A5A',
-    sky: '#5BB8F5',
+    done: '#5B8DBF',
+    sky: '#A0C2E5',
     lavender: '#9B8FE8',
   },
 
   dark: {
-    text: '#DFF0EC',
-    tint: '#5AAA7A',
+    text: '#E8F2FA',
+    tint: '#A0C2E5',
 
-    background: '#0F1F17',
-    foreground: '#DFF0EC',
+    background: '#152232',
+    gradientStart: '#1E3044',
+    gradientEnd: '#2A4560',
 
-    card: '#1A2E22',
-    cardForeground: '#DFF0EC',
+    foreground: '#E8F2FA',
 
-    primary: '#5AAA7A',
-    primaryForeground: '#0F1F17',
+    card: '#1C2E42',
+    cardForeground: '#E8F2FA',
 
-    secondary: '#1E3528',
-    secondaryForeground: '#DFF0EC',
+    primary: '#A0C2E5',
+    primaryForeground: '#152232',
 
-    muted: '#162A1E',
-    mutedForeground: '#6A9980',
+    secondary: '#243A52',
+    secondaryForeground: '#E8F2FA',
 
-    accent: '#5AAA7A',
-    accentForeground: '#0F1F17',
+    muted: '#182838',
+    mutedForeground: '#8FA8BE',
+
+    accent: '#B8D4EF',
+    accentForeground: '#152232',
 
     destructive: '#EF4444',
     destructiveForeground: '#FFFFFF',
@@ -68,8 +74,8 @@ const colors = {
     input: 'rgba(255,255,255,0.08)',
 
     urgent: '#EF4444',
-    done: '#5AAA7A',
-    sky: '#5BB8F5',
+    done: '#A0C2E5',
+    sky: '#A0C2E5',
     lavender: '#9B8FE8',
   },
 

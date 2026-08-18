@@ -27,6 +27,7 @@ import {
   type NotifyValue,
 } from '@/components/NotifySection';
 import { presentPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
+import { ScreenGradient } from '@/components/ScreenGradient';
 import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 import { useScreenGutter } from '@/constants/layout';
 
@@ -157,7 +158,7 @@ export default function NewNoteScreen() {
   }, [canSave, createNote.isPending, body, notify, groupId]);
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScreenGradient>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
@@ -205,12 +206,11 @@ export default function NewNoteScreen() {
           </View>
         </SectionCard>
       </ScrollView>
-    </View>
+    </ScreenGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   content: { paddingTop: 16, gap: 24 },
   bodyInput: {
     minHeight: 140,

@@ -31,6 +31,7 @@ import { AppIcon } from '@/components/AppIcon';
 import { GroupAvatar } from '@/components/GroupAvatar';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { confirmDestructive } from '@/utils/iosConfirm';
+import { ScreenGradient } from '@/components/ScreenGradient';
 import { useScreenGutter } from '@/constants/layout';
 import {
   defaultEmojiForGroup,
@@ -241,9 +242,11 @@ export default function GroupDetailScreen() {
 
   if (isLoading || !group) {
     return (
-      <View style={[styles.loadingRoot, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <ScreenGradient>
+        <View style={styles.loadingRoot}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </ScreenGradient>
     );
   }
 
@@ -282,7 +285,7 @@ export default function GroupDetailScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScreenGradient>
       <FlatList
         data={group.members}
         keyExtractor={(m) => m.userId}
@@ -433,7 +436,7 @@ export default function GroupDetailScreen() {
         onRequestClose={closeEmojiEditor}
       >
         <GestureHandlerRootView style={{ flex: 1 }}>
-        <View style={[styles.emojiModalRoot, { backgroundColor: colors.background }]}>
+        <ScreenGradient>
           <View
             style={[
               styles.emojiModalHeader,
@@ -464,15 +467,14 @@ export default function GroupDetailScreen() {
               onBackgroundColorChange={setDraftIconColor}
             />
           </View>
-        </View>
+        </ScreenGradient>
         </GestureHandlerRootView>
       </Modal>
-    </View>
+    </ScreenGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   loadingRoot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { paddingBottom: 48 },
 
@@ -484,7 +486,6 @@ const styles = StyleSheet.create({
   },
   emojiTap: { alignItems: 'center', gap: 6 },
   changeEmoji: { fontSize: 13, fontFamily: 'Manrope_600SemiBold' },
-  emojiModalRoot: { flex: 1 },
   emojiModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',

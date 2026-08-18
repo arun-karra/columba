@@ -42,6 +42,7 @@ import { confirmDestructive } from '@/utils/iosConfirm';
 import { getNoteNotificationStatus } from '@/utils/noteNotificationStatus';
 import { canResendNoteNotification, resendNoteNotification } from '@/utils/resendNoteNotification';
 import { useScreenGutter } from '@/constants/layout';
+import { ScreenGradient } from '@/components/ScreenGradient';
 
 function SectionCard({
   title,
@@ -279,16 +280,18 @@ export default function NoteDetailScreen() {
 
   if (isLoading || !note) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
+      <ScreenGradient>
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </ScreenGradient>
     );
   }
 
   const isDone = note.isDone;
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScreenGradient>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
@@ -409,12 +412,11 @@ export default function NoteDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </ScreenGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingTop: 16, paddingBottom: 40, gap: 24 },
   bodyInput: {
