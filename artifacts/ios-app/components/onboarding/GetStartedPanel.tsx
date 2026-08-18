@@ -7,9 +7,8 @@ import { AppLogo } from '@/components/AppLogo';
 export function GetStartedPanel({ onLogoPress }: { onLogoPress?: () => void }) {
   const colors = useColors();
 
-  const content = (
+  const card = (
     <>
-      <AppLogo size={96} onPress={onLogoPress} style={styles.logo} />
       <Text style={[styles.title, { color: colors.foreground }]}>Get Started</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         Your thoughts, delivered.
@@ -17,23 +16,33 @@ export function GetStartedPanel({ onLogoPress }: { onLogoPress?: () => void }) {
     </>
   );
 
-  if (Platform.OS === 'ios') {
-    return (
-      <BlurView intensity={36} tint="light" style={styles.glass}>
-        {content}
-      </BlurView>
-    );
-  }
-
   return (
-    <View style={[styles.glass, styles.glassFallback, { backgroundColor: `${colors.card}EE` }]}>
-      {content}
+    <View style={styles.wrap}>
+      <AppLogo size={104} onPress={onLogoPress} style={styles.logo} />
+      {Platform.OS === 'ios' ? (
+        <BlurView intensity={36} tint="light" style={styles.glass}>
+          {card}
+        </BlurView>
+      ) : (
+        <View style={[styles.glass, styles.glassFallback, { backgroundColor: `${colors.card}EE` }]}>
+          {card}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  logo: {
+    alignSelf: 'center',
+  },
   glass: {
+    width: '100%',
     borderRadius: 28,
     paddingVertical: 28,
     paddingHorizontal: 24,
@@ -44,9 +53,6 @@ const styles = StyleSheet.create({
   glassFallback: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.6)',
-  },
-  logo: {
-    marginBottom: 4,
   },
   title: {
     fontSize: 34,

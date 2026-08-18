@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, type ViewProps } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,12 +9,11 @@ import Animated, {
 
 type OnboardingSlideTransitionProps = ViewProps & {
   children: React.ReactNode;
-  /** Unique key per slide — triggers enter animation */
   slideKey: string | number;
-  /** 1 = forward, -1 = back */
   direction: 1 | -1;
 };
 
+/** Subtle horizontal slide — always visible; animates only when the slide changes. */
 export function OnboardingSlideTransition({
   children,
   slideKey,
@@ -22,14 +21,24 @@ export function OnboardingSlideTransition({
   style,
   ...rest
 }: OnboardingSlideTransitionProps) {
-  const opacity = useSharedValue(0);
-  const translateX = useSharedValue(direction * 48);
+  const opacity = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const seenKeys = useRef(new Set<string | number>());
 
   useEffect(() => {
-    opacity.value = 0;
-    translateX.value = direction * 48;
-    opacity.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
-    translateX.value = withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) });
+    const firstPaint = !seenKeys.current.has(slideKey);
+    seenKeys.current.add(slideKey);
+
+    if (firstPaint) {
+      opacity.value = 1;
+      translateX.value = 0;
+      return;
+    }
+
+    opacity.value = 0.35;
+    translateX.value = direction * 40;
+    opacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
+    translateX.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) });
   }, [slideKey, direction, opacity, translateX]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -44,39 +53,38 @@ export function OnboardingSlideTransition({
   );
 }
 
-/** Fade + rise for the get-started screen */
+/** Get-started screen entrance — starts visible so content is never blank. */
 export function OnboardingSignInTransition({
   children,
-  visible,
   style,
 }: {
   children: React.ReactNode;
-  visible: boolean;
   style?: ViewProps['style'];
 }) {
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(24);
+  const opacity = useSharedValue(1);
+  const translateY = useSharedValue(0);
+  const hasAnimated = useRef(false);
 
   useEffect(() => {
-    if (!visible) return;
-    opacity.value = 0;
-    translateY.value = 24;
-    opacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) });
-    translateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) });
-  }, [visible, opacity, translateY]);
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    opacity.value = 0.4;
+    translateY.value = 20;
+    opacity.value = withTiming(1, { duration: 360, easing: Easing.out(Easing.cubic) });
+    translateY.value = withTiming(0, { duration: 360, easing: Easing.out(Easing.cubic) });
+  }, [opacity, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 
-  if (!visible) return null;
-
   return (
-    <Animated.View style={[styles.fill, animatedStyle, style]}>{children}</Animated.View>
+    <Animated.View style={[styles.signIn, animatedStyle, style]}>{children}</Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  signIn: { width: '100%' },
 });

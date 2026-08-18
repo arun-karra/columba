@@ -1,10 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -15,17 +14,17 @@ import { AppIcon } from '@/components/AppIcon';
 /** iOS lock-screen style push notification mockup */
 export function RemindersOnboardingIllustration() {
   const colors = useColors();
-  const bannerY = useSharedValue(-16);
-  const bannerOpacity = useSharedValue(0);
+  const bannerY = useSharedValue(0);
+  const bannerOpacity = useSharedValue(1);
+  const hasAnimated = useRef(false);
 
   useEffect(() => {
-    bannerOpacity.value = 0;
-    bannerY.value = -16;
-    bannerOpacity.value = withDelay(
-      120,
-      withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) }),
-    );
-    bannerY.value = withDelay(120, withSpring(0, { damping: 16, stiffness: 140 }));
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    bannerOpacity.value = 0.5;
+    bannerY.value = -12;
+    bannerOpacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) });
+    bannerY.value = withSpring(0, { damping: 16, stiffness: 140 });
   }, [bannerOpacity, bannerY]);
 
   const bannerStyle = useAnimatedStyle(() => ({
