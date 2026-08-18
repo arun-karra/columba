@@ -1,13 +1,21 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 import { useColors } from '@/hooks/useColors';
 import { AppIcon } from '@/components/AppIcon';
 
 const ORBIT_NODES = [
-  { emoji: '💼', position: 'topLeft' as const },
-  { emoji: '🏠', position: 'bottomLeft' as const },
-  { emoji: '👩‍❤️‍👨', position: 'topRight' as const },
+  { emoji: '💼', position: 'topLeft' as const, delay: 180 },
+  { emoji: '🏠', position: 'bottomLeft' as const, delay: 260 },
+  { emoji: '👩‍❤️‍👨', position: 'topRight' as const, delay: 340 },
 ];
 
 const ORBIT_NODE_STYLES = {
@@ -16,61 +24,145 @@ const ORBIT_NODE_STYLES = {
   topRight: { right: 8, top: 18 },
 };
 
+function OrbitNode({
+  emoji,
+  position,
+  delay,
+  cardColor,
+  shadowColor,
+}: {
+  emoji: string;
+  position: keyof typeof ORBIT_NODE_STYLES;
+  delay: number;
+  cardColor: string;
+  shadowColor: string;
+}) {
+  const scale = useSharedValue(0.55);
+  const opacity = useSharedValue(0.4);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    opacity.value = withDelay(
+      delay,
+      withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }),
+    );
+    scale.value = withDelay(delay, withSpring(1, { damping: 13, stiffness: 150 }));
+  }, [delay, opacity, scale]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.orbitNode,
+        ORBIT_NODE_STYLES[position],
+        style,
+        {
+          backgroundColor: cardColor,
+          shadowColor,
+        },
+      ]}
+    >
+      <Text style={styles.emoji}>{emoji}</Text>
+    </Animated.View>
+  );
+}
+
 export function GroupsOnboardingIllustration() {
   const colors = useColors();
+  const hubScale = useSharedValue(0.7);
+  const hubOpacity = useSharedValue(0.45);
+  const addScale = useSharedValue(0.5);
+  const addOpacity = useSharedValue(0.35);
+  const lineOpacity = useSharedValue(0.25);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+
+    hubOpacity.value = withTiming(1, { duration: 360, easing: Easing.out(Easing.cubic) });
+    hubScale.value = withSpring(1, { damping: 14, stiffness: 130 });
+    lineOpacity.value = withDelay(
+      120,
+      withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) }),
+    );
+    addOpacity.value = withDelay(
+      420,
+      withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) }),
+    );
+    addScale.value = withDelay(420, withSpring(1, { damping: 11, stiffness: 170 }));
+  }, [addOpacity, addScale, hubOpacity, hubScale, lineOpacity]);
+
+  const hubStyle = useAnimatedStyle(() => ({
+    opacity: hubOpacity.value,
+    transform: [{ scale: hubScale.value }],
+  }));
+
+  const addStyle = useAnimatedStyle(() => ({
+    opacity: addOpacity.value,
+    transform: [{ scale: addScale.value }],
+  }));
+
+  const lineStyle = useAnimatedStyle(() => ({
+    opacity: lineOpacity.value,
+  }));
 
   return (
     <View style={styles.wrap}>
       <View style={styles.diagram}>
-        <Svg width={280} height={280} style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Line
-            x1={140}
-            y1={140}
-            x2={36}
-            y2={36}
-            stroke={colors.border}
-            strokeWidth={1.5}
-            strokeDasharray="5 6"
-          />
-          <Line
-            x1={140}
-            y1={140}
-            x2={36}
-            y2={228}
-            stroke={colors.border}
-            strokeWidth={1.5}
-            strokeDasharray="5 6"
-          />
-          <Line
-            x1={140}
-            y1={140}
-            x2={244}
-            y2={46}
-            stroke={colors.border}
-            strokeWidth={1.5}
-            strokeDasharray="5 6"
-          />
-        </Svg>
+        <Animated.View style={[StyleSheet.absoluteFill, lineStyle]}>
+          <Svg width={280} height={280} style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Line
+              x1={140}
+              y1={140}
+              x2={36}
+              y2={36}
+              stroke={colors.border}
+              strokeWidth={1.5}
+              strokeDasharray="5 6"
+            />
+            <Line
+              x1={140}
+              y1={140}
+              x2={36}
+              y2={228}
+              stroke={colors.border}
+              strokeWidth={1.5}
+              strokeDasharray="5 6"
+            />
+            <Line
+              x1={140}
+              y1={140}
+              x2={244}
+              y2={46}
+              stroke={colors.border}
+              strokeWidth={1.5}
+              strokeDasharray="5 6"
+            />
+          </Svg>
+        </Animated.View>
 
         {ORBIT_NODES.map((node) => (
-          <View
+          <OrbitNode
             key={node.emoji}
-            style={[
-              styles.orbitNode,
-              ORBIT_NODE_STYLES[node.position],
-              {
-                backgroundColor: colors.card,
-                shadowColor: colors.foreground,
-              },
-            ]}
-          >
-            <Text style={styles.emoji}>{node.emoji}</Text>
-          </View>
+            emoji={node.emoji}
+            position={node.position}
+            delay={node.delay}
+            cardColor={colors.card}
+            shadowColor={colors.foreground}
+          />
         ))}
 
-        <View
+        <Animated.View
           style={[
             styles.hub,
+            hubStyle,
             {
               backgroundColor: colors.card,
               shadowColor: colors.foreground,
@@ -78,11 +170,12 @@ export function GroupsOnboardingIllustration() {
           ]}
         >
           <AppIcon name="person.2" size={34} color={colors.foreground} />
-        </View>
+        </Animated.View>
 
-        <View
+        <Animated.View
           style={[
             styles.addNode,
+            addStyle,
             {
               backgroundColor: colors.card,
               shadowColor: colors.foreground,
@@ -90,7 +183,7 @@ export function GroupsOnboardingIllustration() {
           ]}
         >
           <AppIcon name="plus" size={24} color={colors.primary} />
-        </View>
+        </Animated.View>
       </View>
     </View>
   );
