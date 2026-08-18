@@ -43,6 +43,7 @@ import {
   setGroupIconColor,
 } from '@/utils/groupIconStyle';
 import { clearGroupLocalData } from '@/utils/clearGroupLocalData';
+import { canDeleteGroup, isGroupAdmin } from '@/utils/groupPermissions';
 
 function MemberRow({
   member,
@@ -250,8 +251,8 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const myMembership = group.members.find((m) => m.userId === user?.id);
-  const isAdmin = myMembership?.role === 'admin';
+  const isAdmin = isGroupAdmin(group, user?.id);
+  const showDeleteGroup = canDeleteGroup(group, user?.id);
 
   const groupInitials = group.name
     .split(' ')
@@ -407,7 +408,7 @@ export default function GroupDetailScreen() {
                 Leave Group
               </Text>
             </Pressable>
-            {isAdmin ? (
+            {showDeleteGroup ? (
               <Pressable
                 accessibilityRole="button"
                 onPress={handleDeleteGroup}

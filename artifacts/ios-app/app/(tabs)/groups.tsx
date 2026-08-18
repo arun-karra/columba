@@ -52,10 +52,7 @@ import {
   setGroupIconColor,
 } from '@/utils/groupIconStyle';
 import { clearGroupLocalData } from '@/utils/clearGroupLocalData';
-
-function isGroupAdmin(group: Group, userId?: string | null): boolean {
-  return group.members.some((member) => member.userId === userId && member.role === 'admin');
-}
+import { canDeleteGroup } from '@/utils/groupPermissions';
 
 function GroupCard({
   group,
@@ -401,10 +398,10 @@ export default function GroupsScreen() {
                 friction={2}
                 overshootRight={false}
                 renderRightActions={() => {
-                  const admin = isGroupAdmin(item, user?.id);
+                  const showDelete = canDeleteGroup(item, user?.id);
                   return (
                     <View style={styles.swipeActions}>
-                      {admin ? (
+                      {showDelete ? (
                         <Pressable
                           style={[styles.deleteAction, { backgroundColor: colors.destructive }]}
                           onPress={() => handleDeleteGroup(item)}
