@@ -110,7 +110,7 @@ The home-screen icon is **baked into the native dev-client build**, not loaded f
    git pull origin main
    ```
 2. **Delete Columba** from the Simulator home screen (long-press → Remove App).
-3. **Rebuild and install** (one command):
+3. **Rebuild and install** (one command — no Python required):
    ```bash
    pnpm mac:sim:install
    ```
