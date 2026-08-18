@@ -2,12 +2,14 @@ import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useColors } from '@/hooks/useColors';
+import { AppLogo } from '@/components/AppLogo';
 
-export function GetStartedPanel() {
+export function GetStartedPanel({ onLogoPress }: { onLogoPress?: () => void }) {
   const colors = useColors();
 
   const content = (
     <>
+      <AppLogo size={96} onPress={onLogoPress} style={styles.logo} />
       <Text style={[styles.title, { color: colors.foreground }]}>Get Started</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         Your thoughts, delivered.
@@ -42,6 +44,9 @@ const styles = StyleSheet.create({
   glassFallback: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.6)',
+  },
+  logo: {
+    marginBottom: 4,
   },
   title: {
     fontSize: 34,

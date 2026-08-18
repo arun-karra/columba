@@ -58,6 +58,8 @@ The Simulator shows **live JavaScript** from Metro, not what was baked into the 
 3. In the Metro terminal, press **`r`** to reload
 4. If it still looks stale: Simulator menu **Device → Erase All Content and Settings** is overkill — try **Cmd+R** in Simulator first
 
+**Home-screen app icon** (not onboarding): updating `artifacts/ios-app/assets/images/icon.png` requires a **new native build** — Metro alone will not change the icon on the Simulator springboard. Run `pnpm mac:sim` and install the latest build when the icon asset changes.
+
 **Check you're on latest code:**
 
 ```bash
@@ -143,5 +145,5 @@ Still stuck? Paste the last 10 lines from the terminal — not a screenshot of f
 cd ~/columba
 pnpm mac:dev
 # Simulator → Columba → localhost:8081
-# Login: logo 20 taps → columba-dev
+# Login: Get Started logo 20 taps → columba-dev
 ```
