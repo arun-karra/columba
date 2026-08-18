@@ -38,6 +38,7 @@ import { resolveNoteGroupEmoji } from '@/utils/noteNotificationText';
 import { getDisplayInitials, getUserDisplayInitials } from '@/utils/displayInitials';
 import { clearPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
 import { dismissNoteNotification } from '@/utils/notifications';
+import { showApiErrorAlert } from '@/utils/apiError';
 
 function NoteCardContent({
   note,
@@ -244,8 +245,11 @@ export default function NotesScreen() {
           await dismissNoteNotification(note.id);
         }
         await invalidate();
-      } catch {
-        Alert.alert('Error', 'Could not update this note.');
+      } catch (e: unknown) {
+        showApiErrorAlert(e, {
+          title: 'Could not update',
+          fallbackMessage: 'Could not update this note.',
+        });
       }
     },
     [toggleDone, invalidate],
@@ -272,8 +276,11 @@ export default function NotesScreen() {
       );
       await invalidate();
       exitSelectionMode();
-    } catch {
-      Alert.alert('Error', 'Could not mark all selected notes as done.');
+    } catch (e: unknown) {
+      showApiErrorAlert(e, {
+        title: 'Could not update',
+        fallbackMessage: 'Could not mark all selected notes as done.',
+      });
     } finally {
       setBatchLoading(false);
     }

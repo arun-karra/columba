@@ -148,8 +148,22 @@ function truncate(text: string, maxLength = 300): string {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }
 
+function getNestedApiError(data: unknown): { message?: string; code?: string } {
+  if (!data || typeof data !== "object") return {};
+  const record = data as Record<string, unknown>;
+  const nested = record.error;
+  if (!nested || typeof nested !== "object") return {};
+  return {
+    message: getStringField(nested, "message"),
+    code: getStringField(nested, "code"),
+  };
+}
+
 function buildErrorMessage(response: Response, data: unknown): string {
   const prefix = `HTTP ${response.status} ${response.statusText}`;
+
+  const nested = getNestedApiError(data);
+  if (nested.message) return nested.message;
 
   if (typeof data === "string") {
     const text = data.trim();

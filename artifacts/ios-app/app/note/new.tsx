@@ -28,6 +28,7 @@ import {
 } from '@/components/NotifySection';
 import { presentPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
 import { ScreenGradient } from '@/components/ScreenGradient';
+import { showApiErrorAlert } from '@/utils/apiError';
 import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 import { useScreenGutter } from '@/constants/layout';
 
@@ -121,8 +122,11 @@ export default function NewNoteScreen() {
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    } catch {
-      Alert.alert('Error', 'Could not save that note. Please try again.');
+    } catch (e: unknown) {
+      showApiErrorAlert(e, {
+        title: 'Could not save',
+        fallbackMessage: 'Could not save that note. Please try again.',
+      });
     }
   };
 

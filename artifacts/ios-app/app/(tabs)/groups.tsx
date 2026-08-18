@@ -37,6 +37,7 @@ import { GroupAvatar } from '@/components/GroupAvatar';
 import { GroupInvitesSection } from '@/components/GroupInvitesSection';
 import { ScreenGradient } from '@/components/ScreenGradient';
 import { confirmDestructive } from '@/utils/iosConfirm';
+import { showApiErrorAlert } from '@/utils/apiError';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
 import {
@@ -202,8 +203,11 @@ export default function GroupsScreen() {
         try {
           await removeMember.mutateAsync({ id: group.id, userId: user.id });
           await clearGroupLocalData(group.id);
-        } catch {
-          Alert.alert('Error', 'Could not leave this group. Please try again.');
+        } catch (e: unknown) {
+          showApiErrorAlert(e, {
+            title: 'Could not leave',
+            fallbackMessage: 'Could not leave this group. Please try again.',
+          });
         }
       },
     });
@@ -219,8 +223,11 @@ export default function GroupsScreen() {
         try {
           await deleteGroup.mutateAsync({ id: group.id });
           await clearGroupLocalData(group.id);
-        } catch {
-          Alert.alert('Error', 'Could not delete this group. Please try again.');
+        } catch (e: unknown) {
+          showApiErrorAlert(e, {
+            title: 'Could not delete',
+            fallbackMessage: 'Could not delete this group. Please try again.',
+          });
         }
       },
     });
@@ -230,8 +237,11 @@ export default function GroupsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await createGroup.mutateAsync({ data: { name, emoji: selectedEmoji } });
-    } catch {
-      Alert.alert('Error', 'Could not create group. Please try again.');
+    } catch (e: unknown) {
+      showApiErrorAlert(e, {
+        title: 'Could not create group',
+        fallbackMessage: 'Could not create group. Please try again.',
+      });
     }
   };
 
@@ -265,8 +275,11 @@ export default function GroupsScreen() {
       const result = await acceptInvite.mutateAsync({ id: inviteId });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push(`/group/${result.groupId}`);
-    } catch {
-      Alert.alert('Error', 'Could not accept this invitation. Please try again.');
+    } catch (e: unknown) {
+      showApiErrorAlert(e, {
+        title: 'Could not accept',
+        fallbackMessage: 'Could not accept this invitation. Please try again.',
+      });
     } finally {
       setActingInviteId(null);
     }
@@ -281,8 +294,11 @@ export default function GroupsScreen() {
         setActingInviteId(inviteId);
         try {
           await declineInvite.mutateAsync({ id: inviteId });
-        } catch {
-          Alert.alert('Error', 'Could not decline this invitation. Please try again.');
+        } catch (e: unknown) {
+          showApiErrorAlert(e, {
+            title: 'Could not decline',
+            fallbackMessage: 'Could not decline this invitation. Please try again.',
+          });
         } finally {
           setActingInviteId(null);
         }

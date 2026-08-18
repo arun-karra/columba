@@ -22,6 +22,7 @@ import { useColors } from '@/hooks/useColors';
 import { AppIcon } from '@/components/AppIcon';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { GroupAvatar } from '@/components/GroupAvatar';
+import { showApiErrorAlert } from '@/utils/apiError';
 import {
   defaultEmojiForGroup,
   getGroupEmojiMap,
@@ -148,8 +149,11 @@ export function ShareGroupPicker({
     Keyboard.dismiss();
     try {
       await createGroup.mutateAsync({ data: { name: value, emoji: newGroupEmoji } });
-    } catch {
-      Alert.alert('Error', 'Could not create group. Try again.');
+    } catch (e: unknown) {
+      showApiErrorAlert(e, {
+        title: 'Could not create group',
+        fallbackMessage: 'Could not create group. Try again.',
+      });
     }
   };
 

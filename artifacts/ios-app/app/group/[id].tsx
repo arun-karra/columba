@@ -45,6 +45,7 @@ import {
 } from '@/utils/groupIconStyle';
 import { clearGroupLocalData } from '@/utils/clearGroupLocalData';
 import { canDeleteGroup, isGroupAdmin } from '@/utils/groupPermissions';
+import { showApiErrorAlert } from '@/utils/apiError';
 
 function PendingInviteRow({ invite }: { invite: GroupPendingInvite }) {
   const colors = useColors();
@@ -203,8 +204,10 @@ export default function GroupDetailScreen() {
         data: { email: inviteEmail.trim().toLowerCase() },
       });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Could not send invitation.';
-      Alert.alert('Error', msg);
+      showApiErrorAlert(e, {
+        title: 'Invite failed',
+        fallbackMessage: 'Could not send invitation.',
+      });
     }
   };
 
@@ -224,8 +227,11 @@ export default function GroupDetailScreen() {
             await clearGroupLocalData(id ?? '');
             router.back();
           }
-        } catch {
-          Alert.alert('Error', isMe ? 'Could not leave this group.' : 'Could not remove member.');
+        } catch (e: unknown) {
+          showApiErrorAlert(e, {
+            title: isMe ? 'Could not leave' : 'Could not remove',
+            fallbackMessage: isMe ? 'Could not leave this group.' : 'Could not remove member.',
+          });
         }
       },
     });
@@ -244,8 +250,11 @@ export default function GroupDetailScreen() {
           await clearGroupLocalData(id ?? '');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           router.back();
-        } catch {
-          Alert.alert('Error', 'Could not leave this group. Please try again.');
+        } catch (e: unknown) {
+          showApiErrorAlert(e, {
+            title: 'Could not leave',
+            fallbackMessage: 'Could not leave this group. Please try again.',
+          });
         }
       },
     });
@@ -264,8 +273,11 @@ export default function GroupDetailScreen() {
           await clearGroupLocalData(id ?? '');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           router.back();
-        } catch {
-          Alert.alert('Error', 'Could not delete this group. Please try again.');
+        } catch (e: unknown) {
+          showApiErrorAlert(e, {
+            title: 'Could not delete',
+            fallbackMessage: 'Could not delete this group. Please try again.',
+          });
         }
       },
     });
@@ -347,8 +359,11 @@ export default function GroupDetailScreen() {
       await updateGroup.mutateAsync({ id, data: { name: trimmed } });
       setShowNameEditor(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert('Error', 'Could not rename this group. Please try again.');
+    } catch (e: unknown) {
+      showApiErrorAlert(e, {
+        title: 'Rename failed',
+        fallbackMessage: 'Could not rename this group. Please try again.',
+      });
     }
   };
 

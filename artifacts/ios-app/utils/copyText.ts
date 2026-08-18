@@ -1,6 +1,10 @@
-import { Platform, Share } from 'react-native';
+import { NativeModules, Platform, Share } from 'react-native';
 
-/** Copy text without importing native clipboard at module load (dev client may predate expo-clipboard). */
+function nativeExpoClipboardAvailable(): boolean {
+  return Boolean((NativeModules as Record<string, unknown>).ExpoClipboard);
+}
+
+/** Copy text without loading expo-clipboard when the native module is absent. */
 export async function copyText(text: string): Promise<'clipboard' | 'share'> {
   const trimmed = text.trim();
   if (!trimmed) return 'clipboard';
@@ -10,14 +14,18 @@ export async function copyText(text: string): Promise<'clipboard' | 'share'> {
     return 'clipboard';
   }
 
-  try {
-    const Clipboard = await import('expo-clipboard');
-    await Clipboard.setStringAsync(trimmed);
-    return 'clipboard';
-  } catch {
-    await Share.share(
-      Platform.OS === 'ios' ? { message: trimmed } : { message: trimmed, title: trimmed },
-    );
-    return 'share';
+  if (nativeExpoClipboardAvailable()) {
+    try {
+      const Clipboard = await import('expo-clipboard');
+      await Clipboard.setStringAsync(trimmed);
+      return 'clipboard';
+    } catch {
+      // Fall through to Share.
+    }
   }
+
+  await Share.share(
+    Platform.OS === 'ios' ? { message: trimmed } : { message: trimmed, title: trimmed },
+  );
+  return 'share';
 }

@@ -4,6 +4,7 @@ import type { Note } from '@workspace/api-client-react';
 import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 import { presentPinnedNoteNotification } from '@/utils/pinnedNoteNotification';
 import { noteHasActiveNotification } from '@/utils/noteNotificationStatus';
+import { showApiErrorAlert } from '@/utils/apiError';
 
 export function canResendNoteNotification(
   note: Pick<Note, 'isPinned' | 'isDone' | 'remindAt'>,
@@ -25,8 +26,11 @@ export async function resendNoteNotification(note: Note): Promise<boolean> {
 
   try {
     await resendNoteNotificationApi(note.id);
-  } catch {
-    Alert.alert('Error', 'Could not resend the notification. Please try again.');
+  } catch (e: unknown) {
+    showApiErrorAlert(e, {
+      title: 'Could not resend',
+      fallbackMessage: 'Could not resend the notification. Please try again.',
+    });
     return false;
   }
 

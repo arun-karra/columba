@@ -36,6 +36,7 @@ import {
   presentPinnedNoteNotification,
 } from '@/utils/pinnedNoteNotification';
 import { dismissNoteNotification } from '@/utils/notifications';
+import { showApiErrorAlert } from '@/utils/apiError';
 import { ensureLocalNotificationPermission } from '@/utils/notificationPermissions';
 import { AppIcon } from '@/components/AppIcon';
 import { confirmDestructive } from '@/utils/iosConfirm';
@@ -173,8 +174,11 @@ export default function NoteDetailScreen() {
         }
 
         await invalidateNoteQueries();
-      } catch {
-        Alert.alert('Error', 'Could not save. Please try again.');
+      } catch (e: unknown) {
+        showApiErrorAlert(e, {
+          title: 'Could not save',
+          fallbackMessage: 'Could not save. Please try again.',
+        });
       }
     },
     [id, note, body, notify, groupId, updateNote, invalidateNoteQueries],
@@ -234,8 +238,11 @@ export default function NoteDetailScreen() {
           await dismissNoteNotification(id);
           await invalidateNoteQueries();
           router.replace('/(tabs)');
-        } catch {
-          Alert.alert('Error', 'Could not delete this note.');
+        } catch (e: unknown) {
+          showApiErrorAlert(e, {
+            title: 'Could not delete',
+            fallbackMessage: 'Could not delete this note.',
+          });
         }
       },
     });
@@ -258,8 +265,11 @@ export default function NoteDetailScreen() {
         return;
       }
       await invalidateNoteQueries();
-    } catch {
-      Alert.alert('Error', 'Could not update this note.');
+    } catch (e: unknown) {
+      showApiErrorAlert(e, {
+        title: 'Could not update',
+        fallbackMessage: 'Could not update this note.',
+      });
     }
   }, [id, note, toggleDone, invalidateNoteQueries]);
 

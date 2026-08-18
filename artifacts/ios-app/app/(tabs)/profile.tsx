@@ -23,6 +23,7 @@ import { ScreenGradient } from '@/components/ScreenGradient';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { getDisplayInitials } from '@/utils/displayInitials';
 import { copyText } from '@/utils/copyText';
+import { showApiErrorAlert } from '@/utils/apiError';
 import { useScreenGutter } from '@/constants/layout';
 import type { SFSymbol } from 'expo-symbols';
 
@@ -172,8 +173,12 @@ export default function ProfileScreen() {
 
   const handleCopyEmail = async () => {
     if (!email) return;
-    await copyText(email);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      await copyText(email);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert('Could not copy', 'Try again, or use Share and choose Copy.');
+    }
   };
 
   const startEditingName = () => {
@@ -202,18 +207,10 @@ export default function ProfileScreen() {
       await updateMe.mutateAsync({ data: { displayName: trimmed } });
       setIsEditingName(false);
     } catch (error) {
-      const status = error && typeof error === 'object' && 'status' in error
-        ? Number((error as { status: number }).status)
-        : 0;
-      const apiMessage =
-        error instanceof Error && error.message ? error.message : 'Could not save your name.';
-      const hint =
-        status === 500 || status === 503
-          ? '\n\nYour database may be out of date. Stop the terminal (Ctrl+C), run pnpm mac:dev again — it now syncs the schema automatically.'
-          : status === 404
-            ? '\n\nRestart pnpm mac:dev so the API rebuilds with the latest /me route.'
-            : '';
-      Alert.alert('Error', `${apiMessage}${hint}`);
+      showApiErrorAlert(error, {
+        title: 'Could not save name',
+        fallbackMessage: 'Could not save your display name.',
+      });
     }
   };
 
