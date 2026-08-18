@@ -19,6 +19,7 @@ import { useGetMe, useUpdateMe, getGetMeQueryKey } from '@workspace/api-client-r
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { AppIcon } from '@/components/AppIcon';
+import { ScreenGradient } from '@/components/ScreenGradient';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { getDisplayInitials } from '@/utils/displayInitials';
 import { useScreenGutter } from '@/constants/layout';
@@ -265,14 +266,13 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScreenGradient>
       <View
         style={[
           styles.topBar,
           {
             paddingTop: insets.top + 8,
             paddingHorizontal: gutter,
-            backgroundColor: colors.background,
           },
         ]}
       >
@@ -434,13 +434,11 @@ export default function ProfileScreen() {
           </Text>
         </Pressable>
       </ScrollView>
-    </View>
+    </ScreenGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-
   topBar: {
     paddingBottom: 8,
   },

@@ -26,6 +26,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { AppIcon } from '@/components/AppIcon';
 import { GroupAvatar } from '@/components/GroupAvatar';
+import { ScreenGradient } from '@/components/ScreenGradient';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { NoteActionsSheet } from '@/components/NoteActionsSheet';
 import { getNoteNotificationStatus } from '@/utils/noteNotificationStatus';
@@ -284,14 +285,13 @@ export default function NotesScreen() {
   const selectionBarBottom = fabBottom + FAB_SIZE + 16;
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScreenGradient>
       <View
         style={[
           styles.header,
           {
             paddingTop: insets.top + 8,
             paddingHorizontal: gutter,
-            backgroundColor: colors.background,
           },
         ]}
       >
@@ -535,12 +535,11 @@ export default function NotesScreen() {
           <AppIcon name="plus" size={26} color={colors.primary} />
         </Pressable>
       ) : null}
-    </View>
+    </ScreenGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   header: { paddingBottom: 8 },
   headerRow: {
     flexDirection: 'row',

@@ -20,8 +20,8 @@ const ANGLES = Array.from({ length: 14 }, (_, i) => (i / 14) * 2 * Math.PI);
 
 // Playful palette
 const COLORS = [
-  '#4B7DE6', // brand blue
-  '#93BBEF', // sky blue
+  '#A0C2E5', // brand sky blue
+  '#5B8DBF', // primary blue
   '#F5A623', // accent orange
   '#FF6B5B', // warm coral
   '#9B8FE8', // lavender

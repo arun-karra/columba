@@ -35,6 +35,7 @@ import { AppIcon } from '@/components/AppIcon';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { GroupAvatar } from '@/components/GroupAvatar';
 import { GroupInviteCard } from '@/components/GroupInviteCard';
+import { ScreenGradient } from '@/components/ScreenGradient';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
@@ -315,7 +316,7 @@ export default function GroupsScreen() {
   ) : null;
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScreenGradient>
       <View
         style={[
           styles.header,
@@ -460,7 +461,7 @@ export default function GroupsScreen() {
         }}
       >
         <GestureHandlerRootView style={{ flex: 1 }}>
-        <View style={[styles.modalRoot, { backgroundColor: colors.background }]}>
+        <ScreenGradient>
           <View
             style={[
               styles.modalHeader,
@@ -530,15 +531,14 @@ export default function GroupsScreen() {
               onBackgroundColorChange={setSelectedIconColor}
             />
           </View>
-        </View>
+        </ScreenGradient>
         </GestureHandlerRootView>
       </Modal>
-    </View>
+    </ScreenGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   header: { paddingBottom: 8 },
   headerTitle: {
     fontSize: 34,
