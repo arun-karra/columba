@@ -389,11 +389,14 @@ export const UpdateGroupParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const updateGroupBodyNameMax = 100;
+
 export const updateGroupBodyEmojiMax = 8;
 
 
 
 export const UpdateGroupBody = zod.object({
+  "name": zod.string().min(1).max(updateGroupBodyNameMax).optional(),
   "emoji": zod.string().max(updateGroupBodyEmojiMax).optional()
 })
 
