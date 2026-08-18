@@ -9,7 +9,7 @@
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "sync-icons": "python3 scripts/sync-app-icons.py",
+    "sync-icons": "node scripts/sync-app-icons.mjs",
     "eas:build:dev": "npx --yes eas-cli@^22.0.0 build --profile development --platform ios",
     "eas:build:sim": "npx --yes eas-cli@^22.0.0 build --profile development-simulator --platform ios",
     "eas:build:preview": "npx --yes eas-cli@^22.0.0 build --profile preview --platform ios",
@@ -67,6 +67,7 @@
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
     "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
+    "pngjs": "^7.0.0",
     "typescript": "~5.9.2"
   }
 }

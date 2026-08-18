@@ -13,9 +13,7 @@ echo ""
 echo "This replaces the installed dev client. Metro reload alone never updates"
 echo "the home-screen or push-notification icon."
 echo ""
-
-pnpm run sync-icons
-
+echo "Using committed icon.png (run pnpm sync-icons only after replacing icon-source.png)."
 echo ""
 echo "→ Starting EAS simulator build (development-simulator)..."
 echo "  Watch for FINISHED at https://expo.dev/accounts/arunkarra/projects/columba/builds"
