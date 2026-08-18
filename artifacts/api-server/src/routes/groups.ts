@@ -25,14 +25,25 @@ const memberSelect = {
   user: { select: { email: true } },
 } as const;
 
-function mapGroup(group: {
+function mapPendingInvite(invite: { id: string; email: string; createdAt: Date }) {
+  return {
+    id: invite.id,
+    email: invite.email,
+    createdAt: invite.createdAt,
+  };
+}
+
+function mapGroup(
+  group: {
   id: string;
   name: string;
   emoji: string | null;
   createdByUserId: string;
   createdAt: Date;
   memberships: Array<{ userId: string; role: "admin" | "member"; createdAt: Date; user: { email: string | null } }>;
-}) {
+},
+  pendingInvites: Array<{ id: string; email: string; createdAt: Date }> = [],
+) {
   return {
     id: group.id,
     name: group.name,
@@ -45,6 +56,7 @@ function mapGroup(group: {
       role: membership.role,
       createdAt: membership.createdAt,
     })),
+    pendingInvites: pendingInvites.map(mapPendingInvite),
   };
 }
 
@@ -75,7 +87,7 @@ router.get(
       include: { memberships: { select: memberSelect } },
       orderBy: { createdAt: "asc" },
     });
-    res.json(groups.map(mapGroup));
+    res.json(groups.map((group) => mapGroup(group)));
   }),
 );
 
@@ -109,7 +121,13 @@ router.get(
   asyncHandler(async (req, res) => {
     const userId = (req as AuthenticatedRequest).userId;
     const { id } = parseOrThrow(GetGroupParams, { id: requireParam(req.params.id, "id") });
-    res.json(mapGroup(await getGroup(id, userId)));
+    const group = await getGroup(id, userId);
+    const pendingInvites = await prisma.groupInvite.findMany({
+      where: { groupId: id, status: "pending" },
+      select: { id: true, email: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json(mapGroup(group, pendingInvites));
   }),
 );
 

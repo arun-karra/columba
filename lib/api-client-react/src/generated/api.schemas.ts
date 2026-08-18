@@ -76,6 +76,13 @@ export interface GroupMember {
   createdAt: string;
 }
 
+export interface GroupPendingInvite {
+  id: string;
+  /** @pattern ^[^@\s]+@[^@\s]+\.[^@\s]+$ */
+  email: string;
+  createdAt: string;
+}
+
 export interface Group {
   id: string;
   name: string;
@@ -84,6 +91,7 @@ export interface Group {
   createdByUserId: string;
   createdAt: string;
   members: GroupMember[];
+  pendingInvites: GroupPendingInvite[];
 }
 
 export interface GroupInput {

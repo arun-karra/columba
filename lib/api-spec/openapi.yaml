@@ -679,6 +679,18 @@ components:
           type: string
           format: date-time
       required: [userId, email, role, createdAt]
+    GroupPendingInvite:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, createdAt]
     Group:
       type: object
       properties:
@@ -697,7 +709,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GroupMember"
-      required: [id, name, emoji, createdByUserId, createdAt, members]
+        pendingInvites:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupPendingInvite"
+      required: [id, name, emoji, createdByUserId, createdAt, members, pendingInvites]
     GroupInput:
       type: object
       properties:

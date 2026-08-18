@@ -45,6 +45,7 @@ describe("GET /api/groups", () => {
     const res = await request(app).get("/api/groups").set(authHeader(admin));
 
     expect(res.status).toBe(200);
+    expect(res.body[0].pendingInvites).toEqual([]);
     expect(res.body[0].members).toEqual([
       { userId: admin.id, email: admin.email, role: "admin", createdAt: expect.any(String) },
       { userId: member.id, email: member.email, role: "member", createdAt: expect.any(String) },
@@ -87,12 +88,18 @@ describe("POST /api/groups", () => {
 });
 
 describe("GET /api/groups/:id", () => {
-  it("returns the group for a member", async () => {
+  it("returns the group for a member with pending invites", async () => {
     mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: admin.id, role: "admin" });
     mockPrisma.group.findUnique.mockResolvedValue(makeGroup());
+    mockPrisma.groupInvite.findMany.mockResolvedValue([
+      { id: "invite-1", email: "pending@example.com", createdAt: new Date("2026-01-02T00:00:00Z") },
+    ]);
 
     const res = await request(app).get("/api/groups/group-1").set(authHeader(admin));
     expect(res.status).toBe(200);
+    expect(res.body.pendingInvites).toEqual([
+      { id: "invite-1", email: "pending@example.com", createdAt: expect.any(String) },
+    ]);
   });
 
   it("forbids a non-member", async () => {
