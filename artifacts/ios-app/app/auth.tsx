@@ -31,6 +31,7 @@ import { useScreenGutter } from '@/constants/layout';
 import {
   hasSeenOnboardingSlides,
   markOnboardingSlidesSeen,
+  resetOnboardingSlides,
 } from '@/utils/onboardingStorage';
 
 const SLIDE_COUNT = 3;
@@ -135,7 +136,6 @@ export default function AuthScreen() {
           style={styles.kav}
         >
           <OnboardingSignInTransition
-            visible
             style={[
               styles.signInWrap,
               {
@@ -162,6 +162,19 @@ export default function AuthScreen() {
 
             {appleBusy ? (
               <ActivityIndicator color={colors.primary} style={styles.loader} />
+            ) : null}
+
+            {__DEV__ ? (
+              <Pressable
+                onPress={() => {
+                  void resetOnboardingSlides().then(() => setStep(0));
+                }}
+                hitSlop={8}
+              >
+                <Text style={[styles.replayIntro, { color: colors.mutedForeground }]}>
+                  Replay intro
+                </Text>
+              </Pressable>
             ) : null}
           </OnboardingSignInTransition>
         </KeyboardAvoidingView>
@@ -312,6 +325,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loader: { marginTop: -4 },
+  replayIntro: {
+    fontSize: 13,
+    fontFamily: 'Manrope_500Medium',
+    textAlign: 'center',
+    marginTop: 4,
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

@@ -10,3 +10,8 @@ export async function hasSeenOnboardingSlides(): Promise<boolean> {
 export async function markOnboardingSlidesSeen(): Promise<void> {
   await AsyncStorage.setItem(ONBOARDING_SLIDES_KEY, 'true');
 }
+
+/** Clears slide completion so the 3 intro screens show again (simulator testing). */
+export async function resetOnboardingSlides(): Promise<void> {
+  await AsyncStorage.removeItem(ONBOARDING_SLIDES_KEY);
+}
