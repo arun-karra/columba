@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGetMe, useUpdateMe, getGetMeQueryKey } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
@@ -23,6 +22,7 @@ import { AppIcon } from '@/components/AppIcon';
 import { ScreenGradient } from '@/components/ScreenGradient';
 import { confirmDestructive } from '@/utils/iosConfirm';
 import { getDisplayInitials } from '@/utils/displayInitials';
+import { copyText } from '@/utils/copyText';
 import { useScreenGutter } from '@/constants/layout';
 import type { SFSymbol } from 'expo-symbols';
 
@@ -172,7 +172,7 @@ export default function ProfileScreen() {
 
   const handleCopyEmail = async () => {
     if (!email) return;
-    await Clipboard.setStringAsync(email);
+    await copyText(email);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 

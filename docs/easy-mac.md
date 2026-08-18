@@ -137,6 +137,34 @@ git pull origin main
 git log -1 --oneline   # should show 84a76b7 or newer
 ```
 
+### `Cannot find native module 'ExpoClipboard'`
+
+The Profile copy-email button uses `expo-clipboard`, which is only in **new** native dev-client builds. Until you rebuild:
+
+- Profile still opens; tapping copy uses the iOS **Share** sheet (choose **Copy** there).
+- For one-tap copy, install a fresh simulator build:
+
+```bash
+cd ~/columba
+pnpm install
+pnpm mac:sim:install
+```
+
+Then open Columba in the Simulator and connect to Metro (`pnpm mac:dev`).
+
+### `pnpm install` / duplicated `allowBuilds` in `pnpm-workspace.yaml`
+
+If install fails with *duplicated mapping key `allowBuilds`*:
+
+```bash
+cd ~/columba
+git fetch origin main
+git checkout origin/main -- pnpm-workspace.yaml
+pnpm install
+```
+
+Your local file likely has two `allowBuilds` blocks from a bad stash/merge — reset it from `main`.
+
 ### `pnpm mac:dev` fails with `ERR_PNPM_IGNORED_BUILDS`
 
 pnpm 11 on your Mac requires approved install scripts. After `git pull`:
