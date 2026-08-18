@@ -2,7 +2,7 @@ import React from 'react';
 import { Image } from 'expo-image';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 
-/** In-app logo with true alpha; `icon.png` stays opaque for the native app icon. */
+/** In-app logo with true alpha. Native icon (home screen + push) uses `icon.png`. */
 const appLogo = require('@/assets/images/logo.png');
 
 type AppLogoProps = {

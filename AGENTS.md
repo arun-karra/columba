@@ -45,10 +45,14 @@ non-obvious runtime setup that the update script intentionally does NOT do.
 
 ### App icon on Simulator / device
 
-- The canonical icon file is `artifacts/ios-app/assets/images/icon.png` (referenced from
-  `app.json` for icon, splash, and favicon). Onboarding uses the same asset via `AppLogo`.
-- **Metro reload does not update the home-screen icon** baked into an EAS/dev-client build.
-  After changing `icon.png`, run a new native build: `pnpm mac:sim` then
+- Master artwork: `artifacts/ios-app/assets/images/icon-source.png`. Run
+  `pnpm --filter @workspace/ios-app run sync-icons` to regenerate:
+  - `icon.png` — opaque native icon (home screen, **push notifications**, splash)
+  - `logo.png` — transparent in-app logo (`AppLogo`)
+- `app.json` references `icon.png` for icon, splash, favicon, and `ios.icon`.
+- **Metro reload does not update the home-screen or push notification icon** baked
+  into an EAS/dev-client build. After changing icons, run a new native build:
+  `pnpm mac:sim` then
   `cd artifacts/ios-app && pnpm exec eas build:run --platform ios --latest`, or
   `npx expo run:ios` locally.
 

@@ -58,7 +58,10 @@ The Simulator shows **live JavaScript** from Metro, not what was baked into the 
 3. In the Metro terminal, press **`r`** to reload
 4. If it still looks stale: Simulator menu **Device → Erase All Content and Settings** is overkill — try **Cmd+R** in Simulator first
 
-**Home-screen app icon** (not onboarding): updating `artifacts/ios-app/assets/images/icon.png` requires a **new native build** — Metro alone will not change the icon on the Simulator springboard. Run `pnpm mac:sim` and install the latest build when the icon asset changes.
+**Home-screen and push notification icon:** iOS uses the icon baked into the native app
+bundle (not Metro). After updating artwork, run `pnpm --filter @workspace/ios-app run
+sync-icons`, then **`pnpm mac:sim`** and install the latest build. Metro reload alone
+will not change the springboard icon or the icon shown on lock-screen notifications.
 
 **Check you're on latest code:**
 
@@ -94,6 +97,30 @@ If `grep` finds `EmojiPicker`, you have group emojis. If not, run `git pull orig
 | **TestFlight** | Apple Developer account ($99/yr) + production EAS build |
 
 You do **not** need any of that just to use the app in the Simulator with the dev bypass.
+
+---
+
+## Wrong app icon (green squares instead of Columba dove)
+
+The home-screen icon is **baked into the native dev-client build**, not loaded from Metro. If you still see the old green/teal squares icon:
+
+1. **Pull the latest code** (includes `icon-source.png`, `sync-icons`, and processed `icon.png`):
+   ```bash
+   cd ~/columba
+   git pull origin main
+   ```
+2. **Delete Columba** from the Simulator home screen (long-press → Remove App).
+3. **Rebuild and install** (one command):
+   ```bash
+   pnpm mac:sim:install
+   ```
+   Or manually: `pnpm mac:sim`, wait until the EAS build is **FINISHED**, then:
+   ```bash
+   cd artifacts/ios-app && pnpm exec eas build:run --platform ios --latest
+   ```
+4. Open the newly installed Columba app → tap **localhost:8081** → logo 20× → `columba-dev`.
+
+Until step 3 completes, the springboard icon and push notifications will keep showing the **old** build.
 
 ---
 
