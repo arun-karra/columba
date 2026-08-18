@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Regenerates icon.png (native) and logo.png (in-app) from icon-source.png.
- * Requires pngjs (installed with pnpm install).
+ * Native icon: logo scaled edge-to-edge on brand blue (#A0C2E5) for clean iOS edges.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -11,6 +11,8 @@ import { PNG } from 'pngjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IMAGES = join(__dirname, '../assets/images');
 const BRAND = { r: 160, g: 194, b: 229 };
+const CANVAS = 1024;
+const NATIVE_MARGIN = 0.035;
 
 function loadSource() {
   for (const name of ['icon-source.png', 'icon.png']) {
@@ -109,6 +111,54 @@ function bounds(comp, width, height) {
   return { x0, y0, x1, y1 };
 }
 
+function sampleRgb(data, width, height, sx, sy) {
+  const x = Math.min(width - 1, Math.max(0, Math.round(sx)));
+  const y = Math.min(height - 1, Math.max(0, Math.round(sy)));
+  const i = (y * width + x) * 4;
+  return [data[i], data[i + 1], data[i + 2]];
+}
+
+function buildNativeIcon(sourceData, sourceWidth, sourceHeight, logoMask) {
+  const { x0, y0, x1, y1 } = bounds(logoMask, sourceWidth, sourceHeight);
+  const cropW = x1 - x0 + 1;
+  const cropH = y1 - y0 + 1;
+  const target = Math.round(CANVAS * (1 - NATIVE_MARGIN * 2));
+  const scale = Math.min(target / cropW, target / cropH);
+  const drawW = cropW * scale;
+  const drawH = cropH * scale;
+  const offsetX = (CANVAS - drawW) / 2;
+  const offsetY = (CANVAS - drawH) / 2;
+
+  const native = new PNG({ width: CANVAS, height: CANVAS });
+  for (let i = 0; i < CANVAS * CANVAS; i += 1) {
+    const di = i * 4;
+    native.data[di] = BRAND.r;
+    native.data[di + 1] = BRAND.g;
+    native.data[di + 2] = BRAND.b;
+    native.data[di + 3] = 255;
+  }
+
+  for (let y = 0; y < CANVAS; y += 1) {
+    for (let x = 0; x < CANVAS; x += 1) {
+      const lx = (x - offsetX) / scale + x0;
+      const ly = (y - offsetY) / scale + y0;
+      if (lx < x0 || ly < y0 || lx > x1 || ly > y1) continue;
+
+      const sx = Math.floor(lx);
+      const sy = Math.floor(ly);
+      if (!logoMask[sy * sourceWidth + sx]) continue;
+
+      const [r, g, b] = sampleRgb(sourceData, sourceWidth, sourceHeight, lx, ly);
+      const di = (y * CANVAS + x) * 4;
+      native.data[di] = r;
+      native.data[di + 1] = g;
+      native.data[di + 2] = b;
+    }
+  }
+
+  return native;
+}
+
 function main() {
   const { path: sourcePath, png } = loadSource();
   const { width, height, data } = png;
@@ -122,12 +172,13 @@ function main() {
 
   const edgeBg = floodEdgeBackground(width, height, isBg);
   const opaque = new Uint8Array(width * height);
-
   for (let i = 0; i < width * height; i += 1) {
     if (!edgeBg[i]) opaque[i] = 1;
   }
 
   const logo = componentFromCenter(width, height, opaque);
+  const native = buildNativeIcon(data, width, height, logo);
+
   const { x0, y0, x1, y1 } = bounds(logo, width, height);
   const pad = 8;
   const cx0 = Math.max(0, x0 - pad);
@@ -136,27 +187,7 @@ function main() {
   const cy1 = Math.min(height - 1, y1 + pad);
   const cw = cx1 - cx0 + 1;
   const ch = cy1 - cy0 + 1;
-
-  const native = new PNG({ width, height });
   const cropped = new PNG({ width: cw, height: ch });
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const i = y * width + x;
-      const di = i * 4;
-      if (logo[i]) {
-        native.data[di] = data[di];
-        native.data[di + 1] = data[di + 1];
-        native.data[di + 2] = data[di + 2];
-        native.data[di + 3] = 255;
-      } else {
-        native.data[di] = BRAND.r;
-        native.data[di + 1] = BRAND.g;
-        native.data[di + 2] = BRAND.b;
-        native.data[di + 3] = 255;
-      }
-    }
-  }
 
   for (let y = 0; y < ch; y += 1) {
     for (let x = 0; x < cw; x += 1) {

@@ -29,6 +29,7 @@ import {
   MARK_COMPLETE_ACTION,
   dismissNoteNotification,
 } from '@/utils/notifications';
+import { clearStaleNotificationsAfterNativeUpdate } from '@/utils/clearStaleNotifications';
 import { getApiBaseUrl } from '@/utils/api';
 
 // ── Module-level API + notification configuration ───────────────────────────
@@ -146,6 +147,8 @@ export default function RootLayout() {
   // ── Notification category + action listener ──────────────────────────────
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
+
+    void clearStaleNotificationsAfterNativeUpdate();
 
     // Register the PINNED_NOTE category so iOS shows the "Mark as Complete"
     // button when the user long-presses a pinned-note notification.

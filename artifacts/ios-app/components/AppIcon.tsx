@@ -8,6 +8,8 @@ type FeatherName = React.ComponentProps<typeof Feather>['name'];
 const FEATHER_FALLBACK: Record<string, FeatherName> = {
   'chevron.right': 'chevron-right',
   'chevron.left': 'chevron-left',
+  'chevron.up': 'chevron-up',
+  'chevron.down': 'chevron-down',
   'arrow.right': 'arrow-right',
   'doc.text': 'file-text',
   'plus': 'plus',
@@ -20,6 +22,7 @@ const FEATHER_FALLBACK: Record<string, FeatherName> = {
   'person.badge.plus': 'user-plus',
   'person.badge.minus': 'user-minus',
   'envelope': 'mail',
+  'tray': 'inbox',
   'bell': 'bell',
   'gearshape': 'settings',
   'arrow.clockwise': 'rotate-cw',

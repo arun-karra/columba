@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 
 type Props = {
@@ -19,6 +19,7 @@ export function GroupAvatar({
 }: Props) {
   const colors = useColors();
   const fontSize = size >= 56 ? 28 : size >= 44 ? 22 : 16;
+  const emojiFontSize = Math.round(size * 0.52);
   const fill = emoji
     ? (backgroundColor ?? colors.secondary)
     : (backgroundColor ?? colors.primary);
@@ -36,7 +37,19 @@ export function GroupAvatar({
       ]}
     >
       {emoji ? (
-        <Text style={[styles.emoji, { fontSize: fontSize + 2 }]}>{emoji}</Text>
+        <Text
+          style={[
+            styles.emoji,
+            {
+              fontSize: emojiFontSize,
+              lineHeight: Math.round(size * 0.92),
+              width: size,
+            },
+          ]}
+          allowFontScaling={false}
+        >
+          {emoji}
+        </Text>
       ) : (
         <Text
           style={[
@@ -56,7 +69,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    overflow: 'hidden',
   },
-  emoji: { lineHeight: 28 },
+  emoji: {
+    textAlign: 'center',
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
   initials: { fontFamily: 'Manrope_700Bold' },
 });
