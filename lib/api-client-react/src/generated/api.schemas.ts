@@ -97,6 +97,11 @@ export interface GroupInput {
 }
 
 export interface GroupUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name?: string;
   /** @maxLength 8 */
   emoji?: string;
 }

@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -113,8 +113,10 @@ export default function GroupDetailScreen() {
   const [groupEmoji, setGroupEmojiState] = useState<string | null>(null);
   const [groupIconColor, setGroupIconColorState] = useState<string | null>(null);
   const [showEmojiEditor, setShowEmojiEditor] = useState(false);
+  const [showNameEditor, setShowNameEditor] = useState(false);
   const [draftEmoji, setDraftEmoji] = useState<string>(defaultEmojiForGroup(''));
   const [draftIconColor, setDraftIconColor] = useState<string>(defaultIconStyleForGroup(''));
+  const [draftName, setDraftName] = useState('');
 
   const { data: group, isLoading } = useGetGroup(id ?? '');
 
@@ -285,8 +287,35 @@ export default function GroupDetailScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  const openNameEditor = () => {
+    setDraftName(group.name);
+    setShowNameEditor(true);
+  };
+
+  const closeNameEditor = () => {
+    setDraftName(group.name);
+    setShowNameEditor(false);
+  };
+
+  const saveName = async () => {
+    const trimmed = draftName.trim();
+    if (!trimmed || !id) return;
+    if (trimmed === group.name) {
+      setShowNameEditor(false);
+      return;
+    }
+    try {
+      await updateGroup.mutateAsync({ id, data: { name: trimmed } });
+      setShowNameEditor(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert('Error', 'Could not rename this group. Please try again.');
+    }
+  };
+
   return (
     <ScreenGradient>
+      <Stack.Screen options={{ headerTitle: group.name }} />
       <FlatList
         data={group.members}
         keyExtractor={(m) => m.userId}
@@ -307,7 +336,15 @@ export default function GroupDetailScreen() {
                   Change icon
                 </Text>
               </Pressable>
-              <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
+              <Pressable
+                onPress={openNameEditor}
+                style={styles.nameTap}
+                accessibilityRole="button"
+                accessibilityLabel="Rename group"
+              >
+                <Text style={[styles.groupName, { color: colors.foreground }]}>{group.name}</Text>
+                <Text style={[styles.changeEmoji, { color: colors.primary }]}>Rename</Text>
+              </Pressable>
               <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
                 {group.members.length}{' '}
                 {group.members.length === 1 ? 'member' : 'members'}
@@ -471,6 +508,69 @@ export default function GroupDetailScreen() {
         </ScreenGradient>
         </GestureHandlerRootView>
       </Modal>
+
+      <Modal
+        visible={showNameEditor}
+        animationType="slide"
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}
+        onRequestClose={closeNameEditor}
+      >
+        <ScreenGradient>
+          <View
+            style={[
+              styles.emojiModalHeader,
+              {
+                borderBottomColor: colors.border,
+                backgroundColor: colors.card,
+              },
+            ]}
+          >
+            <Pressable onPress={closeNameEditor} hitSlop={14}>
+              <Text style={[styles.emojiModalAction, { color: colors.primary }]}>Cancel</Text>
+            </Pressable>
+            <Text style={[styles.groupName, { color: colors.foreground, fontSize: 17 }]}>
+              Rename group
+            </Text>
+            <Pressable
+              onPress={() => void saveName()}
+              hitSlop={14}
+              disabled={updateGroup.isPending || !draftName.trim()}
+            >
+              <Text
+                style={[
+                  styles.emojiModalAction,
+                  styles.emojiModalActionRight,
+                  {
+                    color: draftName.trim() ? colors.primary : colors.mutedForeground,
+                  },
+                ]}
+              >
+                Save
+              </Text>
+            </Pressable>
+          </View>
+          <View style={[styles.nameModalBody, { paddingHorizontal: gutter }]}>
+            <TextInput
+              style={[
+                styles.nameInput,
+                {
+                  color: colors.foreground,
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Group name"
+              placeholderTextColor={colors.mutedForeground}
+              value={draftName}
+              onChangeText={setDraftName}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={() => void saveName()}
+              maxLength={100}
+            />
+          </View>
+        </ScreenGradient>
+      </Modal>
     </ScreenGradient>
   );
 }
@@ -486,6 +586,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emojiTap: { alignItems: 'center', gap: 6 },
+  nameTap: { alignItems: 'center', gap: 4 },
   changeEmoji: { fontSize: 13, fontFamily: 'Manrope_600SemiBold' },
   emojiModalHeader: {
     flexDirection: 'row',
@@ -499,6 +600,15 @@ const styles = StyleSheet.create({
   emojiModalAction: { fontSize: 17, fontFamily: 'Manrope_600SemiBold', width: 72 },
   emojiModalActionRight: { textAlign: 'right' },
   emojiModalBody: { flex: 1, paddingHorizontal: 16, paddingBottom: 8 },
+  nameModalBody: { paddingTop: 24 },
+  nameInput: {
+    fontSize: 22,
+    fontFamily: 'Manrope_600SemiBold',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

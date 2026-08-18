@@ -113,9 +113,13 @@ router.patch(
     const { id } = parseOrThrow(UpdateGroupParams, { id: requireParam(req.params.id, "id") });
     await getMembership(id, userId);
     const input = parseOrThrow(UpdateGroupBody, req.body);
+    if (input.name === undefined && input.emoji === undefined) {
+      throw new HttpError(400, "BAD_REQUEST", "Provide a name or emoji to update.");
+    }
     const group = await prisma.group.update({
       where: { id },
       data: {
+        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.emoji !== undefined ? { emoji: input.emoji } : {}),
       },
       include: { memberships: { select: memberSelect } },

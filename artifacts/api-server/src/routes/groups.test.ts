@@ -101,6 +101,60 @@ describe("GET /api/groups/:id", () => {
   });
 });
 
+describe("PATCH /api/groups/:id", () => {
+  it("lets a member rename the group", async () => {
+    mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: member.id, role: "member" });
+    mockPrisma.group.update.mockResolvedValue(makeGroup({ name: "Roommates" }));
+
+    const res = await request(app)
+      .patch("/api/groups/group-1")
+      .set(authHeader(member))
+      .send({ name: "  Roommates  " });
+
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("Roommates");
+    expect(mockPrisma.group.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "group-1" },
+        data: { name: "Roommates" },
+      }),
+    );
+  });
+
+  it("rejects an empty rename", async () => {
+    mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: admin.id, role: "admin" });
+
+    const res = await request(app)
+      .patch("/api/groups/group-1")
+      .set(authHeader(admin))
+      .send({ name: "" });
+
+    expect(res.status).toBe(400);
+    expect(mockPrisma.group.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty patch body", async () => {
+    mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: admin.id, role: "admin" });
+
+    const res = await request(app).patch("/api/groups/group-1").set(authHeader(admin)).send({});
+
+    expect(res.status).toBe(400);
+    expect(mockPrisma.group.update).not.toHaveBeenCalled();
+  });
+
+  it("forbids a non-member from updating", async () => {
+    mockPrisma.groupMembership.findUnique.mockResolvedValue(null);
+
+    const res = await request(app)
+      .patch("/api/groups/group-1")
+      .set(authHeader(outsider))
+      .send({ name: "Nope" });
+
+    expect(res.status).toBe(403);
+    expect(mockPrisma.group.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST /api/groups/:id/invite", () => {
   it("forbids a non-member from inviting", async () => {
     mockPrisma.groupMembership.findUnique.mockResolvedValue(null);
