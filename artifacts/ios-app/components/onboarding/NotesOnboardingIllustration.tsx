@@ -3,12 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { AppIcon } from '@/components/AppIcon';
 
-export function NotesOnboardingIllustration() {
+export function NotesOnboardingIllustration({ compact = false }: { compact?: boolean }) {
   const colors = useColors();
 
   return (
-    <View style={styles.wrap}>
-      <View style={[styles.halo, { backgroundColor: `${colors.card}88` }]}>
+    <View style={[styles.wrap, compact && styles.wrapCompact]}>
+      <View style={[styles.halo, compact && styles.haloCompact, { backgroundColor: `${colors.card}88` }]}>
         <View style={[styles.noteCard, { backgroundColor: colors.card }]}>
           <View style={styles.noteTopRow}>
             <AppIcon name="square.and.pencil" size={16} color={colors.mutedForeground} />
@@ -37,6 +37,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
+  wrapCompact: {
+    flex: 0,
+    paddingHorizontal: 0,
+  },
   halo: {
     width: '100%',
     maxWidth: 320,
@@ -44,6 +48,10 @@ const styles = StyleSheet.create({
     paddingVertical: 36,
     paddingHorizontal: 24,
     alignItems: 'center',
+  },
+  haloCompact: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
   noteCard: {
     width: '100%',

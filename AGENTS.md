@@ -40,7 +40,17 @@ non-obvious runtime setup that the update script intentionally does NOT do.
   There is no iOS simulator here; validate via typecheck and API tests.
 - Auth: **Sign in with Apple** via `POST /api/auth/apple`. For API testing without Apple,
   set `DEV_BYPASS_CODE` and call `POST /api/auth/dev-bypass` with `{ "code": "..." }`
-  (non-production only). The iOS auth screen exposes the same bypass after 20 logo taps.
+  (non-production only). The iOS Get Started screen exposes the same bypass after **20 taps
+  on the app logo**.
+
+### App icon on Simulator / device
+
+- The canonical icon file is `artifacts/ios-app/assets/images/icon.png` (referenced from
+  `app.json` for icon, splash, and favicon). Onboarding uses the same asset via `AppLogo`.
+- **Metro reload does not update the home-screen icon** baked into an EAS/dev-client build.
+  After changing `icon.png`, run a new native build: `pnpm mac:sim` then
+  `cd artifacts/ios-app && pnpm exec eas build:run --platform ios --latest`, or
+  `npx expo run:ios` locally.
 
 ### Lint / test / typecheck
 

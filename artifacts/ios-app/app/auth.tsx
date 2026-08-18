@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,13 +12,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Haptics from 'expo-haptics';
 import { GetStartedPanel } from '@/components/onboarding/GetStartedPanel';
 import { GroupsOnboardingIllustration } from '@/components/onboarding/GroupsOnboardingIllustration';
-import { NotesOnboardingIllustration } from '@/components/onboarding/NotesOnboardingIllustration';
 import { OnboardingBackground } from '@/components/onboarding/OnboardingBackground';
 import { OnboardingNavButton } from '@/components/onboarding/OnboardingNavButton';
 import { OnboardingPageIndicator } from '@/components/onboarding/OnboardingPageIndicator';
+import {
+  OnboardingSignInTransition,
+  OnboardingSlideTransition,
+} from '@/components/onboarding/OnboardingSlideTransition';
+import { OnboardingTopNav } from '@/components/onboarding/OnboardingTopNav';
 import { RemindersOnboardingIllustration } from '@/components/onboarding/RemindersOnboardingIllustration';
+import { WelcomeOnboardingIllustration } from '@/components/onboarding/WelcomeOnboardingIllustration';
 import { useAppleSignIn } from '@/hooks/useAppleSignIn';
 import { useColors } from '@/hooks/useColors';
 import { useScreenGutter } from '@/constants/layout';
@@ -34,7 +40,7 @@ const SLIDES = [
     title: 'Simple Notes and Reminders',
     body: 'Quickly capture thoughts without the clutter of titles and bodies.',
     button: 'CONTINUE',
-    Illustration: NotesOnboardingIllustration,
+    Illustration: WelcomeOnboardingIllustration,
     showWaves: true,
   },
   {
@@ -59,6 +65,8 @@ export default function AuthScreen() {
   const gutter = useScreenGutter();
   const [step, setStep] = useState(0);
   const [ready, setReady] = useState(false);
+  const directionRef = useRef<1 | -1>(1);
+  const [direction, setDirection] = useState<1 | -1>(1);
 
   const {
     appleBusy,
@@ -79,18 +87,35 @@ export default function AuthScreen() {
     });
   }, []);
 
+  const setStepWithDirection = useCallback((next: number, dir: 1 | -1) => {
+    directionRef.current = dir;
+    setDirection(dir);
+    setStep(next);
+    Haptics.selectionAsync();
+  }, []);
+
   const goToSignIn = useCallback(async () => {
     await markOnboardingSlidesSeen();
-    setStep(SLIDE_COUNT);
-  }, []);
+    setStepWithDirection(SLIDE_COUNT, 1);
+  }, [setStepWithDirection]);
 
   const advance = useCallback(async () => {
     if (step >= SLIDE_COUNT - 1) {
       await goToSignIn();
       return;
     }
-    setStep((current) => current + 1);
-  }, [goToSignIn, step]);
+    setStepWithDirection(step + 1, 1);
+  }, [goToSignIn, setStepWithDirection, step]);
+
+  const goBack = useCallback(() => {
+    if (step <= 0) return;
+    setStepWithDirection(step - 1, -1);
+  }, [setStepWithDirection, step]);
+
+  const goForward = useCallback(() => {
+    if (step >= SLIDE_COUNT - 1) return;
+    setStepWithDirection(step + 1, 1);
+  }, [setStepWithDirection, step]);
 
   if (!ready) {
     return (
@@ -105,12 +130,12 @@ export default function AuthScreen() {
   if (step >= SLIDE_COUNT) {
     return (
       <OnboardingBackground>
-        <Pressable style={styles.devTapZone} onPress={handleDevBypassTap} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.kav}
         >
-          <View
+          <OnboardingSignInTransition
+            visible
             style={[
               styles.signInWrap,
               {
@@ -119,7 +144,7 @@ export default function AuthScreen() {
               },
             ]}
           >
-            <GetStartedPanel />
+            <GetStartedPanel onLogoPress={handleDevBypassTap} />
 
             {appleAvailable ? (
               <AppleAuthentication.AppleAuthenticationButton
@@ -138,7 +163,7 @@ export default function AuthScreen() {
             {appleBusy ? (
               <ActivityIndicator color={colors.primary} style={styles.loader} />
             ) : null}
-          </View>
+          </OnboardingSignInTransition>
         </KeyboardAvoidingView>
 
         <Modal
@@ -206,20 +231,29 @@ export default function AuthScreen() {
         style={[
           styles.slideRoot,
           {
-            paddingTop: insets.top + 12,
+            paddingTop: insets.top + 8,
             paddingBottom: insets.bottom + 16,
             paddingHorizontal: gutter,
           },
         ]}
       >
-        <View style={styles.illustrationArea}>
-          <Illustration />
-        </View>
+        <OnboardingTopNav
+          canGoBack={step > 0}
+          canGoForward={step < SLIDE_COUNT - 1}
+          onBack={goBack}
+          onForward={goForward}
+        />
 
-        <View style={styles.copyBlock}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{slide.title}</Text>
-          <Text style={[styles.body, { color: colors.mutedForeground }]}>{slide.body}</Text>
-        </View>
+        <OnboardingSlideTransition slideKey={step} direction={direction} style={styles.slideBody}>
+          <View style={styles.illustrationArea}>
+            <Illustration />
+          </View>
+
+          <View style={styles.copyBlock}>
+            <Text style={[styles.title, { color: colors.foreground }]}>{slide.title}</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>{slide.body}</Text>
+          </View>
+        </OnboardingSlideTransition>
 
         <OnboardingPageIndicator count={SLIDE_COUNT} activeIndex={step} />
         <OnboardingNavButton label={slide.button} onPress={() => void advance()} />
@@ -237,9 +271,12 @@ const styles = StyleSheet.create({
   slideRoot: {
     flex: 1,
   },
+  slideBody: {
+    flex: 1,
+  },
   illustrationArea: {
     flex: 1,
-    minHeight: 280,
+    minHeight: 260,
   },
   copyBlock: {
     alignItems: 'center',
@@ -275,14 +312,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loader: { marginTop: -4 },
-  devTapZone: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-    zIndex: 1,
-  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
