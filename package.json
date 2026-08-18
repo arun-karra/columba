@@ -13,8 +13,7 @@
     "eas:build:prod": "pnpm --filter @workspace/ios-app run eas:build:prod",
     "mac:setup": "bash scripts/mac-setup.sh",
     "mac:dev": "bash scripts/mac-dev.sh",
-    "mac:sim": "pnpm --filter @workspace/ios-app run eas:build:sim",
-    "mac:ios": "pnpm --filter @workspace/ios-app exec expo run:ios"
+    "mac:sim": "pnpm --filter @workspace/ios-app run eas:build:sim"
   },
   "private": true,
   "devDependencies": {
