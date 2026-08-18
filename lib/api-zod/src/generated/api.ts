@@ -40,6 +40,7 @@ export const SignInWithAppleResponse = zod.object({
   "id": zod.string(),
   "email": zod.string().regex(signInWithAppleResponseUserEmailRegExp).nullish(),
   "displayName": zod.string().max(signInWithAppleResponseUserDisplayNameMax).nullable(),
+  "signedInWithApple": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 })
@@ -66,6 +67,7 @@ export const DevBypassAuthResponse = zod.object({
   "id": zod.string(),
   "email": zod.string().regex(devBypassAuthResponseUserEmailRegExp).nullish(),
   "displayName": zod.string().max(devBypassAuthResponseUserDisplayNameMax).nullable(),
+  "signedInWithApple": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 })
@@ -83,6 +85,7 @@ export const GetMeResponse = zod.object({
   "id": zod.string(),
   "email": zod.string().regex(getMeResponseEmailRegExp).nullish(),
   "displayName": zod.string().max(getMeResponseDisplayNameMax).nullable(),
+  "signedInWithApple": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -107,6 +110,7 @@ export const UpdateMeResponse = zod.object({
   "id": zod.string(),
   "email": zod.string().regex(updateMeResponseEmailRegExp).nullish(),
   "displayName": zod.string().max(updateMeResponseDisplayNameMax).nullable(),
+  "signedInWithApple": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 

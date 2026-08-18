@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGetMe, useUpdateMe, getGetMeQueryKey } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
@@ -165,7 +166,15 @@ export default function ProfileScreen() {
   );
 
   const initials = getDisplayInitials(resolvedName);
-  const email = profile?.email ?? user?.email ?? 'Signed in with Apple';
+  const email = profile?.email ?? user?.email ?? null;
+  const signedInWithApple =
+    profile?.signedInWithApple ?? user?.signedInWithApple ?? false;
+
+  const handleCopyEmail = async () => {
+    if (!email) return;
+    await Clipboard.setStringAsync(email);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
 
   const startEditingName = () => {
     Haptics.selectionAsync();
@@ -302,7 +311,7 @@ export default function ProfileScreen() {
             {resolvedName}
           </Text>
           <Text style={[styles.heroEmail, { color: colors.mutedForeground }]}>
-            {email}
+            {email ?? (signedInWithApple ? 'Apple account' : 'No email')}
           </Text>
         </View>
 
@@ -371,12 +380,29 @@ export default function ProfileScreen() {
             )}
           </View>
           <View style={[styles.fieldBlock, styles.fieldBlockLast]}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-              Email
-            </Text>
+            <View style={styles.fieldHeader}>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                Email
+              </Text>
+              {email ? (
+                <Pressable
+                  onPress={() => void handleCopyEmail()}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Copy email to clipboard"
+                >
+                  <AppIcon name="doc.on.doc" size={18} color={colors.primary} />
+                </Pressable>
+              ) : null}
+            </View>
             <Text style={[styles.fieldValue, { color: colors.foreground }]}>
-              {email}
+              {email ?? 'Not available'}
             </Text>
+            {signedInWithApple ? (
+              <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
+                Signed in with Apple
+              </Text>
+            ) : null}
           </View>
         </Section>
 

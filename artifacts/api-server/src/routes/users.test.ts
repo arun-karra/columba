@@ -26,6 +26,7 @@ describe("GET /api/me", () => {
       id: "u1",
       email: "owner@example.com",
       displayName: "Alex",
+      appleUserId: "apple-123",
       createdAt: new Date("2026-01-01T00:00:00Z"),
     });
 
@@ -36,6 +37,7 @@ describe("GET /api/me", () => {
       id: "u1",
       email: "owner@example.com",
       displayName: "Alex",
+      signedInWithApple: true,
     });
   });
 

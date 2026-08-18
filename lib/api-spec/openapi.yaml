@@ -646,10 +646,12 @@ components:
         displayName:
           type: [string, "null"]
           maxLength: 100
+        signedInWithApple:
+          type: boolean
         createdAt:
           type: string
           format: date-time
-      required: [id, displayName, createdAt]
+      required: [id, displayName, signedInWithApple, createdAt]
     UserUpdate:
       type: object
       properties:

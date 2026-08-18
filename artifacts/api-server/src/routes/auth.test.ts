@@ -37,6 +37,7 @@ describe("POST /api/auth/apple", () => {
       id: "u1",
       email: "apple@privaterelay.appleid.com",
       appleUserId: "apple-user-123",
+      displayName: null,
       createdAt: new Date("2026-01-01T00:00:00Z"),
     });
     mockPrisma.groupInvite.findMany.mockResolvedValue([]);
@@ -48,6 +49,7 @@ describe("POST /api/auth/apple", () => {
     expect(res.status).toBe(200);
     expect(res.body.token).toEqual(expect.any(String));
     expect(res.body.user.id).toBe("u1");
+    expect(res.body.user.signedInWithApple).toBe(true);
     expect(mockPrisma.user.create).toHaveBeenCalledWith({
       data: {
         appleUserId: "apple-user-123",
@@ -77,6 +79,7 @@ describe("POST /api/auth/apple", () => {
       id: "u2",
       email: "invited@example.com",
       appleUserId: "apple-user-456",
+      displayName: null,
       createdAt: new Date("2026-01-01T00:00:00Z"),
     });
 
@@ -96,6 +99,7 @@ describe("POST /api/auth/dev-bypass", () => {
       id: "dev-user",
       email: "dev@columba.local",
       appleUserId: null,
+      displayName: null,
       createdAt: new Date("2026-01-01T00:00:00Z"),
     });
     mockPrisma.groupInvite.findMany.mockResolvedValue([]);
@@ -107,6 +111,7 @@ describe("POST /api/auth/dev-bypass", () => {
     expect(res.status).toBe(200);
     expect(res.body.token).toEqual(expect.any(String));
     expect(res.body.user.email).toBe("dev@columba.local");
+    expect(res.body.user.signedInWithApple).toBe(false);
   });
 
   it("rejects a wrong bypass code with 401", async () => {

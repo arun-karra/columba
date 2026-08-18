@@ -6,6 +6,7 @@ import { verifyAppleIdentityToken } from "../lib/appleAuth";
 import { asyncHandler, HttpError, parseOrThrow } from "../lib/errors";
 import { logger } from "../lib/logger";
 import { signUserToken } from "../middleware/auth";
+import { mapUser } from "./users";
 
 const router = Router();
 
@@ -62,16 +63,12 @@ async function finalizeAuth(user: {
   id: string;
   email: string | null;
   displayName: string | null;
+  appleUserId: string | null;
   createdAt: Date;
 }) {
   return {
     token: signUserToken(user),
-    user: {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      createdAt: user.createdAt,
-    },
+    user: mapUser(user),
   };
 }
 
