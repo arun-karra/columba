@@ -15,5 +15,6 @@ export interface User {
      * @nullable
      */
   displayName: string | null;
+  signedInWithApple: boolean;
   createdAt: Date;
 }

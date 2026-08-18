@@ -12,12 +12,14 @@ export function mapUser(user: {
   id: string;
   email: string | null;
   displayName: string | null;
+  appleUserId?: string | null;
   createdAt: Date;
 }) {
   return {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    signedInWithApple: Boolean(user.appleUserId),
     createdAt: user.createdAt,
   };
 }
