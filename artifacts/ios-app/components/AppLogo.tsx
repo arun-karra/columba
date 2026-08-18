@@ -2,7 +2,8 @@ import React from 'react';
 import { Image } from 'expo-image';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 
-const appIcon = require('@/assets/images/icon.png');
+/** In-app logo with true alpha; `icon.png` stays opaque for the native app icon. */
+const appLogo = require('@/assets/images/logo.png');
 
 type AppLogoProps = {
   size?: number;
@@ -15,13 +16,14 @@ type AppLogoProps = {
 export function AppLogo({ size = 88, style, onPress, accessibilityLabel }: AppLogoProps) {
   const image = (
     <Image
-      source={appIcon}
+      source={appLogo}
       style={{
         width: size,
         height: size,
         backgroundColor: 'transparent',
       }}
       contentFit="contain"
+      cachePolicy="memory-disk"
       accessibilityLabel={accessibilityLabel ?? 'Columba app logo'}
     />
   );
@@ -46,4 +48,4 @@ export function AppLogo({ size = 88, style, onPress, accessibilityLabel }: AppLo
   );
 }
 
-export const APP_ICON_ASSET = appIcon;
+export const APP_ICON_ASSET = appLogo;

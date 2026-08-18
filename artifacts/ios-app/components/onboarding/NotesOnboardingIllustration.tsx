@@ -1,10 +1,44 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useColors } from '@/hooks/useColors';
 import { AppIcon } from '@/components/AppIcon';
 
-export function NotesOnboardingIllustration() {
+type NotesOnboardingIllustrationProps = {
+  /** Pop the completion checkmark after the card appears (slide 1). */
+  animateCheck?: boolean;
+};
+
+export function NotesOnboardingIllustration({ animateCheck = false }: NotesOnboardingIllustrationProps) {
   const colors = useColors();
+  const checkScale = useSharedValue(animateCheck ? 0.5 : 1);
+  const checkOpacity = useSharedValue(animateCheck ? 0.35 : 1);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    if (!animateCheck || hasAnimated.current) return;
+    hasAnimated.current = true;
+    checkOpacity.value = withDelay(
+      320,
+      withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) }),
+    );
+    checkScale.value = withDelay(
+      320,
+      withSpring(1, { damping: 12, stiffness: 160 }),
+    );
+  }, [animateCheck, checkOpacity, checkScale]);
+
+  const checkStyle = useAnimatedStyle(() => ({
+    opacity: checkOpacity.value,
+    transform: [{ scale: checkScale.value }],
+  }));
 
   return (
     <View style={styles.wrap}>
@@ -20,11 +54,17 @@ export function NotesOnboardingIllustration() {
           </Text>
         </View>
 
-        <View style={[styles.checkOuter, { backgroundColor: `${colors.card}AA` }]}>
+        <Animated.View
+          style={[
+            styles.checkOuter,
+            checkStyle,
+            { backgroundColor: `${colors.card}AA` },
+          ]}
+        >
           <View style={[styles.checkInner, { backgroundColor: colors.primary }]}>
             <AppIcon name="checkmark" size={22} color={colors.primaryForeground} />
           </View>
-        </View>
+        </Animated.View>
       </View>
     </View>
   );
