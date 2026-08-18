@@ -14,10 +14,11 @@
       "backgroundColor": "#A0C2E5"
     },
     "ios": {
+      "icon": "./assets/images/icon.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.columba.notes",
       "usesAppleSignIn": true,
-      "buildNumber": "1",
+      "buildNumber": "2",
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
       },
@@ -28,7 +29,11 @@
       }
     },
     "android": {
-      "package": "com.columba.notes"
+      "package": "com.columba.notes",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#A0C2E5"
+      }
     },
     "web": {
       "favicon": "./assets/images/icon.png"

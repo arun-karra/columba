@@ -58,7 +58,10 @@ The Simulator shows **live JavaScript** from Metro, not what was baked into the 
 3. In the Metro terminal, press **`r`** to reload
 4. If it still looks stale: Simulator menu **Device → Erase All Content and Settings** is overkill — try **Cmd+R** in Simulator first
 
-**Home-screen app icon** (not onboarding): updating `artifacts/ios-app/assets/images/icon.png` requires a **new native build** — Metro alone will not change the icon on the Simulator springboard. Run `pnpm mac:sim` and install the latest build when the icon asset changes.
+**Home-screen and push notification icon:** iOS uses the icon baked into the native app
+bundle (not Metro). After updating artwork, run `pnpm --filter @workspace/ios-app run
+sync-icons`, then **`pnpm mac:sim`** and install the latest build. Metro reload alone
+will not change the springboard icon or the icon shown on lock-screen notifications.
 
 **Check you're on latest code:**
 
