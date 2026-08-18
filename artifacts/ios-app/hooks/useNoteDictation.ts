@@ -57,7 +57,7 @@ export function useNoteDictation({
     onBodyChangeRef.current = onBodyChange;
   }, [onBodyChange]);
 
-  const nativeLinked = isSpeechRecognitionNativeLinked();
+  const [nativeLinked] = useState(() => isSpeechRecognitionNativeLinked());
   const isSupported = Platform.OS === 'ios' && nativeLinked;
   const showMicButton = Platform.OS === 'ios';
 
