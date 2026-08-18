@@ -36,7 +36,7 @@ function mapGroup(group: {
   return {
     id: group.id,
     name: group.name,
-    emoji: group.emoji ?? defaultEmojiForGroup(group.name),
+    emoji: group.emoji ?? defaultEmojiForGroup(group.id),
     createdByUserId: group.createdByUserId,
     createdAt: group.createdAt,
     members: group.memberships.map((membership) => ({
@@ -84,15 +84,22 @@ router.post(
   asyncHandler(async (req, res) => {
     const userId = (req as AuthenticatedRequest).userId;
     const input = parseOrThrow(CreateGroupBody, req.body);
-    const group = await prisma.group.create({
+    let group = await prisma.group.create({
       data: {
         name: input.name.trim(),
-        emoji: input.emoji ?? defaultEmojiForGroup(input.name.trim()),
+        emoji: input.emoji ?? null,
         createdByUserId: userId,
         memberships: { create: { userId, role: "admin" } },
       },
       include: { memberships: { select: memberSelect } },
     });
+    if (!input.emoji) {
+      group = await prisma.group.update({
+        where: { id: group.id },
+        data: { emoji: defaultEmojiForGroup(group.id) },
+        include: { memberships: { select: memberSelect } },
+      });
+    }
     res.status(201).json(mapGroup(group));
   }),
 );

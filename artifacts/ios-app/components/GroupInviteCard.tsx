@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import type { GroupInvite } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { GroupAvatar } from '@/components/GroupAvatar';
-import { defaultIconStyleForGroup } from '@/utils/emojiCatalog';
+import { defaultIconStyleForGroupId } from '@/utils/emojiCatalog';
 
 type Props = {
   invite: GroupInvite;
@@ -40,7 +40,7 @@ export function GroupInviteCard({ invite, loading, onAccept, onDecline }: Props)
         emoji={invite.groupEmoji}
         fallbackInitials={initials}
         size={44}
-        backgroundColor={defaultIconStyleForGroup(invite.groupName)}
+        backgroundColor={defaultIconStyleForGroupId(invite.groupId)}
       />
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>

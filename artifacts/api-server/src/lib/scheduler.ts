@@ -24,7 +24,7 @@ export function startReminderScheduler() {
         ? note.group.memberships.map((membership) => membership.userId)
         : [note.ownerId];
       const groupEmoji = note.group
-        ? resolveGroupEmoji(note.group.emoji, note.group.name)
+        ? resolveGroupEmoji(note.group.emoji, note.group.id)
         : null;
       const text = formatNoteNotificationText(note.body, groupEmoji);
 

@@ -24,17 +24,18 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-export function defaultEmojiForGroup(name: string): string {
-  const index = hashString(name.trim().toLowerCase()) % GROUP_EMOJI_OPTIONS.length;
+/** Stable default from group id — survives renames. */
+export function defaultEmojiForGroup(groupId: string): string {
+  const index = hashString(groupId) % GROUP_EMOJI_OPTIONS.length;
   return GROUP_EMOJI_OPTIONS[index]!;
 }
 
 export function resolveGroupEmoji(
   emoji: string | null | undefined,
-  groupName: string | null | undefined,
+  groupId: string | null | undefined,
 ): string | null {
   if (emoji) return emoji;
-  if (groupName) return defaultEmojiForGroup(groupName);
+  if (groupId) return defaultEmojiForGroup(groupId);
   return null;
 }
 

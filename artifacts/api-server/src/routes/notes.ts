@@ -39,11 +39,11 @@ function mapNote(note: {
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  group: { name: string; emoji: string | null } | null;
+  group: { id: string; name: string; emoji: string | null } | null;
   completedBy: { id: string; email: string | null } | null;
 }) {
   const groupEmoji = note.group
-    ? resolveGroupEmoji(note.group.emoji, note.group.name)
+    ? resolveGroupEmoji(note.group.emoji, note.group.id)
     : null;
 
   return {
@@ -69,10 +69,10 @@ function mapNote(note: {
 
 function notificationTextForNote(note: {
   body: string;
-  group: { name: string; emoji: string | null } | null;
+  group: { id: string; name: string; emoji: string | null } | null;
 }) {
   const groupEmoji = note.group
-    ? resolveGroupEmoji(note.group.emoji, note.group.name)
+    ? resolveGroupEmoji(note.group.emoji, note.group.id)
     : null;
   return formatNoteNotificationText(note.body, groupEmoji);
 }

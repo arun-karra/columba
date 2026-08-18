@@ -34,8 +34,14 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-export function defaultEmojiForGroup(name: string): GroupEmoji {
-  const index = hashString(name.trim().toLowerCase()) % GROUP_EMOJI_OPTIONS.length;
+/** Stable default from group id — survives renames. Name seed is only for new-group UI previews. */
+export function defaultEmojiForGroup(seed: string): GroupEmoji {
+  const index = hashString(seed.trim().toLowerCase()) % GROUP_EMOJI_OPTIONS.length;
+  return GROUP_EMOJI_OPTIONS[index]!;
+}
+
+export function defaultEmojiForGroupId(groupId: string): GroupEmoji {
+  const index = hashString(groupId) % GROUP_EMOJI_OPTIONS.length;
   return GROUP_EMOJI_OPTIONS[index]!;
 }
 
@@ -73,10 +79,10 @@ export async function clearGroupEmoji(groupId: string): Promise<void> {
 
 export function resolveGroupEmoji(
   groupId: string,
-  groupName: string,
+  _groupName: string,
   map: Record<string, string>,
   serverEmoji?: string | null,
 ): string {
   if (serverEmoji) return serverEmoji;
-  return map[groupId] ?? defaultEmojiForGroup(groupName);
+  return map[groupId] ?? defaultEmojiForGroupId(groupId);
 }

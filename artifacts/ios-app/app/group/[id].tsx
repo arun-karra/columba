@@ -35,9 +35,10 @@ import { ScreenGradient } from '@/components/ScreenGradient';
 import { useScreenGutter } from '@/constants/layout';
 import {
   defaultEmojiForGroup,
+  defaultEmojiForGroupId,
   setGroupEmoji,
 } from '@/utils/groupEmoji';
-import { defaultIconStyleForGroup } from '@/utils/emojiCatalog';
+import { defaultIconStyleForGroupId } from '@/utils/emojiCatalog';
 import {
   getGroupIconColor,
   setGroupIconColor,
@@ -115,7 +116,7 @@ export default function GroupDetailScreen() {
   const [showEmojiEditor, setShowEmojiEditor] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [draftEmoji, setDraftEmoji] = useState<string>(defaultEmojiForGroup(''));
-  const [draftIconColor, setDraftIconColor] = useState<string>(defaultIconStyleForGroup(''));
+  const [draftIconColor, setDraftIconColor] = useState<string>(defaultIconStyleForGroupId(''));
   const [draftName, setDraftName] = useState('');
 
   const { data: group, isLoading } = useGetGroup(id ?? '');
@@ -133,9 +134,9 @@ export default function GroupDetailScreen() {
     if (!group) return;
     setGroupEmojiState(group.emoji);
     void getGroupIconColor(group.id).then((color) => {
-      setGroupIconColorState(color ?? defaultIconStyleForGroup(group.name));
+      setGroupIconColorState(color ?? defaultIconStyleForGroupId(group.id));
     });
-  }, [group?.id, group?.emoji, group?.name]);
+  }, [group?.id, group?.emoji]);
 
   const inviteMutation = useInviteToGroup({
     mutation: {
@@ -262,8 +263,8 @@ export default function GroupDetailScreen() {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
 
-  const emoji = groupEmoji ?? group.emoji ?? defaultEmojiForGroup(group.name);
-  const iconColor = groupIconColor ?? defaultIconStyleForGroup(group.name);
+  const emoji = groupEmoji ?? group.emoji ?? defaultEmojiForGroupId(group.id);
+  const iconColor = groupIconColor ?? defaultIconStyleForGroupId(group.id);
 
   const openEmojiEditor = () => {
     setDraftEmoji(emoji);

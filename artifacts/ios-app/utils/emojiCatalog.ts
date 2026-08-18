@@ -212,10 +212,20 @@ export function emojisForCategory(categoryId: string, recent: readonly string[])
   return category ? [...category.emojis] : [];
 }
 
-export function defaultIconStyleForGroup(name: string): GroupIconStyleColor {
+export function defaultIconStyleForGroup(seed: string): GroupIconStyleColor {
   let hash = 0;
-  for (let i = 0; i < name.length; i += 1) {
-    hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  const index = Math.abs(hash) % GROUP_ICON_STYLE_COLORS.length;
+  return GROUP_ICON_STYLE_COLORS[index]!;
+}
+
+/** Stable default from group id — survives renames. */
+export function defaultIconStyleForGroupId(groupId: string): GroupIconStyleColor {
+  let hash = 0;
+  for (let i = 0; i < groupId.length; i += 1) {
+    hash = (hash * 31 + groupId.charCodeAt(i)) | 0;
   }
   const index = Math.abs(hash) % GROUP_ICON_STYLE_COLORS.length;
   return GROUP_ICON_STYLE_COLORS[index]!;

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { defaultIconStyleForGroup, type GroupIconStyleColor } from '@/utils/emojiCatalog';
+import { defaultIconStyleForGroup, defaultIconStyleForGroupId, type GroupIconStyleColor } from '@/utils/emojiCatalog';
 
 const STORAGE_KEY = 'columba-group-icon-colors';
 const RECENT_EMOJI_KEY = 'columba-recent-emojis';
@@ -39,10 +39,10 @@ export async function clearGroupIconColor(groupId: string): Promise<void> {
 
 export function resolveGroupIconColor(
   groupId: string,
-  groupName: string,
+  _groupName: string,
   map: Record<string, string>,
 ): GroupIconStyleColor {
-  return (map[groupId] as GroupIconStyleColor | undefined) ?? defaultIconStyleForGroup(groupName);
+  return (map[groupId] as GroupIconStyleColor | undefined) ?? defaultIconStyleForGroupId(groupId);
 }
 
 export async function getRecentEmojis(): Promise<string[]> {
