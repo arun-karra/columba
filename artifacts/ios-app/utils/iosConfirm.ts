@@ -63,27 +63,3 @@ export function promptText(options: {
   return true;
 }
 
-export function showNoteQuickActions(options: {
-  canResend: boolean;
-  onResend: () => void;
-}) {
-  if (!options.canResend) return;
-
-  if (Platform.OS === 'ios') {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: ['Cancel', 'Resend Notification'],
-        cancelButtonIndex: 0,
-      },
-      (buttonIndex) => {
-        if (buttonIndex === 1) options.onResend();
-      },
-    );
-    return;
-  }
-
-  Alert.alert('Note', undefined, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Resend Notification', onPress: options.onResend },
-  ]);
-}

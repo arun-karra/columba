@@ -26,7 +26,8 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { AppIcon } from '@/components/AppIcon';
 import { GroupAvatar } from '@/components/GroupAvatar';
-import { confirmDestructive, showNoteQuickActions } from '@/utils/iosConfirm';
+import { confirmDestructive } from '@/utils/iosConfirm';
+import { NoteActionsSheet } from '@/components/NoteActionsSheet';
 import { getNoteNotificationStatus } from '@/utils/noteNotificationStatus';
 import { canResendNoteNotification, resendNoteNotification } from '@/utils/resendNoteNotification';
 import { FAB_SIZE, useFabBottom, useListBottomPadding, useScreenGutter } from '@/constants/layout';
@@ -138,6 +139,7 @@ export default function NotesScreen() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
+  const [actionsNote, setActionsNote] = useState<Note | null>(null);
   const openSwipeRef = useRef<Swipeable | null>(null);
 
   const { data: notes = [], isLoading, refetch } = useListNotes({
@@ -223,15 +225,11 @@ export default function NotesScreen() {
   const openNoteActions = useCallback(
     (note: Note) => {
       if (selectionMode) return;
+      if (!canResendNoteNotification(note)) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      showNoteQuickActions({
-        canResend: canResendNoteNotification(note),
-        onResend: () => {
-          void handleResendNote(note);
-        },
-      });
+      setActionsNote(note);
     },
-    [handleResendNote, selectionMode],
+    [selectionMode],
   );
 
   const handleToggleDone = useCallback(
@@ -505,6 +503,16 @@ export default function NotesScreen() {
           </Pressable>
         </View>
       ) : null}
+
+      <NoteActionsSheet
+        visible={actionsNote != null}
+        noteBody={actionsNote?.body}
+        canResend={actionsNote != null && canResendNoteNotification(actionsNote)}
+        onClose={() => setActionsNote(null)}
+        onResend={() => {
+          if (actionsNote) void handleResendNote(actionsNote);
+        }}
+      />
 
       {!selectionMode ? (
         <Pressable
