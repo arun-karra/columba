@@ -100,6 +100,30 @@ You do **not** need any of that just to use the app in the Simulator with the de
 
 ---
 
+## Wrong app icon (green squares instead of Columba dove)
+
+The home-screen icon is **baked into the native dev-client build**, not loaded from Metro. If you still see the old green/teal squares icon:
+
+1. **Pull the latest code** (includes `icon-source.png`, `sync-icons`, and processed `icon.png`):
+   ```bash
+   cd ~/columba
+   git pull origin main
+   ```
+2. **Delete Columba** from the Simulator home screen (long-press → Remove App).
+3. **Rebuild and install** (one command):
+   ```bash
+   pnpm mac:sim:install
+   ```
+   Or manually: `pnpm mac:sim`, wait until the EAS build is **FINISHED**, then:
+   ```bash
+   cd artifacts/ios-app && pnpm exec eas build:run --platform ios --latest
+   ```
+4. Open the newly installed Columba app → tap **localhost:8081** → logo 20× → `columba-dev`.
+
+Until step 3 completes, the springboard icon and push notifications will keep showing the **old** build.
+
+---
+
 ## If something breaks
 
 ### `git pull` blocked by local changes
