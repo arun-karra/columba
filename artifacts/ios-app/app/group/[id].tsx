@@ -26,7 +26,7 @@ import {
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import type { GroupMember } from '@workspace/api-client-react';
+import type { GroupMember, GroupPendingInvite } from '@workspace/api-client-react';
 import { AppIcon } from '@/components/AppIcon';
 import { GroupAvatar } from '@/components/GroupAvatar';
 import { EmojiPicker } from '@/components/EmojiPicker';
@@ -35,15 +35,43 @@ import { ScreenGradient } from '@/components/ScreenGradient';
 import { useScreenGutter } from '@/constants/layout';
 import {
   defaultEmojiForGroup,
+  defaultEmojiForGroupId,
   setGroupEmoji,
 } from '@/utils/groupEmoji';
-import { defaultIconStyleForGroup } from '@/utils/emojiCatalog';
+import { defaultIconStyleForGroupId } from '@/utils/emojiCatalog';
 import {
   getGroupIconColor,
   setGroupIconColor,
 } from '@/utils/groupIconStyle';
 import { clearGroupLocalData } from '@/utils/clearGroupLocalData';
 import { canDeleteGroup, isGroupAdmin } from '@/utils/groupPermissions';
+
+function PendingInviteRow({ invite }: { invite: GroupPendingInvite }) {
+  const colors = useColors();
+  const initials = invite.email.slice(0, 2).toUpperCase();
+
+  return (
+    <View style={[styles.memberCard, { backgroundColor: colors.card }]}>
+      <View style={[styles.memberAvatar, { backgroundColor: colors.muted }]}>
+        <Text style={[styles.memberInitials, { color: colors.mutedForeground }]}>
+          {initials}
+        </Text>
+      </View>
+      <View style={styles.memberInfo}>
+        <Text style={[styles.memberEmail, { color: colors.foreground }]} numberOfLines={1}>
+          {invite.email}
+        </Text>
+        <View style={[styles.roleBadge, { backgroundColor: colors.secondary }]}>
+          <Text style={[styles.roleText, { color: colors.primary }]}>Invited</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+type MemberListEntry =
+  | { type: 'member'; key: string; member: GroupMember }
+  | { type: 'pending'; key: string; invite: GroupPendingInvite };
 
 function MemberRow({
   member,
@@ -115,7 +143,7 @@ export default function GroupDetailScreen() {
   const [showEmojiEditor, setShowEmojiEditor] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [draftEmoji, setDraftEmoji] = useState<string>(defaultEmojiForGroup(''));
-  const [draftIconColor, setDraftIconColor] = useState<string>(defaultIconStyleForGroup(''));
+  const [draftIconColor, setDraftIconColor] = useState<string>(defaultIconStyleForGroupId(''));
   const [draftName, setDraftName] = useState('');
 
   const { data: group, isLoading } = useGetGroup(id ?? '');
@@ -133,9 +161,9 @@ export default function GroupDetailScreen() {
     if (!group) return;
     setGroupEmojiState(group.emoji);
     void getGroupIconColor(group.id).then((color) => {
-      setGroupIconColorState(color ?? defaultIconStyleForGroup(group.name));
+      setGroupIconColorState(color ?? defaultIconStyleForGroupId(group.id));
     });
-  }, [group?.id, group?.emoji, group?.name]);
+  }, [group?.id, group?.emoji]);
 
   const inviteMutation = useInviteToGroup({
     mutation: {
@@ -262,8 +290,19 @@ export default function GroupDetailScreen() {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
 
-  const emoji = groupEmoji ?? group.emoji ?? defaultEmojiForGroup(group.name);
-  const iconColor = groupIconColor ?? defaultIconStyleForGroup(group.name);
+  const emoji = groupEmoji ?? group.emoji ?? defaultEmojiForGroupId(group.id);
+  const iconColor = groupIconColor ?? defaultIconStyleForGroupId(group.id);
+  const pendingInvites = group.pendingInvites ?? [];
+  const memberListData: MemberListEntry[] = [
+    ...group.members.map((member) => ({ type: 'member' as const, key: member.userId, member })),
+    ...pendingInvites.map((invite) => ({ type: 'pending' as const, key: invite.id, invite })),
+  ];
+  const invitedLabel =
+    pendingInvites.length === 1
+      ? '1 invited'
+      : pendingInvites.length > 1
+        ? `${pendingInvites.length} invited`
+        : null;
 
   const openEmojiEditor = () => {
     setDraftEmoji(emoji);
@@ -317,8 +356,8 @@ export default function GroupDetailScreen() {
     <ScreenGradient>
       <Stack.Screen options={{ headerTitle: group.name }} />
       <FlatList
-        data={group.members}
-        keyExtractor={(m) => m.userId}
+        data={memberListData}
+        keyExtractor={(item) => item.key}
         contentContainerStyle={[styles.listContent, { paddingHorizontal: gutter }]}
         contentInsetAdjustmentBehavior="automatic"
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -346,8 +385,8 @@ export default function GroupDetailScreen() {
                 <Text style={[styles.changeEmoji, { color: colors.primary }]}>Rename</Text>
               </Pressable>
               <Text style={[styles.memberCount, { color: colors.mutedForeground }]}>
-                {group.members.length}{' '}
-                {group.members.length === 1 ? 'member' : 'members'}
+                {group.members.length} {group.members.length === 1 ? 'member' : 'members'}
+                {invitedLabel ? ` · ${invitedLabel}` : ''}
               </Text>
             </View>
 
@@ -416,14 +455,18 @@ export default function GroupDetailScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <MemberRow
-            member={item}
-            isMe={item.userId === user?.id}
-            canRemove={isAdmin || item.userId === user?.id}
-            onRemove={() => handleRemove(item)}
-          />
-        )}
+        renderItem={({ item }) =>
+          item.type === 'pending' ? (
+            <PendingInviteRow invite={item.invite} />
+          ) : (
+            <MemberRow
+              member={item.member}
+              isMe={item.member.userId === user?.id}
+              canRemove={isAdmin || item.member.userId === user?.id}
+              onRemove={() => handleRemove(item.member)}
+            />
+          )
+        }
         ListFooterComponent={
           <View style={styles.dangerSection}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>

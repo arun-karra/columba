@@ -22,7 +22,7 @@ function mapInvite(invite: {
     id: invite.id,
     groupId: invite.groupId,
     groupName: invite.group.name,
-    groupEmoji: invite.group.emoji ?? defaultEmojiForGroup(invite.group.name),
+    groupEmoji: invite.group.emoji ?? defaultEmojiForGroup(invite.groupId),
     invitedByEmail: invite.invitedBy.email,
     invitedByName: invite.invitedBy.displayName,
     createdAt: invite.createdAt,

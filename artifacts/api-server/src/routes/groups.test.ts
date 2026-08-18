@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { authHeader, buildTestApp } from "../test/testApp";
+import { defaultEmojiForGroup } from "../lib/groupEmoji";
 import type { MockPrisma } from "../test/mockPrisma";
 
 vi.mock("../lib/prisma", async () => {
@@ -44,6 +45,7 @@ describe("GET /api/groups", () => {
     const res = await request(app).get("/api/groups").set(authHeader(admin));
 
     expect(res.status).toBe(200);
+    expect(res.body[0].pendingInvites).toEqual([]);
     expect(res.body[0].members).toEqual([
       { userId: admin.id, email: admin.email, role: "admin", createdAt: expect.any(String) },
       { userId: member.id, email: member.email, role: "member", createdAt: expect.any(String) },
@@ -52,8 +54,10 @@ describe("GET /api/groups", () => {
 });
 
 describe("POST /api/groups", () => {
-  it("creates a group with the caller as admin", async () => {
-    mockPrisma.group.create.mockResolvedValue(makeGroup());
+  it("creates a group with the caller as admin and persists id-based default emoji", async () => {
+    const created = makeGroup({ emoji: null });
+    mockPrisma.group.create.mockResolvedValue(created);
+    mockPrisma.group.update.mockResolvedValue(makeGroup({ emoji: defaultEmojiForGroup("group-1") }));
 
     const res = await request(app).post("/api/groups").set(authHeader(admin)).send({ name: "Household" });
 
@@ -62,11 +66,19 @@ describe("POST /api/groups", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           name: "Household",
+          emoji: null,
           createdByUserId: admin.id,
           memberships: { create: { userId: admin.id, role: "admin" } },
         }),
       }),
     );
+    expect(mockPrisma.group.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "group-1" },
+        data: { emoji: defaultEmojiForGroup("group-1") },
+      }),
+    );
+    expect(res.body.emoji).toBe(defaultEmojiForGroup("group-1"));
   });
 
   it("rejects an empty name", async () => {
@@ -76,12 +88,18 @@ describe("POST /api/groups", () => {
 });
 
 describe("GET /api/groups/:id", () => {
-  it("returns the group for a member", async () => {
+  it("returns the group for a member with pending invites", async () => {
     mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: admin.id, role: "admin" });
     mockPrisma.group.findUnique.mockResolvedValue(makeGroup());
+    mockPrisma.groupInvite.findMany.mockResolvedValue([
+      { id: "invite-1", email: "pending@example.com", createdAt: new Date("2026-01-02T00:00:00Z") },
+    ]);
 
     const res = await request(app).get("/api/groups/group-1").set(authHeader(admin));
     expect(res.status).toBe(200);
+    expect(res.body.pendingInvites).toEqual([
+      { id: "invite-1", email: "pending@example.com", createdAt: expect.any(String) },
+    ]);
   });
 
   it("forbids a non-member", async () => {
@@ -102,6 +120,20 @@ describe("GET /api/groups/:id", () => {
 });
 
 describe("PATCH /api/groups/:id", () => {
+  it("preserves emoji when renaming (default is derived from group id, not name)", async () => {
+    mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: member.id, role: "member" });
+    mockPrisma.group.update.mockResolvedValue(makeGroup({ name: "Roommates", emoji: null }));
+
+    const res = await request(app)
+      .patch("/api/groups/group-1")
+      .set(authHeader(member))
+      .send({ name: "Roommates" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.emoji).toBe(defaultEmojiForGroup("group-1"));
+    expect(res.body.emoji).not.toBe(defaultEmojiForGroup("Roommates"));
+  });
+
   it("lets a member rename the group", async () => {
     mockPrisma.groupMembership.findUnique.mockResolvedValue({ groupId: "group-1", userId: member.id, role: "member" });
     mockPrisma.group.update.mockResolvedValue(makeGroup({ name: "Roommates" }));

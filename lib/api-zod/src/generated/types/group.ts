@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GroupMember } from './groupMember';
+import type { GroupPendingInvite } from './groupPendingInvite';
 
 export interface Group {
   id: string;
@@ -15,4 +16,5 @@ export interface Group {
   createdByUserId: string;
   createdAt: Date;
   members: GroupMember[];
+  pendingInvites: GroupPendingInvite[];
 }

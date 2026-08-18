@@ -19,6 +19,7 @@ export * from './groupInput';
 export * from './groupInvite';
 export * from './groupMember';
 export * from './groupMemberRole';
+export * from './groupPendingInvite';
 export * from './groupUpdate';
 export * from './healthStatus';
 export * from './inviteInput';

@@ -307,6 +307,7 @@ export const ResendNoteNotificationResponse = zod.void()
  * @summary List groups the current user belongs to
  */
 export const listGroupsResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const listGroupsResponsePendingInvitesItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
 
 
 export const ListGroupsResponseItem = zod.object({
@@ -319,6 +320,11 @@ export const ListGroupsResponseItem = zod.object({
   "userId": zod.string(),
   "email": zod.string().regex(listGroupsResponseMembersItemEmailRegExp),
   "role": zod.enum(['admin', 'member']),
+  "createdAt": zod.coerce.date()
+})),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.string(),
+  "email": zod.string().regex(listGroupsResponsePendingInvitesItemEmailRegExp),
   "createdAt": zod.coerce.date()
 }))
 })
@@ -340,6 +346,7 @@ export const CreateGroupBody = zod.object({
 })
 
 export const createGroupResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const createGroupResponsePendingInvitesItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
 
 
 export const CreateGroupResponse = zod.object({
@@ -353,6 +360,11 @@ export const CreateGroupResponse = zod.object({
   "email": zod.string().regex(createGroupResponseMembersItemEmailRegExp),
   "role": zod.enum(['admin', 'member']),
   "createdAt": zod.coerce.date()
+})),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.string(),
+  "email": zod.string().regex(createGroupResponsePendingInvitesItemEmailRegExp),
+  "createdAt": zod.coerce.date()
 }))
 })
 
@@ -365,6 +377,7 @@ export const GetGroupParams = zod.object({
 })
 
 export const getGroupResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const getGroupResponsePendingInvitesItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
 
 
 export const GetGroupResponse = zod.object({
@@ -377,6 +390,11 @@ export const GetGroupResponse = zod.object({
   "userId": zod.string(),
   "email": zod.string().regex(getGroupResponseMembersItemEmailRegExp),
   "role": zod.enum(['admin', 'member']),
+  "createdAt": zod.coerce.date()
+})),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.string(),
+  "email": zod.string().regex(getGroupResponsePendingInvitesItemEmailRegExp),
   "createdAt": zod.coerce.date()
 }))
 })
@@ -401,6 +419,7 @@ export const UpdateGroupBody = zod.object({
 })
 
 export const updateGroupResponseMembersItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+export const updateGroupResponsePendingInvitesItemEmailRegExp = new RegExp('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
 
 
 export const UpdateGroupResponse = zod.object({
@@ -413,6 +432,11 @@ export const UpdateGroupResponse = zod.object({
   "userId": zod.string(),
   "email": zod.string().regex(updateGroupResponseMembersItemEmailRegExp),
   "role": zod.enum(['admin', 'member']),
+  "createdAt": zod.coerce.date()
+})),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.string(),
+  "email": zod.string().regex(updateGroupResponsePendingInvitesItemEmailRegExp),
   "createdAt": zod.coerce.date()
 }))
 })
